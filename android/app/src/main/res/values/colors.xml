@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pamuk palette -->
+    <color name="pamuk_lavender">#FF9B8AD8</color>
+    <color name="pamuk_peach">#FFF2A88A</color>
+    <color name="pamuk_mint">#FF86C5B0</color>
+
+    <!-- Home-screen widget (light). Night values live in values-night/colors.xml. -->
+    <color name="pamuk_widget_bg">#FFFBF7F2</color>
+    <color name="pamuk_widget_text">#FF3E3A4A</color>
+    <color name="pamuk_widget_text_secondary">#FF8C8698</color>
+    <color name="pamuk_widget_text_done">#663E3A4A</color>
+    <color name="pamuk_widget_text_secondary_done">#668C8698</color>
+    <color name="pamuk_widget_accent_text">#FF7A68C2</color>
+    <color name="pamuk_widget_track">#FFEFE8F6</color>
+    <color name="pamuk_widget_pill">#1F9B8AD8</color>
+    <color name="pamuk_widget_pill_peach">#2EF2A88A</color>
+</resources>

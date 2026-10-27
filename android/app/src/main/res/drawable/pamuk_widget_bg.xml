@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Warm cream (light) / soft plum (dark, via values-night/colors.xml). No border. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/pamuk_widget_bg" />
+    <corners android:radius="@dimen/pamuk_widget_radius" />
+</shape>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Pamuk</string>
+
+    <!-- Home-screen widget -->
+    <string name="pamuk_widget_label">Pamuk · Today</string>
+    <string name="pamuk_widget_description">Today\'s plan, tasks and reminders at a glance.</string>
+    <string name="pamuk_widget_placeholder_title" translatable="false">Pamuk</string>
+    <string name="pamuk_widget_placeholder_text">Open the app to get started</string>
+    <string name="pamuk_widget_stale_text">Open the app to see today\'s plan</string>
+    <string name="pamuk_widget_default_title">Today</string>
+    <string name="pamuk_widget_next_label">Next</string>
+    <string name="pamuk_widget_more">+%1$d more</string>
+
+    <!-- Static sample content for the widget picker preview (Android 12+) -->
+    <string name="pamuk_widget_preview_title">Today</string>
+    <string name="pamuk_widget_preview_date">Tuesday, 27 October</string>
+    <string name="pamuk_widget_preview_progress">1/3 done</string>
+    <string name="pamuk_widget_preview_item_1">Finish the slides</string>
+    <string name="pamuk_widget_preview_item_2">Call mom</string>
+    <string name="pamuk_widget_preview_item_3">Evening yoga</string>
+</resources>
