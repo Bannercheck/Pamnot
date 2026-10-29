@@ -23,18 +23,18 @@ class SampleData {
     final notes = [
       Note(
         id: id(),
-        title: tr ? 'Pamuk’a hoş geldin 🌸' : 'Welcome to Pamuk 🌸',
+        title: tr ? 'Pamnot’a hoş geldin 🌸' : 'Welcome to Pamnot 🌸',
         body: tr
             ? '• Notlarına yazı ekleyebilir ya da Apple Pencil ile el yazısıyla yazabilirsin.\n'
                 '• Yazarken klavyenin üstünde Türkçe ve İngilizce kelime önerileri çıkar. Öneriye dokun ya da Tab tuşuna bas.\n'
                 '• Takip sekmesinde görevlerini ve alışkanlıklarını izle.\n'
                 '• Plan sekmesinde haftanı düzenle; anımsatıcılar sana zamanında haber versin.\n'
-                '• Ana ekranına Pamuk widget’ını ekleyerek bugünün planını hep gör.'
+                '• Ana ekranına Pamnot widget’ını ekleyerek bugünün planını hep gör.'
             : '• Type your notes or write them by hand with Apple Pencil.\n'
                 '• Word suggestions in English and Turkish appear above the keyboard as you type. Tap one or press Tab.\n'
                 '• Track your tasks and habits in the Track tab.\n'
                 '• Shape your week in Plan; reminders reach you right on time.\n'
-                '• Add the Pamuk widget to your home screen to keep today in sight.',
+                '• Add the Pamnot widget to your home screen to keep today in sight.',
         colorIndex: 3,
         pinned: true,
         createdAt: now,

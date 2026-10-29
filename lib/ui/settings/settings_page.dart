@@ -123,14 +123,14 @@ class SettingsPage extends StatelessWidget {
                     title: Text(s.testNotification),
                     onTap: () async {
                       await app.scheduler.requestPermission();
-                      await app.scheduler.showNow('Pamuk', s.testNotificationBody);
+                      await app.scheduler.showNow('Pamnot', s.testNotificationBody);
                     },
                   ),
                 ]),
                 group(s.about, [
                   ListTile(
                     leading: const Text('☁️', style: TextStyle(fontSize: 24)),
-                    title: const Text('Pamuk'),
+                    title: const Text('Pamnot'),
                     subtitle: Text(s.aboutText),
                   ),
                 ]),

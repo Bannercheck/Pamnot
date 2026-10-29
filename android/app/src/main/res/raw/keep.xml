@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Notification icons are looked up by name from Dart (AndroidInitializationSettings('ic_stat_pamuk')),
+<!-- Notification icons are looked up by name from Dart (AndroidInitializationSettings('ic_stat_pamnot')),
      so R8 resource shrinking cannot see the reference. Keep them explicitly. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
     tools:keep="@drawable/ic_stat_*" />

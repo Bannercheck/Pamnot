@@ -26,7 +26,7 @@ Future<void> main() async {
     handwriting: HandwritingRecognizer.platformDefault(),
   );
   await controller.load();
-  runApp(PamukApp(controller: controller));
+  runApp(PamnotApp(controller: controller));
 
   // Everything below is off the critical path to the first frame.
   unawaited(scheduler.init().then((_) => controller.syncAlerts()));

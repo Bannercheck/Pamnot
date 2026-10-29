@@ -10,7 +10,7 @@ import '../../models/settings.dart';
 import '../../services/handwriting.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
-import '../../theme/pamuk_theme.dart';
+import '../../theme/pamnot_theme.dart';
 import '../common/prediction_bar.dart';
 import '../common/soft.dart';
 import 'ink/ink_canvas.dart';

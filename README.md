@@ -1,4 +1,4 @@
-# Pamuk ☁️
+# Pamnot ☁️
 
 Yumuşacık bir not, takip, planlama ve anımsatıcı uygulaması. Tek Flutter kod
 tabanından **iPhone, iPad, macOS, Android, Windows** (ve Linux/web) üzerinde
@@ -57,9 +57,9 @@ Flutter 3.47 / Dart 3.13 ile geliştirildi.
 
 ### Platform notları
 
-- **iOS widget'ı:** Swift kodu `ios/PamukWidget/` içinde hazır. Widget extension hedefi Xcode'da bir
-  kez eklenmeli; adımlar [`ios/PamukWidget/README.md`](ios/PamukWidget/README.md) dosyasında. App Group:
-  `group.app.pamuk.shared`.
+- **iOS widget'ı:** Swift kodu `ios/PamnotWidget/` içinde hazır. Widget extension hedefi Xcode'da bir
+  kez eklenmeli; adımlar [`ios/PamnotWidget/README.md`](ios/PamnotWidget/README.md) dosyasında. App Group:
+  `group.app.pamnot.shared`.
 - **iOS dağıtım hedefi** 16.0 (kilit ekranı widget'ları ve ML Kit için).
 - **ML Kit el yazısı modelleri** ilk kullanımda indirilir (dil başına yaklaşık 20 MB). Ayarlar'dan önceden
   indirilebilir. ML Kit Apple Silicon üzerindeki iOS simülatöründe çalışmayabilir; gerçek cihazda deneyin.

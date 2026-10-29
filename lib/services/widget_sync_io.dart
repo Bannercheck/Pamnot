@@ -11,7 +11,7 @@ WidgetSync createWidgetSync() =>
 class _HomeWidgetSync extends DedupingWidgetSync {
   bool _groupSet = false;
 
-  /// The native widgets open `pamuk://today?homeWidget`.
+  /// The native widgets open `pamnot://today?homeWidget`.
   @override
   void listenForTaps(void Function() onTap) {
     void handle(Uri? uri) {

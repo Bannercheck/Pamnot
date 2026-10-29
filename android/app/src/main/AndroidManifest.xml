@@ -34,7 +34,7 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
-            <!-- Widget taps launch this activity with data pamuk://today?homeWidget. Flutter's
+            <!-- Widget taps launch this activity with data pamnot://today?homeWidget. Flutter's
                  built-in deep linking would turn that URI into a Navigator route (pushing a
                  duplicate/unknown route), so it is disabled; the Dart side reads widget launches
                  through HomeWidget.initiallyLaunchedFromHomeWidget() / HomeWidget.widgetClicked. -->
@@ -71,17 +71,17 @@
             android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"/>
 
-        <!-- Home-screen widget: "Pamuk · Today". -->
+        <!-- Home-screen widget: "Pamnot · Today". -->
         <receiver
-            android:name=".widget.PamukTodayWidgetProvider"
-            android:label="@string/pamuk_widget_label"
+            android:name=".widget.PamnotTodayWidgetProvider"
+            android:label="@string/pamnot_widget_label"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/pamuk_today_widget_info"/>
+                android:resource="@xml/pamnot_today_widget_info"/>
         </receiver>
 
         <!-- home_widget: delivers HomeWidget.scheduleWidgetUpdates(...) alarms (optional on the

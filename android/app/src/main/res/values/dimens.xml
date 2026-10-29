@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="pamuk_widget_radius">24dp</dimen>
+    <dimen name="pamnot_widget_radius">24dp</dimen>
 </resources>

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../l10n/strings.dart';
-import '../../../theme/pamuk_theme.dart';
+import '../../../theme/pamnot_theme.dart';
 import 'ink_controller.dart';
 
 /// Floating pill with the pen tools, colours, sizes and undo/redo.

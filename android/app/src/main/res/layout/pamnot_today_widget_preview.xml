@@ -4,7 +4,7 @@
     android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/pamuk_widget_bg"
+    android:background="@drawable/pamnot_widget_bg"
     android:paddingStart="16dp"
     android:paddingTop="14dp"
     android:paddingEnd="16dp"
@@ -25,8 +25,8 @@
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:importantForAccessibility="no"
-                android:src="@drawable/ic_stat_pamuk"
-                android:tint="@color/pamuk_lavender" />
+                android:src="@drawable/ic_stat_pamnot"
+                android:tint="@color/pamnot_lavender" />
 
             <TextView
                 android:id="@+id/pw_title"
@@ -37,9 +37,9 @@
                 android:fontFamily="sans-serif-medium"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:textColor="@color/pamuk_widget_text"
+                android:textColor="@color/pamnot_widget_text"
                 android:textSize="16sp"
-                android:text="@string/pamuk_widget_preview_title" />
+                android:text="@string/pamnot_widget_preview_title" />
 
             <TextView
                 android:id="@+id/pw_date"
@@ -50,16 +50,16 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:textColor="@color/pamuk_widget_text_secondary"
+                android:textColor="@color/pamnot_widget_text_secondary"
                 android:textSize="12sp"
-                android:text="@string/pamuk_widget_preview_date" />
+                android:text="@string/pamnot_widget_preview_date" />
 
             <TextView
                 android:id="@+id/pw_progress_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/pamuk_widget_pill"
+                android:background="@drawable/pamnot_widget_pill"
                 android:fontFamily="sans-serif-medium"
                 android:includeFontPadding="false"
                 android:maxLines="1"
@@ -67,9 +67,9 @@
                 android:paddingTop="3dp"
                 android:paddingEnd="8dp"
                 android:paddingBottom="3dp"
-                android:textColor="@color/pamuk_widget_accent_text"
+                android:textColor="@color/pamnot_widget_accent_text"
                 android:textSize="11sp"
-                android:text="@string/pamuk_widget_preview_progress" />
+                android:text="@string/pamnot_widget_preview_progress" />
         </LinearLayout>
         <ProgressBar
             android:id="@+id/pw_progress"
@@ -80,7 +80,7 @@
             android:indeterminate="false"
             android:maxHeight="5dp"
             android:minHeight="5dp"
-            android:progressDrawable="@drawable/pamuk_widget_progress"
+            android:progressDrawable="@drawable/pamnot_widget_progress"
             android:max="3"
             android:progress="1" />
 
@@ -105,7 +105,7 @@
                     android:layout_height="7dp"
                     android:importantForAccessibility="no"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/pamuk_widget_dot"
+                    android:src="@drawable/pamnot_widget_dot"
                     android:tint="#FF9B8AD8" />
 
                 <TextView
@@ -117,9 +117,9 @@
                     android:ellipsize="end"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/pamuk_widget_item_title"
+                    android:textColor="@color/pamnot_widget_item_title"
                     android:textSize="13sp"
-                    android:text="@string/pamuk_widget_preview_item_1"
+                    android:text="@string/pamnot_widget_preview_item_1"
                     android:enabled="false" />
 
                 <TextView
@@ -130,7 +130,7 @@
                     android:fontFeatureSettings="tnum"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/pamuk_widget_item_time"
+                    android:textColor="@color/pamnot_widget_item_time"
                     android:textSize="12sp"
                     android:text="09:30"
                     android:enabled="false" />
@@ -149,7 +149,7 @@
                     android:layout_height="7dp"
                     android:importantForAccessibility="no"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/pamuk_widget_dot_ring"
+                    android:src="@drawable/pamnot_widget_dot_ring"
                     android:tint="#FFF2A88A" />
 
                 <TextView
@@ -161,9 +161,9 @@
                     android:ellipsize="end"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/pamuk_widget_item_title"
+                    android:textColor="@color/pamnot_widget_item_title"
                     android:textSize="13sp"
-                    android:text="@string/pamuk_widget_preview_item_2" />
+                    android:text="@string/pamnot_widget_preview_item_2" />
 
                 <TextView
                     android:id="@+id/pw_time_1"
@@ -173,7 +173,7 @@
                     android:fontFeatureSettings="tnum"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/pamuk_widget_item_time"
+                    android:textColor="@color/pamnot_widget_item_time"
                     android:textSize="12sp"
                     android:visibility="gone" />
             </LinearLayout>
@@ -191,7 +191,7 @@
                     android:layout_height="7dp"
                     android:importantForAccessibility="no"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/pamuk_widget_dot_event"
+                    android:src="@drawable/pamnot_widget_dot_event"
                     android:tint="#FF86C5B0" />
 
                 <TextView
@@ -203,9 +203,9 @@
                     android:ellipsize="end"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/pamuk_widget_item_title"
+                    android:textColor="@color/pamnot_widget_item_title"
                     android:textSize="13sp"
-                    android:text="@string/pamuk_widget_preview_item_3" />
+                    android:text="@string/pamnot_widget_preview_item_3" />
 
                 <TextView
                     android:id="@+id/pw_time_2"
@@ -215,7 +215,7 @@
                     android:fontFeatureSettings="tnum"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/pamuk_widget_item_time"
+                    android:textColor="@color/pamnot_widget_item_time"
                     android:textSize="12sp"
                     android:text="19:00" />
             </LinearLayout>

@@ -100,7 +100,7 @@ class LocalNotificationScheduler implements ReminderScheduler {
       if (!kIsWeb) await _initTimeZone();
       await _plugin.initialize(
         settings: const InitializationSettings(
-          android: AndroidInitializationSettings('ic_stat_pamuk'),
+          android: AndroidInitializationSettings('ic_stat_pamnot'),
           iOS: DarwinInitializationSettings(
             requestAlertPermission: false,
             requestBadgePermission: false,
@@ -113,8 +113,8 @@ class LocalNotificationScheduler implements ReminderScheduler {
           ),
           linux: LinuxInitializationSettings(defaultActionName: 'Open'),
           windows: WindowsInitializationSettings(
-            appName: 'Pamuk',
-            appUserModelId: 'App.Pamuk.Notes',
+            appName: 'Pamnot',
+            appUserModelId: 'App.Pamnot.Notes',
             guid: '6f1d2c8e-9a4b-4f3e-b1a7-2c5d8e9f0a12',
           ),
         ),
@@ -186,9 +186,9 @@ class LocalNotificationScheduler implements ReminderScheduler {
 
   NotificationDetails get _details => const NotificationDetails(
         android: AndroidNotificationDetails(
-          'pamuk_reminders',
+          'pamnot_reminders',
           'Reminders',
-          channelDescription: 'Pamuk reminders and task alerts',
+          channelDescription: 'Pamnot reminders and task alerts',
           importance: Importance.high,
           priority: Priority.high,
           color: Color(0xFF9B8AD8),

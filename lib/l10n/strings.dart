@@ -177,13 +177,13 @@ class S {
   String get weekStartsMonday => _('Hafta pazartesi başlar', 'Week starts on Monday');
   String get notifications => _('Bildirimler', 'Notifications');
   String get testNotification => _('Deneme bildirimi gönder', 'Send a test notification');
-  String get testNotificationBody => _('Pamuk bildirimleri çalışıyor 🌸', 'Pamuk notifications are working 🌸');
+  String get testNotificationBody => _('Pamnot bildirimleri çalışıyor 🌸', 'Pamnot notifications are working 🌸');
   String get handwritingModels => _('El yazısı tanıma modelleri', 'Handwriting recognition models');
   String get download => _('İndir', 'Download');
   String get ready => _('Hazır', 'Ready');
   String get about => _('Hakkında', 'About');
-  String get aboutText => _('Pamuk — yumuşacık notlar, planlar ve anımsatıcılar. Verilerin yalnızca cihazında saklanır.',
-      'Pamuk — soft notes, plans and reminders. Your data stays on your device.');
+  String get aboutText => _('Pamnot — yumuşacık notlar, planlar ve anımsatıcılar. Verilerin yalnızca cihazında saklanır.',
+      'Pamnot — soft notes, plans and reminders. Your data stays on your device.');
   String get turkish => 'Türkçe';
   String get english => 'English';
 

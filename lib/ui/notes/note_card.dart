@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/strings.dart';
 import '../../models/ink.dart';
 import '../../models/note.dart';
-import '../../theme/pamuk_theme.dart';
+import '../../theme/pamnot_theme.dart';
 import '../common/format.dart';
 import '../common/soft.dart';
 import 'ink/ink_painter.dart';

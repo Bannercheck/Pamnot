@@ -46,7 +46,7 @@ const highlighterColors = <Color>[
   Color(0xFFA9D3F5),
 ];
 
-class PamukTheme {
+class PamnotTheme {
   static const _font = 'Nunito';
 
   static ThemeData light() => _build(const ColorScheme(

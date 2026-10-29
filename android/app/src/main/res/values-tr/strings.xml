@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Ana ekran widget'ı -->
-    <string name="pamuk_widget_label">Pamuk · Bugün</string>
-    <string name="pamuk_widget_description">Bugünün planı, görevleri ve hatırlatıcıları bir bakışta.</string>
-    <string name="pamuk_widget_placeholder_text">Uygulamayı açarak başlayın</string>
-    <string name="pamuk_widget_stale_text">Bugünün planı için uygulamayı açın</string>
-    <string name="pamuk_widget_default_title">Bugün</string>
-    <string name="pamuk_widget_next_label">Sıradaki</string>
-    <string name="pamuk_widget_more">+%1$d daha</string>
+    <string name="pamnot_widget_label">Pamnot · Bugün</string>
+    <string name="pamnot_widget_description">Bugünün planı, görevleri ve anımsatıcıları bir bakışta.</string>
+    <string name="pamnot_widget_placeholder_text">Uygulamayı açarak başlayın</string>
+    <string name="pamnot_widget_stale_text">Bugünün planı için uygulamayı açın</string>
+    <string name="pamnot_widget_default_title">Bugün</string>
+    <string name="pamnot_widget_next_label">Sıradaki</string>
+    <string name="pamnot_widget_more">+%1$d daha</string>
 
-    <string name="pamuk_widget_preview_title">Bugün</string>
-    <string name="pamuk_widget_preview_date">27 Ekim Salı</string>
-    <string name="pamuk_widget_preview_progress">1/3 tamamlandı</string>
-    <string name="pamuk_widget_preview_item_1">Sunumu bitir</string>
-    <string name="pamuk_widget_preview_item_2">Annemi ara</string>
-    <string name="pamuk_widget_preview_item_3">Akşam yogası</string>
+    <string name="pamnot_widget_preview_title">Bugün</string>
+    <string name="pamnot_widget_preview_date">27 Ekim Salı</string>
+    <string name="pamnot_widget_preview_progress">1/3 tamamlandı</string>
+    <string name="pamnot_widget_preview_item_1">Sunumu bitir</string>
+    <string name="pamnot_widget_preview_item_2">Annemi ara</string>
+    <string name="pamnot_widget_preview_item_3">Akşam yogası</string>
 </resources>

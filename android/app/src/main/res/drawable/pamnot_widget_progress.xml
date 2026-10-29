@@ -3,7 +3,7 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:id="@android:id/background">
         <shape android:shape="rectangle">
-            <solid android:color="@color/pamuk_widget_track" />
+            <solid android:color="@color/pamnot_widget_track" />
             <corners android:radius="999dp" />
         </shape>
     </item>
@@ -14,8 +14,8 @@
             <shape android:shape="rectangle">
                 <gradient
                     android:angle="0"
-                    android:endColor="@color/pamuk_mint"
-                    android:startColor="@color/pamuk_lavender" />
+                    android:endColor="@color/pamnot_mint"
+                    android:startColor="@color/pamnot_lavender" />
                 <corners android:radius="999dp" />
             </shape>
         </scale>

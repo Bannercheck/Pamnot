@@ -20,7 +20,7 @@ import '../prediction/word_predictor.dart';
 import '../services/handwriting.dart';
 import '../services/reminder_scheduler.dart';
 import '../services/widget_sync.dart';
-import '../theme/pamuk_theme.dart';
+import '../theme/pamnot_theme.dart';
 import 'sample_data.dart';
 
 /// Parts of the state a screen can subscribe to; a change to one slice only

@@ -5,12 +5,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:pamuk/app.dart';
-import 'package:pamuk/data/store.dart';
-import 'package:pamuk/models/settings.dart';
-import 'package:pamuk/prediction/word_predictor.dart';
-import 'package:pamuk/state/app_controller.dart';
-import 'package:pamuk/ui/notes/ink/ink_canvas.dart';
+import 'package:pamnot/app.dart';
+import 'package:pamnot/data/store.dart';
+import 'package:pamnot/models/settings.dart';
+import 'package:pamnot/prediction/word_predictor.dart';
+import 'package:pamnot/state/app_controller.dart';
+import 'package:pamnot/ui/notes/ink/ink_canvas.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting());
@@ -28,7 +28,7 @@ void main() {
       await c.load();
       c.attachPredictor(await WordPredictor.load(rootBundle));
     });
-    await tester.pumpWidget(PamukApp(controller: c));
+    await tester.pumpWidget(PamnotApp(controller: c));
     await tester.pumpAndSettle();
     return c;
   }

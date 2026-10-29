@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/pamuk_theme.dart';
+import '../../theme/pamnot_theme.dart';
 
-/// A rounded card with a gentle shadow; the basic building block of Pamuk.
+/// A rounded card with a gentle shadow; the basic building block of Pamnot.
 class SoftCard extends StatelessWidget {
   const SoftCard({
     super.key,

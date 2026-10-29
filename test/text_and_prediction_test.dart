@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pamuk/core/turkish_text.dart' as tt;
-import 'package:pamuk/prediction/lexicon.dart';
-import 'package:pamuk/prediction/word_predictor.dart';
+import 'package:pamnot/core/turkish_text.dart' as tt;
+import 'package:pamnot/prediction/lexicon.dart';
+import 'package:pamnot/prediction/word_predictor.dart';
 
 WordPredictor _real() {
   List<String> lines(String p) => File(p).readAsLinesSync().where((l) => l.trim().isNotEmpty).toList();

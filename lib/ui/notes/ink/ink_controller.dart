@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/ink.dart';
-import '../../../theme/pamuk_theme.dart';
+import '../../../theme/pamnot_theme.dart';
 
 enum CanvasTool { pen, highlighter, eraser, hand }
 

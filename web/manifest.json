@@ -1,11 +1,11 @@
 {
-    "name": "pamuk",
-    "short_name": "pamuk",
+    "name": "Pamnot",
+    "short_name": "Pamnot",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Pamuk — soft notes, planner and reminders",
+    "description": "Pamnot — soft notes, planner and reminders",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

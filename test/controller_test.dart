@@ -3,13 +3,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:pamuk/data/store.dart';
-import 'package:pamuk/models/ink.dart';
-import 'package:pamuk/models/reminder.dart';
-import 'package:pamuk/models/settings.dart';
-import 'package:pamuk/services/reminder_scheduler.dart';
-import 'package:pamuk/services/widget_sync.dart';
-import 'package:pamuk/state/app_controller.dart';
+import 'package:pamnot/data/store.dart';
+import 'package:pamnot/models/ink.dart';
+import 'package:pamnot/models/reminder.dart';
+import 'package:pamnot/models/settings.dart';
+import 'package:pamnot/services/reminder_scheduler.dart';
+import 'package:pamnot/services/widget_sync.dart';
+import 'package:pamnot/state/app_controller.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting());

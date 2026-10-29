@@ -17,7 +17,7 @@ class FileStore implements KeyValueStore {
 
   Future<Directory> _directory() async {
     if (_dir != null) return _dir!;
-    final base = _fixed ?? Directory('${(await getApplicationSupportDirectory()).path}/pamuk');
+    final base = _fixed ?? Directory('${(await getApplicationSupportDirectory()).path}/pamnot');
     await base.create(recursive: true);
     return _dir = base;
   }

@@ -5,19 +5,19 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'state/app_controller.dart';
 import 'state/app_scope.dart';
-import 'theme/pamuk_theme.dart';
+import 'theme/pamnot_theme.dart';
 import 'ui/home_shell.dart';
 
-class PamukApp extends StatefulWidget {
-  const PamukApp({super.key, required this.controller});
+class PamnotApp extends StatefulWidget {
+  const PamnotApp({super.key, required this.controller});
 
   final AppController controller;
 
   @override
-  State<PamukApp> createState() => _PamukAppState();
+  State<PamnotApp> createState() => _PamnotAppState();
 }
 
-class _PamukAppState extends State<PamukApp> with WidgetsBindingObserver {
+class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
   late final AppLifecycleListener _lifecycle;
 
   @override
@@ -49,10 +49,10 @@ class _PamukAppState extends State<PamukApp> with WidgetsBindingObserver {
       child: Builder(builder: (context) {
         final app = AppScope.of(context, {Slice.settings});
         return MaterialApp(
-          title: 'Pamuk',
+          title: 'Pamnot',
           debugShowCheckedModeBanner: false,
-          theme: PamukTheme.light(),
-          darkTheme: PamukTheme.dark(),
+          theme: PamnotTheme.light(),
+          darkTheme: PamnotTheme.dark(),
           themeMode: app.settings.themeMode,
           locale: Locale(app.isTurkish ? 'tr' : 'en'),
           supportedLocales: const [Locale('tr'), Locale('en')],

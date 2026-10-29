@@ -3,24 +3,24 @@ import WidgetKit
 
 // MARK: - Shared constants
 
-enum PamukShared {
+enum PamnotShared {
   /// Must match HomeWidget.setAppGroupId(...) on the Dart side and both targets' entitlements.
-  static let appGroupId = "group.app.pamuk.shared"
-  /// Key written by HomeWidget.saveWidgetData<String>('pamuk_today', json).
-  static let todayKey = "pamuk_today"
-  /// Must match HomeWidget.updateWidget(iOSName: 'PamukTodayWidget').
-  static let widgetKind = "PamukTodayWidget"
+  static let appGroupId = "group.app.pamnot.shared"
+  /// Key written by HomeWidget.saveWidgetData<String>('pamnot_today', json).
+  static let todayKey = "pamnot_today"
+  /// Must match HomeWidget.updateWidget(iOSName: 'PamnotTodayWidget').
+  static let widgetKind = "PamnotTodayWidget"
   /// The `homeWidget` query item is how home_widget recognises a widget launch
   /// (HomeWidget.initiallyLaunchedFromHomeWidget / HomeWidget.widgetClicked); it also keeps
   /// Flutter's own deep-link handling from treating the URL as a route.
-  static let launchURL = URL(string: "pamuk://today?homeWidget")!
+  static let launchURL = URL(string: "pamnot://today?homeWidget")!
   static let refreshInterval: TimeInterval = 30 * 60
   static let maxItems = 6
 }
 
-// MARK: - Model (mirrors the `pamuk_today` JSON written by the Flutter app)
+// MARK: - Model (mirrors the `pamnot_today` JSON written by the Flutter app)
 
-struct PamukTodayItem: Codable, Hashable {
+struct PamnotTodayItem: Codable, Hashable {
   var title: String
   var time: String
   var kind: String
@@ -32,11 +32,11 @@ struct PamukTodayItem: Codable, Hashable {
   }
 
   var displayColor: Color {
-    Color(hexString: color) ?? PamukPalette.fallback(forKind: kind)
+    Color(hexString: color) ?? PamnotPalette.fallback(forKind: kind)
   }
 }
 
-struct PamukReminder: Codable, Hashable {
+struct PamnotReminder: Codable, Hashable {
   var title: String
   var time: String
 
@@ -45,7 +45,7 @@ struct PamukReminder: Codable, Hashable {
   }
 }
 
-struct PamukToday: Codable, Hashable {
+struct PamnotToday: Codable, Hashable {
   var updatedAt: String
   var lang: String
   var title: String
@@ -54,8 +54,8 @@ struct PamukToday: Codable, Hashable {
   var total: Int
   var progressLabel: String
   var emptyText: String
-  var items: [PamukTodayItem]
-  var nextReminder: PamukReminder?
+  var items: [PamnotTodayItem]
+  var nextReminder: PamnotReminder?
 
   private enum CodingKeys: String, CodingKey {
     case updatedAt, lang, title, dateLabel, done, total, progressLabel, emptyText, items, nextReminder
@@ -68,8 +68,8 @@ struct PamukToday: Codable, Hashable {
   /// True when the data was written on an earlier calendar day (device time zone), i.e. it is
   /// yesterday's plan and must not be shown under "Today".
   func isStale(at now: Date) -> Bool {
-    guard let day = PamukToday.localDay(of: updatedAt) else { return false }
-    let c = PamukToday.calendar.dateComponents([.year, .month, .day], from: now)
+    guard let day = PamnotToday.localDay(of: updatedAt) else { return false }
+    let c = PamnotToday.calendar.dateComponents([.year, .month, .day], from: now)
     guard let y = c.year, let m = c.month, let d = c.day else { return false }
     return day < (y, m, d)
   }
@@ -106,7 +106,7 @@ struct PamukToday: Codable, Hashable {
 
 // Decoding lives in extensions so the memberwise initializers stay available. Every field is
 // optional/lenient: a missing or odd value never makes the whole payload unreadable.
-extension PamukTodayItem {
+extension PamnotTodayItem {
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     title = c.lenientString(.title)
@@ -117,7 +117,7 @@ extension PamukTodayItem {
   }
 }
 
-extension PamukReminder {
+extension PamnotReminder {
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     title = c.lenientString(.title)
@@ -125,7 +125,7 @@ extension PamukReminder {
   }
 }
 
-extension PamukToday {
+extension PamnotToday {
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     updatedAt = c.lenientString(.updatedAt)
@@ -134,12 +134,12 @@ extension PamukToday {
     dateLabel = c.lenientString(.dateLabel)
     progressLabel = c.lenientString(.progressLabel)
     emptyText = c.lenientString(.emptyText)
-    let decoded = (try? c.decodeIfPresent([PamukTodayItem].self, forKey: .items)) ?? []
-    items = Array(decoded.filter { !$0.title.isEmpty }.prefix(PamukShared.maxItems))
+    let decoded = (try? c.decodeIfPresent([PamnotTodayItem].self, forKey: .items)) ?? []
+    items = Array(decoded.filter { !$0.title.isEmpty }.prefix(PamnotShared.maxItems))
     let totalValue = max(0, c.lenientInt(.total) ?? decoded.count)
     total = totalValue
     done = min(max(0, c.lenientInt(.done) ?? 0), totalValue)
-    let reminder = try? c.decodeIfPresent(PamukReminder.self, forKey: .nextReminder)
+    let reminder = try? c.decodeIfPresent(PamnotReminder.self, forKey: .nextReminder)
     if let reminder, !reminder.title.isEmpty {
       nextReminder = reminder
     } else {
@@ -183,47 +183,47 @@ private extension KeyedDecodingContainer {
   }
 }
 
-enum PamukTodayStore {
+enum PamnotTodayStore {
   /// Reads the JSON string home_widget stored in the shared App Group defaults.
-  static func load() -> PamukToday? {
-    guard let raw = UserDefaults(suiteName: PamukShared.appGroupId)?.string(forKey: PamukShared.todayKey),
+  static func load() -> PamnotToday? {
+    guard let raw = UserDefaults(suiteName: PamnotShared.appGroupId)?.string(forKey: PamnotShared.todayKey),
           let data = raw.data(using: .utf8)
     else { return nil }
-    return try? JSONDecoder().decode(PamukToday.self, from: data)
+    return try? JSONDecoder().decode(PamnotToday.self, from: data)
   }
 }
 
-extension PamukToday {
+extension PamnotToday {
   /// Gallery / placeholder content.
-  static func sample(turkish: Bool) -> PamukToday {
+  static func sample(turkish: Bool) -> PamnotToday {
     if turkish {
-      return PamukToday(
+      return PamnotToday(
         updatedAt: "", lang: "tr", title: "Bugün", dateLabel: "27 Ekim Salı",
         done: 1, total: 3, progressLabel: "1/3 tamamlandı", emptyText: "Bugün için plan yok",
         items: [
-          PamukTodayItem(title: "Sunumu bitir", time: "09:30", kind: "task", done: true, color: "#9B8AD8"),
-          PamukTodayItem(title: "Annemi ara", time: "", kind: "reminder", done: false, color: "#F2A88A"),
-          PamukTodayItem(title: "Akşam yogası", time: "19:00", kind: "event", done: false, color: "#86C5B0"),
+          PamnotTodayItem(title: "Sunumu bitir", time: "09:30", kind: "task", done: true, color: "#9B8AD8"),
+          PamnotTodayItem(title: "Annemi ara", time: "", kind: "reminder", done: false, color: "#F2A88A"),
+          PamnotTodayItem(title: "Akşam yogası", time: "19:00", kind: "event", done: false, color: "#86C5B0"),
         ],
-        nextReminder: PamukReminder(title: "İlaç", time: "14:00")
+        nextReminder: PamnotReminder(title: "İlaç", time: "14:00")
       )
     }
-    return PamukToday(
+    return PamnotToday(
       updatedAt: "", lang: "en", title: "Today", dateLabel: "Tuesday, 27 October",
       done: 1, total: 3, progressLabel: "1/3 done", emptyText: "Nothing planned for today",
       items: [
-        PamukTodayItem(title: "Finish the slides", time: "09:30", kind: "task", done: true, color: "#9B8AD8"),
-        PamukTodayItem(title: "Call mom", time: "", kind: "reminder", done: false, color: "#F2A88A"),
-        PamukTodayItem(title: "Evening yoga", time: "19:00", kind: "event", done: false, color: "#86C5B0"),
+        PamnotTodayItem(title: "Finish the slides", time: "09:30", kind: "task", done: true, color: "#9B8AD8"),
+        PamnotTodayItem(title: "Call mom", time: "", kind: "reminder", done: false, color: "#F2A88A"),
+        PamnotTodayItem(title: "Evening yoga", time: "19:00", kind: "event", done: false, color: "#86C5B0"),
       ],
-      nextReminder: PamukReminder(title: "Medicine", time: "14:00")
+      nextReminder: PamnotReminder(title: "Medicine", time: "14:00")
     )
   }
 }
 
 // MARK: - Strings drawn by the widget itself (everything else comes localized from the app)
 
-struct PamukStrings {
+struct PamnotStrings {
   let turkish: Bool
 
   /// Uses the app's language from the payload when known, otherwise the device language.
@@ -231,7 +231,7 @@ struct PamukStrings {
     if let lang, !lang.isEmpty {
       turkish = lang.lowercased().hasPrefix("tr")
     } else {
-      turkish = PamukStrings.deviceIsTurkish
+      turkish = PamnotStrings.deviceIsTurkish
     }
   }
 
@@ -244,10 +244,10 @@ struct PamukStrings {
   var defaultTitle: String { turkish ? "Bugün" : "Today" }
   var emptyFallback: String { turkish ? "Bugün için plan yok" : "Nothing planned for today" }
   var next: String { turkish ? "Sıradaki" : "Next" }
-  var displayName: String { turkish ? "Pamuk · Bugün" : "Pamuk · Today" }
+  var displayName: String { turkish ? "Pamnot · Bugün" : "Pamnot · Today" }
   var widgetDescription: String {
     turkish
-      ? "Bugünün planı, görevleri ve hatırlatıcıları bir bakışta."
+      ? "Bugünün planı, görevleri ve anımsatıcıları bir bakışta."
       : "Today's plan, tasks and reminders at a glance."
   }
 
@@ -256,62 +256,62 @@ struct PamukStrings {
 
 // MARK: - Timeline
 
-struct PamukTodayEntry: TimelineEntry {
+struct PamnotTodayEntry: TimelineEntry {
   let date: Date
   /// nil = the app has not written (valid) data yet.
-  let today: PamukToday?
+  let today: PamnotToday?
   let isStale: Bool
 
-  /// The data to draw, or nil when the placeholder ("Pamuk" + message) must be shown.
-  var visibleToday: PamukToday? { isStale ? nil : today }
-  var strings: PamukStrings { PamukStrings(lang: today?.lang) }
+  /// The data to draw, or nil when the placeholder ("Pamnot" + message) must be shown.
+  var visibleToday: PamnotToday? { isStale ? nil : today }
+  var strings: PamnotStrings { PamnotStrings(lang: today?.lang) }
   var message: String { today == nil ? strings.placeholderText : strings.staleText }
 }
 
-struct PamukTodayProvider: TimelineProvider {
-  func placeholder(in context: Context) -> PamukTodayEntry {
-    PamukTodayEntry(date: Date(), today: .sample(turkish: PamukStrings.deviceIsTurkish), isStale: false)
+struct PamnotTodayProvider: TimelineProvider {
+  func placeholder(in context: Context) -> PamnotTodayEntry {
+    PamnotTodayEntry(date: Date(), today: .sample(turkish: PamnotStrings.deviceIsTurkish), isStale: false)
   }
 
-  func getSnapshot(in context: Context, completion: @escaping (PamukTodayEntry) -> Void) {
+  func getSnapshot(in context: Context, completion: @escaping (PamnotTodayEntry) -> Void) {
     let now = Date()
-    if let stored = PamukTodayStore.load() {
-      completion(PamukTodayEntry(date: now, today: stored, isStale: stored.isStale(at: now)))
+    if let stored = PamnotTodayStore.load() {
+      completion(PamnotTodayEntry(date: now, today: stored, isStale: stored.isStale(at: now)))
     } else if context.isPreview {
       completion(placeholder(in: context))
     } else {
-      completion(PamukTodayEntry(date: now, today: nil, isStale: false))
+      completion(PamnotTodayEntry(date: now, today: nil, isStale: false))
     }
   }
 
-  func getTimeline(in context: Context, completion: @escaping (Timeline<PamukTodayEntry>) -> Void) {
+  func getTimeline(in context: Context, completion: @escaping (Timeline<PamnotTodayEntry>) -> Void) {
     let now = Date()
-    let stored = PamukTodayStore.load()
-    var entries = [PamukTodayEntry(date: now, today: stored, isStale: stored?.isStale(at: now) ?? false)]
+    let stored = PamnotTodayStore.load()
+    var entries = [PamnotTodayEntry(date: now, today: stored, isStale: stored?.isStale(at: now) ?? false)]
     // At midnight the stored plan becomes yesterday's; switch to the "open the app" state then,
     // even if WidgetKit postpones the next reload.
     if let stored, !stored.isStale(at: now) {
-      let cal = PamukToday.calendar
+      let cal = PamnotToday.calendar
       if let midnight = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: now)) {
-        entries.append(PamukTodayEntry(date: midnight, today: stored, isStale: true))
+        entries.append(PamnotTodayEntry(date: midnight, today: stored, isStale: true))
       }
     }
-    completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(PamukShared.refreshInterval))))
+    completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(PamnotShared.refreshInterval))))
   }
 }
 
 // MARK: - Widget
 
-struct PamukTodayWidget: Widget {
-  let kind: String = PamukShared.widgetKind
+struct PamnotTodayWidget: Widget {
+  let kind: String = PamnotShared.widgetKind
 
   var body: some WidgetConfiguration {
-    StaticConfiguration(kind: kind, provider: PamukTodayProvider()) { entry in
-      PamukTodayWidgetView(entry: entry)
+    StaticConfiguration(kind: kind, provider: PamnotTodayProvider()) { entry in
+      PamnotTodayWidgetView(entry: entry)
     }
-    .configurationDisplayName(PamukStrings(lang: nil).displayName)
-    .description(PamukStrings(lang: nil).widgetDescription)
-    .supportedFamilies(PamukTodayWidget.families)
+    .configurationDisplayName(PamnotStrings(lang: nil).displayName)
+    .description(PamnotStrings(lang: nil).widgetDescription)
+    .supportedFamilies(PamnotTodayWidget.families)
   }
 
   static var families: [WidgetFamily] {
@@ -325,7 +325,7 @@ struct PamukTodayWidget: Widget {
 
 // MARK: - Palette
 
-enum PamukPalette {
+enum PamnotPalette {
   static let lavender = Color(hex: 0x9B8AD8)
   static let peach = Color(hex: 0xF2A88A)
   static let mint = Color(hex: 0x86C5B0)
@@ -339,7 +339,7 @@ enum PamukPalette {
   }
 }
 
-struct PamukColors {
+struct PamnotColors {
   let background: Color
   let text: Color
   let secondary: Color
@@ -355,8 +355,8 @@ struct PamukColors {
     secondary = Color(hex: dark ? 0xA39DB2 : 0x8C8698)
     accentText = Color(hex: dark ? 0xB9ACEB : 0x7A68C2)
     track = Color(hex: dark ? 0x363140 : 0xEFE8F6)
-    pill = PamukPalette.lavender.opacity(dark ? 0.2 : 0.14)
-    peachPill = PamukPalette.peach.opacity(dark ? 0.2 : 0.18)
+    pill = PamnotPalette.lavender.opacity(dark ? 0.2 : 0.14)
+    peachPill = PamnotPalette.peach.opacity(dark ? 0.2 : 0.18)
   }
 
   var textDone: Color { text.opacity(0.4) }
@@ -389,53 +389,53 @@ extension Color {
 
 // MARK: - Views
 
-struct PamukTodayWidgetView: View {
+struct PamnotTodayWidgetView: View {
   @Environment(\.widgetFamily) private var family
   @Environment(\.colorScheme) private var colorScheme
-  let entry: PamukTodayEntry
+  let entry: PamnotTodayEntry
 
   var body: some View {
     familyView
-      .widgetURL(PamukShared.launchURL)
+      .widgetURL(PamnotShared.launchURL)
   }
 
   @ViewBuilder
   private var familyView: some View {
-    let colors = PamukColors(colorScheme)
+    let colors = PamnotColors(colorScheme)
     switch family {
     case .systemSmall:
-      PamukSmallView(entry: entry, colors: colors)
-        .pamukContainer(fallbackPadding: 15, colors.background)
+      PamnotSmallView(entry: entry, colors: colors)
+        .pamnotContainer(fallbackPadding: 15, colors.background)
     case .systemMedium:
-      PamukMediumView(entry: entry, colors: colors)
-        .pamukContainer(fallbackPadding: 16, colors.background)
+      PamnotMediumView(entry: entry, colors: colors)
+        .pamnotContainer(fallbackPadding: 16, colors.background)
     case .systemLarge:
-      PamukLargeView(entry: entry, colors: colors)
-        .pamukContainer(fallbackPadding: 16, colors.background)
+      PamnotLargeView(entry: entry, colors: colors)
+        .pamnotContainer(fallbackPadding: 16, colors.background)
     default:
-      PamukAccessoryView(entry: entry, family: family, colors: colors)
+      PamnotAccessoryView(entry: entry, family: family, colors: colors)
     }
   }
 }
 
 /// Lock-screen families on iOS; falls back to the medium layout elsewhere (e.g. a future macOS target).
-struct PamukAccessoryView: View {
-  let entry: PamukTodayEntry
+struct PamnotAccessoryView: View {
+  let entry: PamnotTodayEntry
   let family: WidgetFamily
-  let colors: PamukColors
+  let colors: PamnotColors
 
   var body: some View {
     #if os(iOS)
     if family == .accessoryCircular {
-      PamukCircularView(entry: entry)
-        .pamukContainer(fallbackPadding: 0, Color.clear)
+      PamnotCircularView(entry: entry)
+        .pamnotContainer(fallbackPadding: 0, Color.clear)
     } else {
-      PamukRectangularView(entry: entry)
-        .pamukContainer(fallbackPadding: 0, Color.clear)
+      PamnotRectangularView(entry: entry)
+        .pamnotContainer(fallbackPadding: 0, Color.clear)
     }
     #else
-    PamukMediumView(entry: entry, colors: colors)
-      .pamukContainer(fallbackPadding: 16, colors.background)
+    PamnotMediumView(entry: entry, colors: colors)
+      .pamnotContainer(fallbackPadding: 16, colors.background)
     #endif
   }
 }
@@ -444,7 +444,7 @@ private extension View {
   /// iOS 17+ / macOS 14+: containerBackground (the system adds the standard content margins).
   /// iOS 16: plain background plus equivalent padding.
   @ViewBuilder
-  func pamukContainer(fallbackPadding: CGFloat, _ backdrop: some View) -> some View {
+  func pamnotContainer(fallbackPadding: CGFloat, _ backdrop: some View) -> some View {
     if #available(iOS 17.0, macOS 14.0, *) {
       containerBackground(for: .widget) {
         backdrop
@@ -457,9 +457,9 @@ private extension View {
   }
 }
 
-struct PamukSmallView: View {
-  let entry: PamukTodayEntry
-  let colors: PamukColors
+struct PamnotSmallView: View {
+  let entry: PamnotTodayEntry
+  let colors: PamnotColors
 
   var body: some View {
     if let today = entry.visibleToday {
@@ -485,32 +485,32 @@ struct PamukSmallView: View {
             .padding(.top, 1)
         }
         Spacer(minLength: 6)
-        PamukItemList(
+        PamnotItemList(
           today: today, strings: entry.strings, colors: colors,
           maxRows: 3, fontSize: 12, spacing: 5, showTime: true
         )
         Spacer(minLength: 6)
         if today.total > 0 {
-          PamukProgressBar(fraction: today.fraction, height: 5, track: colors.track)
+          PamnotProgressBar(fraction: today.fraction, height: 5, track: colors.track)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     } else {
-      PamukPlaceholderView(message: entry.message, colors: colors, compact: true)
+      PamnotPlaceholderView(message: entry.message, colors: colors, compact: true)
     }
   }
 }
 
-struct PamukMediumView: View {
-  let entry: PamukTodayEntry
-  let colors: PamukColors
+struct PamnotMediumView: View {
+  let entry: PamnotTodayEntry
+  let colors: PamnotColors
 
   var body: some View {
     if let today = entry.visibleToday {
       HStack(alignment: .top, spacing: 14) {
         VStack(alignment: .leading, spacing: 0) {
           HStack(spacing: 5) {
-            PamukGlyph(color: PamukPalette.lavender, size: 15)
+            PamnotGlyph(color: PamnotPalette.lavender, size: 15)
             Text(today.title.isEmpty ? entry.strings.defaultTitle : today.title)
               .font(.system(size: 17, weight: .semibold, design: .rounded))
               .foregroundColor(colors.text)
@@ -532,14 +532,14 @@ struct PamukMediumView: View {
               .minimumScaleFactor(0.8)
           }
           if today.total > 0 {
-            PamukProgressBar(fraction: today.fraction, height: 6, track: colors.track)
+            PamnotProgressBar(fraction: today.fraction, height: 6, track: colors.track)
               .padding(.top, 5)
           }
         }
         .frame(width: 112, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .topLeading)
 
-        PamukItemList(
+        PamnotItemList(
           today: today, strings: entry.strings, colors: colors,
           maxRows: 4, fontSize: 13, spacing: 7, showTime: true
         )
@@ -548,20 +548,20 @@ struct PamukMediumView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     } else {
-      PamukPlaceholderView(message: entry.message, colors: colors, compact: false)
+      PamnotPlaceholderView(message: entry.message, colors: colors, compact: false)
     }
   }
 }
 
-struct PamukLargeView: View {
-  let entry: PamukTodayEntry
-  let colors: PamukColors
+struct PamnotLargeView: View {
+  let entry: PamnotTodayEntry
+  let colors: PamnotColors
 
   var body: some View {
     if let today = entry.visibleToday {
       VStack(alignment: .leading, spacing: 0) {
         HStack(alignment: .center, spacing: 8) {
-          PamukGlyph(color: PamukPalette.lavender, size: 22)
+          PamnotGlyph(color: PamnotPalette.lavender, size: 22)
           VStack(alignment: .leading, spacing: 1) {
             Text(today.title.isEmpty ? entry.strings.defaultTitle : today.title)
               .font(.system(size: 20, weight: .semibold, design: .rounded))
@@ -586,30 +586,30 @@ struct PamukLargeView: View {
           }
         }
         if today.total > 0 {
-          PamukProgressBar(fraction: today.fraction, height: 7, track: colors.track)
+          PamnotProgressBar(fraction: today.fraction, height: 7, track: colors.track)
             .padding(.top, 12)
         }
-        PamukItemList(
+        PamnotItemList(
           today: today, strings: entry.strings, colors: colors,
-          maxRows: PamukShared.maxItems, fontSize: 15, spacing: 10, showTime: true
+          maxRows: PamnotShared.maxItems, fontSize: 15, spacing: 10, showTime: true
         )
         .padding(.top, 14)
         Spacer(minLength: 8)
         if let next = today.nextReminder {
-          PamukNextReminderPill(reminder: next, strings: entry.strings, colors: colors)
+          PamnotNextReminderPill(reminder: next, strings: entry.strings, colors: colors)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     } else {
-      PamukPlaceholderView(message: entry.message, colors: colors, compact: false)
+      PamnotPlaceholderView(message: entry.message, colors: colors, compact: false)
     }
   }
 }
 
-struct PamukItemList: View {
-  let today: PamukToday
-  let strings: PamukStrings
-  let colors: PamukColors
+struct PamnotItemList: View {
+  let today: PamnotToday
+  let strings: PamnotStrings
+  let colors: PamnotColors
   let maxRows: Int
   let fontSize: CGFloat
   let spacing: CGFloat
@@ -628,7 +628,7 @@ struct PamukItemList: View {
           .lineLimit(3)
       } else {
         ForEach(0..<shown, id: \.self) { index in
-          PamukItemRow(item: items[index], colors: colors, fontSize: fontSize, showTime: showTime)
+          PamnotItemRow(item: items[index], colors: colors, fontSize: fontSize, showTime: showTime)
         }
         if hidden > 0 {
           Text(strings.more(hidden))
@@ -641,15 +641,15 @@ struct PamukItemList: View {
   }
 }
 
-struct PamukItemRow: View {
-  let item: PamukTodayItem
-  let colors: PamukColors
+struct PamnotItemRow: View {
+  let item: PamnotTodayItem
+  let colors: PamnotColors
   let fontSize: CGFloat
   let showTime: Bool
 
   var body: some View {
     HStack(spacing: 7) {
-      PamukMarker(kind: item.kind, color: item.displayColor, size: fontSize * 0.55)
+      PamnotMarker(kind: item.kind, color: item.displayColor, size: fontSize * 0.55)
         .opacity(item.done ? 0.45 : 1)
       Text(item.title)
         .font(.system(size: fontSize, design: .rounded))
@@ -670,7 +670,7 @@ struct PamukItemRow: View {
 }
 
 /// task = dot, reminder = ring, event = rounded square; tinted with the item's colour.
-struct PamukMarker: View {
+struct PamnotMarker: View {
   let kind: String
   let color: Color
   let size: CGFloat
@@ -693,7 +693,7 @@ struct PamukMarker: View {
   }
 }
 
-struct PamukProgressBar: View {
+struct PamnotProgressBar: View {
   let fraction: Double
   let height: CGFloat
   let track: Color
@@ -706,7 +706,7 @@ struct PamukProgressBar: View {
           Capsule()
             .fill(
               LinearGradient(
-                colors: [PamukPalette.lavender, PamukPalette.mint],
+                colors: [PamnotPalette.lavender, PamnotPalette.mint],
                 startPoint: .leading,
                 endPoint: .trailing
               )
@@ -720,16 +720,16 @@ struct PamukProgressBar: View {
   }
 }
 
-struct PamukNextReminderPill: View {
-  let reminder: PamukReminder
-  let strings: PamukStrings
-  let colors: PamukColors
+struct PamnotNextReminderPill: View {
+  let reminder: PamnotReminder
+  let strings: PamnotStrings
+  let colors: PamnotColors
 
   var body: some View {
     HStack(spacing: 6) {
       Image(systemName: "bell.fill")
         .font(.system(size: 11, weight: .semibold))
-        .foregroundColor(PamukPalette.peach)
+        .foregroundColor(PamnotPalette.peach)
       Text(verbatim: label)
         .font(.system(size: 12, design: .rounded))
         .foregroundColor(colors.text)
@@ -747,15 +747,15 @@ struct PamukNextReminderPill: View {
   }
 }
 
-struct PamukPlaceholderView: View {
+struct PamnotPlaceholderView: View {
   let message: String
-  let colors: PamukColors
+  let colors: PamnotColors
   let compact: Bool
 
   var body: some View {
     VStack(spacing: 6) {
-      PamukGlyph(color: PamukPalette.lavender, size: compact ? 26 : 32)
-      Text(verbatim: "Pamuk")
+      PamnotGlyph(color: PamnotPalette.lavender, size: compact ? 26 : 32)
+      Text(verbatim: "Pamnot")
         .font(.system(size: compact ? 15 : 17, weight: .semibold, design: .rounded))
         .foregroundColor(colors.text)
       Text(message)
@@ -768,19 +768,19 @@ struct PamukPlaceholderView: View {
   }
 }
 
-/// The Pamuk cotton puff (same geometry as Android's ic_stat_pamuk, on a 24-unit grid).
-struct PamukGlyph: View {
+/// The Pamnot cloud puff (same geometry as Android's ic_stat_pamnot, on a 24-unit grid).
+struct PamnotGlyph: View {
   let color: Color
   let size: CGFloat
 
   var body: some View {
-    PamukGlyphShape()
+    PamnotGlyphShape()
       .fill(color)
       .frame(width: size, height: size)
   }
 }
 
-struct PamukGlyphShape: Shape {
+struct PamnotGlyphShape: Shape {
   func path(in rect: CGRect) -> Path {
     let unit = min(rect.width, rect.height) / 24
     let originX = rect.midX - 12 * unit
@@ -803,8 +803,8 @@ struct PamukGlyphShape: Shape {
 
 #if os(iOS)
 /// Lock screen: done/total as a capacity gauge.
-struct PamukCircularView: View {
-  let entry: PamukTodayEntry
+struct PamnotCircularView: View {
+  let entry: PamnotTodayEntry
 
   var body: some View {
     if let today = entry.visibleToday, today.total > 0 {
@@ -818,15 +818,15 @@ struct PamukCircularView: View {
     } else {
       ZStack {
         AccessoryWidgetBackground()
-        PamukGlyph(color: .primary, size: 26)
+        PamnotGlyph(color: .primary, size: 26)
       }
     }
   }
 }
 
 /// Lock screen: title + count, next reminder (or first open item), progress.
-struct PamukRectangularView: View {
-  let entry: PamukTodayEntry
+struct PamnotRectangularView: View {
+  let entry: PamnotTodayEntry
 
   var body: some View {
     if let today = entry.visibleToday {
@@ -853,7 +853,7 @@ struct PamukRectangularView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     } else {
       VStack(alignment: .leading, spacing: 1) {
-        Text(verbatim: "Pamuk")
+        Text(verbatim: "Pamnot")
           .font(.headline)
         Text(entry.message)
           .font(.caption)
@@ -864,7 +864,7 @@ struct PamukRectangularView: View {
   }
 
   @ViewBuilder
-  private func detail(_ today: PamukToday) -> some View {
+  private func detail(_ today: PamnotToday) -> some View {
     if let next = today.nextReminder {
       Label {
         Text(verbatim: next.time.isEmpty ? next.title : "\(next.time) \(next.title)")
@@ -889,19 +889,19 @@ struct PamukRectangularView: View {
 // MARK: - Previews
 
 #if DEBUG
-struct PamukTodayWidget_Previews: PreviewProvider {
-  static let entry = PamukTodayEntry(date: Date(), today: .sample(turkish: true), isStale: false)
-  static let empty = PamukTodayEntry(date: Date(), today: nil, isStale: false)
+struct PamnotTodayWidget_Previews: PreviewProvider {
+  static let entry = PamnotTodayEntry(date: Date(), today: .sample(turkish: true), isStale: false)
+  static let empty = PamnotTodayEntry(date: Date(), today: nil, isStale: false)
 
   static var previews: some View {
     Group {
-      PamukTodayWidgetView(entry: entry)
+      PamnotTodayWidgetView(entry: entry)
         .previewContext(WidgetPreviewContext(family: .systemSmall))
-      PamukTodayWidgetView(entry: entry)
+      PamnotTodayWidgetView(entry: entry)
         .previewContext(WidgetPreviewContext(family: .systemMedium))
-      PamukTodayWidgetView(entry: entry)
+      PamnotTodayWidgetView(entry: entry)
         .previewContext(WidgetPreviewContext(family: .systemLarge))
-      PamukTodayWidgetView(entry: empty)
+      PamnotTodayWidgetView(entry: empty)
         .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
   }

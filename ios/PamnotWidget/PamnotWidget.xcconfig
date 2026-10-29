@@ -1,4 +1,4 @@
-// Base configuration for the PamukWidgetExtension target (Debug, Release and Profile).
+// Base configuration for the PamnotWidgetExtension target (Debug, Release and Profile).
 // Brings in FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER from `flutter build`, so the extension's
 // CFBundleShortVersionString / CFBundleVersion (see Info.plist) always match the Runner app's.
 // Deliberately does NOT include ../Flutter/Debug.xcconfig or Release.xcconfig: those pull in the

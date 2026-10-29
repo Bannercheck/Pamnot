@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "app.pamuk" "\0"
-            VALUE "FileDescription", "Pamuk" "\0"
+            VALUE "CompanyName", "Pamnot" "\0"
+            VALUE "FileDescription", "Pamnot" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "pamuk" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 app.pamuk. All rights reserved." "\0"
-            VALUE "OriginalFilename", "pamuk.exe" "\0"
-            VALUE "ProductName", "Pamuk" "\0"
+            VALUE "InternalName", "pamnot" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Pamnot. All rights reserved." "\0"
+            VALUE "OriginalFilename", "pamnot.exe" "\0"
+            VALUE "ProductName", "Pamnot" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

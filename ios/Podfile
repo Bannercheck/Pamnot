@@ -38,7 +38,7 @@ target 'Runner' do
   end
 end
 
-# The PamukWidget extension links no pods (it only reads the shared App Group UserDefaults),
+# The PamnotWidget extension links no pods (it only reads the shared App Group UserDefaults),
 # so it needs no target block here.
 
 post_install do |installer|

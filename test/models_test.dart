@@ -1,14 +1,14 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pamuk/core/quick_parse.dart';
-import 'package:pamuk/models/habit.dart';
-import 'package:pamuk/models/ink.dart';
-import 'package:pamuk/models/note.dart';
-import 'package:pamuk/models/reminder.dart';
-import 'package:pamuk/models/task.dart';
-import 'package:pamuk/ui/notes/ink/ink_controller.dart';
-import 'package:pamuk/ui/notes/ink/ink_lines.dart';
+import 'package:pamnot/core/quick_parse.dart';
+import 'package:pamnot/models/habit.dart';
+import 'package:pamnot/models/ink.dart';
+import 'package:pamnot/models/note.dart';
+import 'package:pamnot/models/reminder.dart';
+import 'package:pamnot/models/task.dart';
+import 'package:pamnot/ui/notes/ink/ink_controller.dart';
+import 'package:pamnot/ui/notes/ink/ink_lines.dart';
 
 InkStroke line(double x0, double y0, double x1, double y1, {int n = 10, InkTool tool = InkTool.pen}) {
   final d = Float32List(n * 4);

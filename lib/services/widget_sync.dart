@@ -5,10 +5,10 @@ import 'widget_sync_io.dart' if (dart.library.js_interop) 'widget_sync_web.dart'
 /// Pushes the "today" summary to the home-screen widgets (iOS WidgetKit and
 /// Android App Widgets). The native widgets read the JSON under [dataKey].
 abstract class WidgetSync {
-  static const appGroupId = 'group.app.pamuk.shared';
-  static const dataKey = 'pamuk_today';
-  static const iOSName = 'PamukTodayWidget';
-  static const androidName = 'app.pamuk.pamuk.widget.PamukTodayWidgetProvider';
+  static const appGroupId = 'group.app.pamnot.shared';
+  static const dataKey = 'pamnot_today';
+  static const iOSName = 'PamnotTodayWidget';
+  static const androidName = 'app.pamnot.pamnot.widget.PamnotTodayWidgetProvider';
 
   Future<void> push(Map<String, Object?> summary);
 

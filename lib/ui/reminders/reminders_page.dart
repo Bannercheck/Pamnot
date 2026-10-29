@@ -5,7 +5,7 @@ import '../../l10n/strings.dart';
 import '../../models/reminder.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
-import '../../theme/pamuk_theme.dart';
+import '../../theme/pamnot_theme.dart';
 import '../common/format.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';

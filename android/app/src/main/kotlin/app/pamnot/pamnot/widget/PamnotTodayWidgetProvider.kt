@@ -1,4 +1,4 @@
-package app.pamuk.pamuk.widget
+package app.pamnot.pamnot.widget
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -15,8 +15,8 @@ import android.text.style.StrikethroughSpan
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
-import app.pamuk.pamuk.MainActivity
-import app.pamuk.pamuk.R
+import app.pamnot.pamnot.MainActivity
+import app.pamnot.pamnot.R
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -24,17 +24,17 @@ import java.util.Locale
 import kotlin.math.floor
 
 /**
- * "Pamuk · Today" home-screen widget.
+ * "Pamnot · Today" home-screen widget.
  *
  * Data comes from the Flutter side:
  * ```dart
- * HomeWidget.saveWidgetData<String>('pamuk_today', jsonString);
- * HomeWidget.updateWidget(qualifiedAndroidName: 'app.pamuk.pamuk.widget.PamukTodayWidgetProvider');
+ * HomeWidget.saveWidgetData<String>('pamnot_today', jsonString);
+ * HomeWidget.updateWidget(qualifiedAndroidName: 'app.pamnot.pamnot.widget.PamnotTodayWidgetProvider');
  * ```
  * Rendering uses plain RemoteViews with pre-declared rows (no RemoteViewsService / ListView).
  * The JSON is parsed once per update and shared by every widget instance and size.
  */
-class PamukTodayWidgetProvider : HomeWidgetProvider() {
+class PamnotTodayWidgetProvider : HomeWidgetProvider() {
 
     override fun onUpdate(
         context: Context,
@@ -65,14 +65,14 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
 
     /** Everything a render needs that does not depend on the widget size. */
     private class RenderInput(
-        val data: PamukTodayData?,
+        val data: PamnotTodayData?,
         val res: Resources,
         val stale: Boolean,
         val launch: PendingIntent,
     ) {
         companion object {
             fun create(context: Context, json: String?): RenderInput {
-                val data = PamukTodayData.parse(json)
+                val data = PamnotTodayData.parse(json)
                 return RenderInput(
                     data = data,
                     res = if (data == null) context.resources else localizedResources(context, data.lang),
@@ -138,19 +138,19 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
         val small = widthDp < WIDE_MIN_WIDTH_DP
         val views = RemoteViews(
             context.packageName,
-            if (small) R.layout.pamuk_today_widget_small else R.layout.pamuk_today_widget_medium,
+            if (small) R.layout.pamnot_today_widget_small else R.layout.pamnot_today_widget_medium,
         )
         views.setOnClickPendingIntent(android.R.id.background, render.launch)
 
         val res = render.res
         val data = render.data
         if (data == null) {
-            showPlaceholder(views, res, res.getString(R.string.pamuk_widget_placeholder_text))
+            showPlaceholder(views, res, res.getString(R.string.pamnot_widget_placeholder_text))
             return views
         }
         if (render.stale) {
             // Yesterday's plan must not be shown under "Today".
-            showPlaceholder(views, res, res.getString(R.string.pamuk_widget_stale_text))
+            showPlaceholder(views, res, res.getString(R.string.pamnot_widget_stale_text))
             return views
         }
 
@@ -158,7 +158,7 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
         views.setViewVisibility(R.id.pw_content, View.VISIBLE)
         views.setTextViewText(
             R.id.pw_title,
-            data.title.ifEmpty { res.getString(R.string.pamuk_widget_default_title) },
+            data.title.ifEmpty { res.getString(R.string.pamnot_widget_default_title) },
         )
         views.setTextViewText(R.id.pw_date, data.dateLabel)
 
@@ -195,7 +195,7 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
     private fun bindRows(
         views: RemoteViews,
         res: Resources,
-        data: PamukTodayData,
+        data: PamnotTodayData,
         small: Boolean,
         heightDp: Float,
         showNext: Boolean,
@@ -217,7 +217,7 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
             views.setInt(DOT_IDS[i], "setColorFilter", item.color)
             views.setInt(DOT_IDS[i], "setImageAlpha", if (item.done) DONE_MARKER_ALPHA else 255)
             views.setTextViewText(ITEM_IDS[i], if (item.done) strikeThrough(item.title) else item.title)
-            // Disabled state switches to the dimmed colour of the @color/pamuk_widget_item_* selectors.
+            // Disabled state switches to the dimmed colour of the @color/pamnot_widget_item_* selectors.
             views.setBoolean(ITEM_IDS[i], "setEnabled", !item.done)
             if (item.time.isEmpty()) {
                 views.setViewVisibility(TIME_IDS[i], View.GONE)
@@ -230,7 +230,7 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
 
         val hidden = items.size - shown
         if (hidden > 0) {
-            views.setTextViewText(R.id.pw_more, res.getString(R.string.pamuk_widget_more, hidden))
+            views.setTextViewText(R.id.pw_more, res.getString(R.string.pamnot_widget_more, hidden))
             views.setViewVisibility(R.id.pw_more, View.VISIBLE)
         } else {
             views.setViewVisibility(R.id.pw_more, View.GONE)
@@ -249,13 +249,13 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
         views.setViewVisibility(R.id.pw_placeholder, View.VISIBLE)
         views.setTextViewText(
             R.id.pw_placeholder_title,
-            res.getString(R.string.pamuk_widget_placeholder_title),
+            res.getString(R.string.pamnot_widget_placeholder_title),
         )
         views.setTextViewText(R.id.pw_placeholder_text, message)
     }
 
-    private fun nextReminderText(res: Resources, next: PamukTodayReminder): String = buildString {
-        append(res.getString(R.string.pamuk_widget_next_label))
+    private fun nextReminderText(res: Resources, next: PamnotTodayReminder): String = buildString {
+        append(res.getString(R.string.pamnot_widget_next_label))
         append(" · ")
         if (next.time.isNotEmpty()) {
             append(next.time)
@@ -271,9 +271,9 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
     }
 
     private fun markerFor(kind: String): Int = when (kind) {
-        "reminder" -> R.drawable.pamuk_widget_dot_ring
-        "event" -> R.drawable.pamuk_widget_dot_event
-        else -> R.drawable.pamuk_widget_dot
+        "reminder" -> R.drawable.pamnot_widget_dot_ring
+        "event" -> R.drawable.pamnot_widget_dot_event
+        else -> R.drawable.pamnot_widget_dot
     }
 
     private fun strikeThrough(text: String): CharSequence =
@@ -282,11 +282,11 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
         }
 
     companion object {
-        /** Key written by `HomeWidget.saveWidgetData<String>('pamuk_today', ...)`. */
-        const val DATA_KEY = "pamuk_today"
+        /** Key written by `HomeWidget.saveWidgetData<String>('pamnot_today', ...)`. */
+        const val DATA_KEY = "pamnot_today"
 
         /** Delivered to Dart via HomeWidget.initiallyLaunchedFromHomeWidget() / widgetClicked. */
-        const val LAUNCH_URI = "pamuk://today?homeWidget"
+        const val LAUNCH_URI = "pamnot://today?homeWidget"
 
         private const val WIDE_MIN_WIDTH_DP = 200f
         private const val DEFAULT_WIDTH_DP = 250f
@@ -302,7 +302,7 @@ class PamukTodayWidgetProvider : HomeWidgetProvider() {
         private const val MEDIUM_ROW_DP = 21f
 
         private const val SMALL_ROWS = 3
-        private const val MEDIUM_ROWS = PamukTodayData.MAX_ITEMS
+        private const val MEDIUM_ROWS = PamnotTodayData.MAX_ITEMS
         private const val DONE_MARKER_ALPHA = 110
 
         private val ROW_IDS = intArrayOf(

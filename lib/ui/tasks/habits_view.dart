@@ -5,7 +5,7 @@ import '../../core/dates.dart';
 import '../../l10n/strings.dart';
 import '../../models/habit.dart';
 import '../../state/app_controller.dart';
-import '../../theme/pamuk_theme.dart';
+import '../../theme/pamnot_theme.dart';
 import '../common/soft.dart';
 
 class HabitsSliver extends StatelessWidget {

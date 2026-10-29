@@ -1,4 +1,4 @@
-package app.pamuk.pamuk.widget
+package app.pamnot.pamnot.widget
 
 import android.graphics.Color
 import org.json.JSONObject
@@ -7,8 +7,8 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 
-/** One row of the widget (`items[]` in the `pamuk_today` JSON). */
-internal class PamukTodayItem(
+/** One row of the widget (`items[]` in the `pamnot_today` JSON). */
+internal class PamnotTodayItem(
     val title: String,
     val time: String,
     val kind: String,
@@ -16,15 +16,15 @@ internal class PamukTodayItem(
     val color: Int,
 )
 
-/** `nextReminder` in the `pamuk_today` JSON. */
-internal class PamukTodayReminder(val title: String, val time: String)
+/** `nextReminder` in the `pamnot_today` JSON. */
+internal class PamnotTodayReminder(val title: String, val time: String)
 
 /**
- * Parsed form of the `pamuk_today` JSON written by the Flutter side. All strings are already
+ * Parsed form of the `pamnot_today` JSON written by the Flutter side. All strings are already
  * localized by the app. [parse] never throws; it returns null for missing/invalid data so the
  * widget falls back to its placeholder.
  */
-internal class PamukTodayData(
+internal class PamnotTodayData(
     val updatedDate: LocalDate?,
     val lang: String,
     val title: String,
@@ -33,8 +33,8 @@ internal class PamukTodayData(
     val total: Int,
     val progressLabel: String,
     val emptyText: String,
-    val items: List<PamukTodayItem>,
-    val nextReminder: PamukTodayReminder?,
+    val items: List<PamnotTodayItem>,
+    val nextReminder: PamnotTodayReminder?,
 ) {
     /** True when the data was written on an earlier calendar day than today (device time zone). */
     fun isStale(today: LocalDate = LocalDate.now()): Boolean =
@@ -47,11 +47,11 @@ internal class PamukTodayData(
         private const val PEACH = 0xFFF2A88A.toInt()
         private const val MINT = 0xFF86C5B0.toInt()
 
-        fun parse(raw: String?): PamukTodayData? {
+        fun parse(raw: String?): PamnotTodayData? {
             if (raw.isNullOrBlank()) return null
             return try {
                 val json = JSONObject(raw)
-                val items = ArrayList<PamukTodayItem>(MAX_ITEMS)
+                val items = ArrayList<PamnotTodayItem>(MAX_ITEMS)
                 val array = json.optJSONArray("items")
                 if (array != null) {
                     var i = 0
@@ -63,7 +63,7 @@ internal class PamukTodayData(
                         if (title.isEmpty()) continue
                         val kind = obj.str("kind")
                         items.add(
-                            PamukTodayItem(
+                            PamnotTodayItem(
                                 title = title,
                                 time = obj.str("time"),
                                 kind = kind,
@@ -76,9 +76,9 @@ internal class PamukTodayData(
                 val total = json.optInt("total", items.size).coerceAtLeast(0)
                 val next = json.optJSONObject("nextReminder")?.let {
                     val title = it.str("title")
-                    if (title.isEmpty()) null else PamukTodayReminder(title, it.str("time"))
+                    if (title.isEmpty()) null else PamnotTodayReminder(title, it.str("time"))
                 }
-                PamukTodayData(
+                PamnotTodayData(
                     updatedDate = localDateOf(json.str("updatedAt")),
                     lang = json.str("lang"),
                     title = json.str("title"),

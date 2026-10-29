@@ -160,7 +160,7 @@ class _Logo extends StatelessWidget {
       children: [
         mark,
         const SizedBox(width: 12),
-        Text('Pamuk', style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        Text('Pamnot', style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
       ],
     );
   }

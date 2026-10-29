@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Home-screen widget (dark). -->
-    <color name="pamuk_widget_bg">#FF24212B</color>
-    <color name="pamuk_widget_text">#FFECE8F4</color>
-    <color name="pamuk_widget_text_secondary">#FFA39DB2</color>
-    <color name="pamuk_widget_text_done">#66ECE8F4</color>
-    <color name="pamuk_widget_text_secondary_done">#66A39DB2</color>
-    <color name="pamuk_widget_accent_text">#FFB9ACEB</color>
-    <color name="pamuk_widget_track">#FF363140</color>
-    <color name="pamuk_widget_pill">#339B8AD8</color>
-    <color name="pamuk_widget_pill_peach">#33F2A88A</color>
+    <color name="pamnot_widget_bg">#FF24212B</color>
+    <color name="pamnot_widget_text">#FFECE8F4</color>
+    <color name="pamnot_widget_text_secondary">#FFA39DB2</color>
+    <color name="pamnot_widget_text_done">#66ECE8F4</color>
+    <color name="pamnot_widget_text_secondary_done">#66A39DB2</color>
+    <color name="pamnot_widget_accent_text">#FFB9ACEB</color>
+    <color name="pamnot_widget_track">#FF363140</color>
+    <color name="pamnot_widget_pill">#339B8AD8</color>
+    <color name="pamnot_widget_pill_peach">#33F2A88A</color>
 </resources>
