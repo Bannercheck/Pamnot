@@ -1,0 +1,138 @@
+# Checks every push and builds test copies of Pamnot for each platform.
+#
+# Android and web build on every push. The macOS, iOS and Windows jobs use
+# runners that cost more Actions minutes (macOS counts 10x), so they run on
+# main, on tags, when started by hand, or when a commit message contains
+# [full-build].
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.47.8
+
+jobs:
+  checks:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  android:
+    name: Android APK
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build apk --release --split-per-abi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pamnot-android
+          path: build/app/outputs/flutter-apk/*-release.apk
+          if-no-files-found: error
+
+  web:
+    name: Web
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build web --release --no-web-resources-cdn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pamnot-web
+          path: build/web
+          if-no-files-found: error
+
+  macos:
+    name: macOS app
+    needs: checks
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[full-build]')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build macos --release
+      - name: Zip the app
+        run: ditto -c -k --keepParent build/macos/Build/Products/Release/Pamnot.app Pamnot-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pamnot-macos
+          path: Pamnot-macos.zip
+          if-no-files-found: error
+
+  ios:
+    name: iOS compile check
+    needs: checks
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[full-build]')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      # Installing on a device needs signing in Xcode; this proves the app
+      # compiles for iOS.
+      - run: flutter build ios --release --no-codesign
+      # The home-screen widget has no Xcode target yet (see
+      # ios/PamnotWidget/README.md), so type-check its Swift sources directly
+      # at the app's minimum iOS version.
+      - name: Type-check the widget extension
+        run: |
+          xcrun --sdk iphoneos swiftc -typecheck -parse-as-library \
+            -target arm64-apple-ios16.0 \
+            ios/PamnotWidget/*.swift
+
+  windows:
+    name: Windows app
+    needs: checks
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[full-build]')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pamnot-windows
+          path: build/windows/x64/runner/Release
+          if-no-files-found: error
