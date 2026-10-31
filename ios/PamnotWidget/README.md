@@ -59,7 +59,10 @@ error-prone, so let Xcode create the target, then swap in these sources.
    PamnotWidgetExtension row to `PamnotWidget.xcconfig`. Leave Runner's rows untouched.
 7. **Signing & Capabilities:** add **App Groups** to both **Runner** and
    **PamnotWidgetExtension**, and tick `group.app.pamnot.shared`. Both entitlements files already
-   list it; adding the capability lets Xcode register it with your team.
+   list it; adding the capability lets Xcode register it with your team. For Runner this also sets
+   Code Signing Entitlements to `Runner/Runner.entitlements`, which the project leaves unset so
+   that the app alone can be signed with a free Apple ID: Personal Teams cannot use App Groups,
+   so the widget needs a paid Apple Developer membership.
 8. **Runner → Build Phases:** make sure **Embed Foundation Extensions** contains
    `PamnotWidgetExtension.appex`. If the build fails with "Cycle inside Runner", drag that phase
    above **Thin Binary** (and above **Run Script**, if needed).
@@ -73,8 +76,9 @@ are behind `#if os(iOS)`, and `containerBackground` is gated for macOS 14.
 
 To set one up, add a **macOS → Widget Extension** target in `macos/Runner.xcodeproj` and reference
 these two `.swift` files. Give it its own Info.plist and entitlements: macOS widgets must be
-sandboxed, so add `com.apple.security.app-sandbox` plus the same App Group, which is already in
-`macos/Runner/*.entitlements`.
+sandboxed, so add `com.apple.security.app-sandbox` plus the same App Group, and add the App Group
+to `macos/Runner/DebugProfile.entitlements` and `Release.entitlements` as well (they leave it out
+until a widget exists, so unsigned test builds of the Mac app open without a provisioning profile).
 
 Note that home_widget has no macOS implementation. The Flutter app would have to write
 `pamnot_today` into `UserDefaults(suiteName: "group.app.pamnot.shared")` itself, for example via a

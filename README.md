@@ -55,6 +55,8 @@ flutter test                # 47 test
 
 Flutter 3.47 / Dart 3.13 ile geliştirildi.
 
+Telefon, tablet ve bilgisayarda deneme adımları ve kontrol listesi: [TESTING.md](TESTING.md).
+
 ### Platform notları
 
 - **iOS widget'ı:** Swift kodu `ios/PamnotWidget/` içinde hazır. Widget extension hedefi Xcode'da bir
