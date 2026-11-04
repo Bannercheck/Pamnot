@@ -86,6 +86,11 @@ class BoardEditor extends ChangeNotifier {
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
+  /// Identifies the newest undo step. An undo snack keeps the token of its
+  /// own edit and undoes only while it is still on top, so it never reverts
+  /// a later edit instead.
+  Object? get undoToken => _undo.isEmpty ? null : _undo.last;
+
   /// Runs [fn] as one undo step with one notification.
   T batch<T>(T Function() fn) {
     _depth++;

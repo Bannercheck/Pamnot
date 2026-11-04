@@ -185,8 +185,9 @@ class S {
   String get download => _('İndir', 'Download');
   String get ready => _('Hazır', 'Ready');
   String get about => _('Hakkında', 'About');
-  String get aboutText => _('Pamnot — yumuşacık notlar, planlar ve anımsatıcılar. Verilerin yalnızca cihazında saklanır.',
-      'Pamnot — soft notes, plans and reminders. Your data stays on your device.');
+  String get aboutText => _(
+      'Pamnot — yumuşacık notlar, planlar ve anımsatıcılar. Paylaştığın panolar dışında verilerin yalnızca cihazında saklanır.',
+      'Pamnot — soft notes, plans and reminders. Apart from boards you share, your data stays on your device.');
   String get turkish => 'Türkçe';
   String get english => 'English';
 

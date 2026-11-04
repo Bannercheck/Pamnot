@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../boards/ui/board_list.dart';
+import '../../boards/ui/new_board_sheet.dart';
 import '../../core/dates.dart';
+import '../../l10n/board_strings.dart';
 import '../../l10n/strings.dart';
+import '../../models/settings.dart';
 import '../../models/task.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
@@ -21,45 +25,71 @@ class TrackPage extends StatefulWidget {
 }
 
 class _TrackPageState extends State<TrackPage> {
-  bool _habits = false;
   _Filter _filter = _Filter.all;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context, {Slice.tasks, Slice.habits, Slice.settings});
     final s = S.of(context);
-    final wide = MediaQuery.sizeOf(context).width >= 560;
+    final width = MediaQuery.sizeOf(context).width;
+    final wide = width >= 560;
     final pad = wide ? 28.0 : 16.0;
+    // Remembered across launches; a task notification switches back to tasks.
+    final segment = app.settings.trackSegment;
+    // Three labels with icons get clipped on a 360 dp phone.
+    final icons = width >= 420;
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'track-fab',
-        onPressed: () => _habits
-            ? showHabitEditor(context, app, null)
-            : showTaskEditor(context, app, app.draftTask(), isNew: true),
+        onPressed: () => switch (segment) {
+          TrackSegment.tasks => showTaskEditor(context, app, app.draftTask(), isNew: true),
+          TrackSegment.habits => showHabitEditor(context, app, null),
+          TrackSegment.boards => showNewBoardSheet(context),
+        },
         icon: const Icon(Icons.add_rounded),
-        label: Text(_habits ? s.newHabit : s.newTask),
+        label: Text(switch (segment) {
+          TrackSegment.tasks => s.newTask,
+          TrackSegment.habits => s.newHabit,
+          TrackSegment.boards => s.newBoard,
+        }),
       ),
       body: CustomScrollView(
         slivers: [
-          PageHeader(title: s.tasks),
+          PageHeader(
+            title: s.tasks,
+            actions: [
+              if (segment == TrackSegment.boards)
+                IconButton(
+                  tooltip: s.joinInvite,
+                  onPressed: () => joinBoardFromInvite(context),
+                  icon: const Icon(Icons.group_add_outlined),
+                ),
+            ],
+          ),
           SliverPadding(
             padding: EdgeInsets.fromLTRB(pad, 4, pad, 8),
             sliver: SliverToBoxAdapter(
               child: ContentWidth(
-                child: SegmentedButton<bool>(
+                child: SegmentedButton<TrackSegment>(
                   showSelectedIcon: false,
                   segments: [
-                    ButtonSegment(value: false, label: Text(s.tasksTab), icon: const Icon(Icons.check_circle_outline_rounded)),
-                    ButtonSegment(value: true, label: Text(s.habits), icon: const Icon(Icons.spa_outlined)),
+                    for (final (v, label, icon) in [
+                      (TrackSegment.tasks, s.tasksTab, Icons.check_circle_outline_rounded),
+                      (TrackSegment.habits, s.habits, Icons.spa_outlined),
+                      (TrackSegment.boards, s.boards, Icons.dashboard_outlined),
+                    ])
+                      ButtonSegment(value: v, label: Text(label, maxLines: 1), icon: icons ? Icon(icon) : null),
                   ],
-                  selected: {_habits},
-                  onSelectionChanged: (v) => setState(() => _habits = v.first),
+                  selected: {segment},
+                  onSelectionChanged: (v) => app.updateSettings(app.settings.copyWith(trackSegment: v.first)),
                 ),
               ),
             ),
           ),
-          if (_habits)
+          if (segment == TrackSegment.habits)
             HabitsSliver(app: app, padding: pad)
+          else if (segment == TrackSegment.boards)
+            BoardsSliver(padding: pad)
           else ...[
             SliverPadding(
               padding: EdgeInsets.fromLTRB(pad, 8, pad, 4),

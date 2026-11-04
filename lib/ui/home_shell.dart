@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
+import '../models/settings.dart';
 import '../state/app_scope.dart';
 import 'notes/note_editor_page.dart';
 import 'notes/notes_page.dart';
@@ -47,6 +48,13 @@ class _HomeShellState extends State<HomeShell> {
   void _onNotification() {
     final p = notificationTaps.value;
     if (p == null) return;
+    if (p.startsWith('t:')) {
+      // Takip remembers its segment; a task reminder must land on the tasks.
+      final app = AppScope.of(context);
+      if (app.settings.trackSegment != TrackSegment.tasks) {
+        app.updateSettings(app.settings.copyWith(trackSegment: TrackSegment.tasks));
+      }
+    }
     _go(p.startsWith('w:') ? 0 : (p.startsWith('t:') ? 2 : 4));
     notificationTaps.value = null;
   }
