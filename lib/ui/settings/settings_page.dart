@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../boards/cloud/cloud_scope.dart';
+import '../../boards/cloud/collab_settings.dart';
+import '../../l10n/collab_strings.dart';
 import '../../l10n/strings.dart';
 import '../../models/settings.dart';
 import '../../services/handwriting.dart';
@@ -105,6 +108,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   if (app.handwriting.isSupported) _ModelTiles(app: app),
                 ]),
+                if (CloudScope.maybeOf(context) != null) group(s.collaboration, const [CollabSettingsSection()]),
                 group(s.planner, [
                   SwitchListTile(
                     title: Text(s.weekStartsMonday),
@@ -131,7 +135,7 @@ class SettingsPage extends StatelessWidget {
                   ListTile(
                     leading: const Text('☁️', style: TextStyle(fontSize: 24)),
                     title: const Text('Pamnot'),
-                    subtitle: Text(s.aboutText),
+                    subtitle: Text(s.aboutTextShared),
                   ),
                 ]),
                 const SizedBox(height: 8),

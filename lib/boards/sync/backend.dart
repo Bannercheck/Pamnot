@@ -70,9 +70,14 @@ abstract class RealtimeLink {
 }
 
 class LiveHandlers {
-  const LiveHandlers({required this.onPresence, required this.onCursor, this.onStatus});
+  const LiveHandlers({required this.onPresence, required this.onCursor, this.onStatus, this.presenceKey});
+
+  /// This device's presence key (the HLC node id). Null lets the server pick
+  /// one per connection.
+  final String? presenceKey;
 
   /// Current presence payloads of everyone on the channel (including self).
+  /// Each payload also carries its presence key under `key`.
   final void Function(List<Map<String, Object?>> presences) onPresence;
 
   final void Function(Map<String, Object?> payload) onCursor;
