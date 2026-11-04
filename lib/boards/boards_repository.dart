@@ -162,6 +162,7 @@ class BoardsRepository {
   final Map<String, BoardViewState> _pendingViews = {};
   Map<String, Object?>? _pendingIndex;
   Timer? _timer;
+  Timer? _maxTimer;
   Future<void>? _writing;
 
   Future<(List<BoardSummary>, int)> loadIndex() async {
@@ -247,10 +248,15 @@ class BoardsRepository {
   void _schedule() {
     _timer?.cancel();
     _timer = Timer(saveDelay, () => unawaited(flush()));
+    // A steady stream of changes (a teammate drawing, a burst of realtime
+    // rows) must not postpone the save forever.
+    _maxTimer ??= Timer(saveDelay * 5, () => unawaited(flush()));
   }
 
   Future<void> flush() async {
     _timer?.cancel();
+    _maxTimer?.cancel();
+    _maxTimer = null;
     while (_writing != null) {
       await _writing;
     }
@@ -295,6 +301,9 @@ class BoardsRepository {
     }
   }
 
-  void dispose() => _timer?.cancel();
+  void dispose() {
+    _timer?.cancel();
+    _maxTimer?.cancel();
+  }
 }
 

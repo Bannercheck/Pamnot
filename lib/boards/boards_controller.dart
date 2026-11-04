@@ -201,7 +201,12 @@ class BoardsController extends ChangeNotifier {
     final placeholder = board.connection;
     board.connection = _connectionFor(board);
     if (!identical(placeholder, board.connection)) unawaited(placeholder.close());
-    final inkIds = [for (final it in doc.items.values) if (it.kind == ItemKind.ink && !it.deleted) it.id];
+    // Deleted ink is not drawn, but strokes that were never pushed must
+    // still be loaded or they could never leave the outbox.
+    final inkIds = [
+      for (final it in doc.items.values)
+        if (it.kind == ItemKind.ink && (!it.deleted || it.d.contains(F.strokes))) it.id,
+    ];
     if (inkIds.isNotEmpty) {
       unawaited(repo.loadInk(inkIds).then((ink) {
         if (_open[board.id] == board) editor.attachStrokes(ink);
@@ -263,11 +268,13 @@ class BoardsController extends ChangeNotifier {
     final view = await repo.loadView(oldId);
     doc.remint(newId);
     _summaries.remove(oldId);
-    await repo.deleteBoard(oldId, const []);
     if (view != null) repo.saveView(newId, view);
     if (board != null) _open[newId] = board;
     persist(doc);
+    // The new document is on disk before the old one goes, so a crash in
+    // between keeps the board.
     await repo.flush();
+    await repo.deleteBoard(oldId, const []);
     board?.editor.touch();
     return newId;
   }
