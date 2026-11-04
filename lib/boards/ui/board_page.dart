@@ -102,11 +102,13 @@ class _BoardPageState extends State<BoardPage> {
     b.connection.setActivity(view: view);
   }
 
-  /// The canvas reports its viewport when it settles; no rebuild here.
+  /// The canvas reports its viewport when it settles; no rebuild here. It
+  /// also reports once while being disposed after a switch to Kanban, so the
+  /// page's current view is kept.
   void _onViewChanged(BoardViewState v) {
     final b = _board;
     if (b == null) return;
-    _viewState = v.copyWith(view: 'canvas');
+    _viewState = v.copyWith(view: _view);
     _boards.saveView(b.id, _viewState!);
   }
 

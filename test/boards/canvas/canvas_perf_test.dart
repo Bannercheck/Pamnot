@@ -213,6 +213,10 @@ canvas perf (debug JIT, flutter_tester; compare relative numbers only)
       await tester.pump(const Duration(milliseconds: 16));
     }
     await tester.pump();
+    // A slow recording (a loaded test machine) is deferred by the throttle;
+    // give its retry timer a chance to fire.
+    await tester.pump(RenderRetainedPicture.rerecordEvery);
+    await tester.pump();
     expect(h.session.outlines.busy, isFalse);
     expect(overview.debugRecordCount, 2);
     // ignore: avoid_print

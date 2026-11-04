@@ -45,6 +45,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sil'));
     await tester.pumpAndSettle();
+    // Removing asks first, for device-only boards too.
+    await tester.tap(find.widgetWithText(FilledButton, 'Sil'));
+    await tester.pumpAndSettle();
     expect(c.boards.boards, isEmpty);
     expect(find.textContaining('İlk panonu oluştur'), findsOneWidget);
     expect(find.text('Davetim var'), findsOneWidget);

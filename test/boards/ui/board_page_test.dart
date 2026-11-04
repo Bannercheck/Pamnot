@@ -204,6 +204,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sil'));
     await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Sil'));
+    await tester.pumpAndSettle();
     expect(find.byType(BoardPage), findsNothing);
     expect(find.byType(BoardTile), findsNothing);
     expect(c.boards.boards, isEmpty);

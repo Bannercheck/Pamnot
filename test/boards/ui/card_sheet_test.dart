@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -6,6 +8,8 @@ import 'package:pamnot/boards/connection.dart';
 import 'package:pamnot/boards/model/board_doc.dart';
 import 'package:pamnot/boards/model/board_item.dart';
 import 'package:pamnot/boards/ui/card_face.dart';
+import 'package:pamnot/boards/ui/card_sheet.dart';
+import 'package:pamnot/boards/ui/kanban_view.dart';
 import 'package:pamnot/state/app_controller.dart';
 
 import 'harness.dart';
@@ -234,6 +238,35 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Tamam'));
     await tester.pumpAndSettle();
     expect(b.editor.revision, rev);
+    await shutdown(tester, c);
+  });
+
+  testWidgets('a blank card closed still blank is not kept; a titled one is', (tester) async {
+    final c = await makeApp(tester);
+    final id = await makeBoard(tester, c, cards: [
+      ['Var olan'],
+    ]);
+    await openKanban(tester, c, id);
+    final board = c.boards.openBoard(id)!;
+    final e = board.editor;
+    final col = e.columns.first.id;
+
+    // What the canvas's Kart button does: an empty card, then the sheet.
+    final blank = e.addCard(columnId: col, title: '');
+    unawaited(showCardSheet(tester.element(find.byType(KanbanView)), board, blank));
+    await tester.pumpAndSettle();
+    await swipeDown(tester);
+    expect(e.item(blank)!.deleted, isTrue);
+    expect(e.cardsIn(col).map((x) => x.title), ['Var olan']);
+
+    final titled = e.addCard(columnId: col, title: '');
+    unawaited(showCardSheet(tester.element(find.byType(KanbanView)), board, titled));
+    await tester.pumpAndSettle();
+    final fields = find.descendant(of: find.byType(BottomSheet), matching: find.byType(TextField));
+    await tester.enterText(fields.first, 'Yeni iş');
+    await swipeDown(tester);
+    expect(e.item(titled)!.deleted, isFalse);
+    expect(e.item(titled)!.title, 'Yeni iş');
     await shutdown(tester, c);
   });
 }

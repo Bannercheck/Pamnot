@@ -127,6 +127,19 @@ class _CardDraft {
     onClose?.call();
     final card = e.item(id);
     if (deleted || card == null || card.deleted || e.readOnly) return;
+    // A blank card (the canvas's Kart button adds one, then opens this
+    // sheet) that is closed still blank is not kept.
+    if (_title.trim().isEmpty &&
+        title.trim().isEmpty &&
+        notes.trim().isEmpty &&
+        due == null &&
+        subtasks.isEmpty &&
+        card.title.trim().isEmpty &&
+        card.notes.trim().isEmpty &&
+        card.subtasks.isEmpty) {
+      e.deleteItems({id});
+      return;
+    }
     final ch = changes(e);
     if (ch.isNotEmpty) e.updateCard(id, ch);
   }
