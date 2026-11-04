@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pamnot/boards/board_editor.dart';
@@ -227,7 +226,7 @@ void main() {
 
     test('moveColumn swaps neighbours', () {
       final e = editorWithColumns();
-      final names = () => e.columns.map((c) => c.title).toList();
+      List<String> names() => e.columns.map((c) => c.title).toList();
       e.moveColumn(e.columns[0].id, 1);
       expect(names(), ['B', 'A', 'C']);
       e.moveColumn(e.columns[2].id, -1);
