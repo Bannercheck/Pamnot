@@ -103,6 +103,8 @@ abstract class BoardConnection {
   /// Retry after an error (tap on the sync icon).
   Future<void> retry();
 
+  /// Must be safe to call more than once (a release and a refresh can both
+  /// close the same connection).
   Future<void> close();
 }
 
@@ -134,8 +136,13 @@ class LocalConnection implements BoardConnection {
   @override
   Future<void> retry() async {}
 
+  bool _closed = false;
+
+  /// Safe to call more than once.
   @override
   Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
     _state.dispose();
     _peers.dispose();
     _cursors.dispose();

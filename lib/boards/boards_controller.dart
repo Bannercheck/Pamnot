@@ -231,15 +231,35 @@ class BoardsController extends ChangeNotifier {
     return LocalConnection();
   }
 
+  Future<void>? _refreshing;
+  bool _refreshAgain = false;
+
   /// Re-creates connections after sign-in, sign-out or a server change.
-  Future<void> refreshConnections() async {
-    for (final b in _open.values) {
-      final old = b.connection;
-      await old.close();
-      b.connection = _connectionFor(b);
-      b.editor.touch();
+  /// Calls that overlap share one run (plus a rerun for the latest call), so
+  /// a connection is never closed twice and boards may open or go meanwhile.
+  Future<void> refreshConnections() {
+    _refreshAgain = true;
+    return _refreshing ??= _refresh();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      while (_refreshAgain) {
+        _refreshAgain = false;
+        for (final b in _open.values.toList()) {
+          if (!identical(_open[b.id], b)) continue;
+          final old = b.connection;
+          await old.close();
+          // Released or removed while closing: its connection is closed.
+          if (!identical(_open[b.id], b)) continue;
+          b.connection = _connectionFor(b);
+          b.editor.touch();
+        }
+        notifyListeners();
+      }
+    } finally {
+      _refreshing = null;
     }
-    notifyListeners();
   }
 
   // ---------------------------------------------------- sharing lifecycle
