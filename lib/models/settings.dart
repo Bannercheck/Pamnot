@@ -4,6 +4,9 @@ enum AppLanguage { system, tr, en }
 
 enum PredictionLanguage { auto, tr, en }
 
+/// The segment shown in the Takip tab.
+enum TrackSegment { tasks, habits, boards }
+
 class AppSettings {
   const AppSettings({
     this.language = AppLanguage.system,
@@ -14,6 +17,8 @@ class AppSettings {
     this.autoStylusOnly = true,
     this.mondayFirst = true,
     this.seeded = false,
+    this.trackSegment = TrackSegment.tasks,
+    this.boardsSeeded = false,
   });
 
   final AppLanguage language;
@@ -33,6 +38,12 @@ class AppSettings {
   /// Sample content was created on first launch.
   final bool seeded;
 
+  /// Last segment shown in Takip.
+  final TrackSegment trackSegment;
+
+  /// The sample board was created (the first time Panolar was shown).
+  final bool boardsSeeded;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -42,6 +53,8 @@ class AppSettings {
     bool? autoStylusOnly,
     bool? mondayFirst,
     bool? seeded,
+    TrackSegment? trackSegment,
+    bool? boardsSeeded,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -52,6 +65,8 @@ class AppSettings {
         autoStylusOnly: autoStylusOnly ?? this.autoStylusOnly,
         mondayFirst: mondayFirst ?? this.mondayFirst,
         seeded: seeded ?? this.seeded,
+        trackSegment: trackSegment ?? this.trackSegment,
+        boardsSeeded: boardsSeeded ?? this.boardsSeeded,
       );
 
   Map<String, Object?> toJson() => {
@@ -63,6 +78,8 @@ class AppSettings {
         'autoStylusOnly': autoStylusOnly,
         'mondayFirst': mondayFirst,
         'seeded': seeded,
+        'trackSegment': trackSegment.name,
+        'boardsSeeded': boardsSeeded,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -78,5 +95,8 @@ class AppSettings {
         autoStylusOnly: j['autoStylusOnly'] != false,
         mondayFirst: j['mondayFirst'] != false,
         seeded: j['seeded'] == true,
+        trackSegment: TrackSegment.values.firstWhere((v) => v.name == j['trackSegment'],
+            orElse: () => TrackSegment.tasks),
+        boardsSeeded: j['boardsSeeded'] == true,
       );
 }

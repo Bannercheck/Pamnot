@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../boards/boards_controller.dart';
 import '../core/dates.dart';
 import '../core/quick_parse.dart';
 import '../data/store.dart';
@@ -62,9 +63,14 @@ class AppController extends ChangeNotifier {
   })  : scheduler = scheduler ?? NoopScheduler(),
         widgetSync = widgetSync ?? NoopWidgetSync(),
         handwriting = handwriting ?? UnsupportedRecognizer(),
-        now = clock ?? DateTime.now;
+        now = clock ?? DateTime.now,
+        boards = BoardsController(store: store, now: clock, saveDelay: saveDelay);
 
   final KeyValueStore store;
+
+  /// Boards (Takip › Panolar). They live in their own documents and notify
+  /// on their own, outside the slices below.
+  final BoardsController boards;
   final ReminderScheduler scheduler;
   final WidgetSync widgetSync;
   final HandwritingRecognizer handwriting;
@@ -127,6 +133,7 @@ class AppController extends ChangeNotifier {
   Future<void>? _saving;
 
   Future<void> load() async {
+    unawaited(boards.load());
     final keys = ['settings', 'notes', 'tasks', 'reminders', 'habits'];
     final raw = await Future.wait(keys.map(store.read));
     List<Map<String, Object?>> items(String? doc) {
@@ -227,6 +234,7 @@ class AppController extends ChangeNotifier {
   /// Writes everything that changed. Called after a short pause in editing
   /// and when the app goes to the background.
   Future<void> flush() async {
+    unawaited(boards.flush());
     _saveTimer?.cancel();
     while (_saving != null) {
       await _saving;
@@ -354,6 +362,7 @@ class AppController extends ChangeNotifier {
     for (final t in [_saveTimer, _alertTimer, _widgetTimer, _learnTimer, _ticker, _midnight]) {
       t?.cancel();
     }
+    boards.dispose();
     super.dispose();
   }
 

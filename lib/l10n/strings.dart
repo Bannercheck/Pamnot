@@ -19,6 +19,9 @@ class S {
 
   String _(String t, String e) => isTr ? t : e;
 
+  /// For string extensions in other files (boards, canvas, collaboration).
+  String pick(String tr, String en) => isTr ? tr : en;
+
   // Navigation
   String get today => _('Bugün', 'Today');
   String get notes => _('Notlar', 'Notes');
