@@ -84,6 +84,43 @@ Ana ekran widget'ı için Xcode'da extension hedefi eklemek ve App Group kullanm
       İlk seferde bildirim izni istenir. Ayarlar'daki **Deneme bildirimi gönder** de işe yarar.
 - [ ] Her gün tekrarlayan bir anımsatıcı kurun.
 
+**Sesle görev ekleme (iPhone)**
+
+Not: `main`'e birleştirmeden önce bu liste cihazda geçilir.
+
+- [ ] Kestirmeler uygulamasında Pamnot altında **Sesle Görev Ekle** eylemi görünmeli (Spotlight'ta
+      da).
+- [ ] Eylem düğmesine **Sesle Görev Ekle**'yi atayın (Eylem düğmesi olan iPhone'larda): düğmeye
+      basınca Sesle ekle ekranı açılıp dinlemeye başlamalı.
+- [ ] Arkaya Dokunma: önce Kestirmeler'de tek eylemli bir kestirme oluşturun (Pamnot > Sesle Görev
+      Ekle), sonra **Ayarlar > Erişilebilirlik > Dokunma > Arkaya Dokunma**'da onu seçin. Telefonun
+      arkasına dokununca ekran açılıp dinlemeli.
+- [ ] Sesle Denetim: Pamnot'un Ayarlar > Sesle ekleme bölümündeki adımlarla bir komut kurun.
+      Komutu söyleyince ekran açılıp dinlemeli (Sesle Denetim mikrofonu kendisi de kullanır).
+- [ ] Siri'ye "Pamnot ile görev ekle" deyin: ekran açılmalı.
+- [ ] Bugün ekranındaki hızlı eklemede mikrofon düğmesine dokunun: ekran açılmalı.
+- [ ] Safari'nin adres çubuğuna `pamnot://ses` yazın: Pamnot Sesle ekle ekranıyla açılmalı. Ekran
+      kapanınca altta tek bir ana ekran kalmalı; ikinci bir ana ekran açılmamalı.
+- [ ] "yarın akşam yedide annemi ara" deyin: önizlemede **Yarın 19:00** ve zil simgesi (hatırlatma
+      açık) görünmeli.
+- [ ] "saat üçte dişçi" deyin: önizlemede **15:00 ?** görünmeli (saat tahmini).
+- [ ] Önizlemede **Düzelt**'e dokunun: metni düzeltip kaydedebilmelisiniz.
+- [ ] Önizlemedeyken ekranı ✕ ile kapatın: görev kaydedilmemeli.
+- [ ] Bir görev söyleyip hemen telefonu kilitleyin: görev kaydedilmeli. Geri dönünce
+      **Kilitlenirken kaydedildi** görünmeli; mikrofon kendiliğinden açılmamalı.
+- [ ] Mikrofon ya da Konuşma Tanıma iznini reddedin: ekranda **Ayarlar'ı Aç** çıkmalı ve iOS
+      Ayarlar'da Pamnot'u açmalı. Sistem izni bir daha sorulmamalı.
+- [ ] **Ayarlar > Genel > Klavye**'de Dikte kapalıyken ekranı açın: Dikte'yi açmaya yönlendirmeli.
+- [ ] VoiceOver açıkken bir görev söyleyin: önizlemede geri sayım olmamalı; görev **Kaydet** ile
+      kaydedilmeli.
+- [ ] Pamnot'ta **Ayarlar > Sesle ekleme > Tanınan metinleri sakla**'yı açın ve birkaç gerçek görev
+      söyleyin. **Son tanınanlar** listesinde saatlerin nasıl yazıldığına bakın ("10'da" mı, "onda"
+      mı) ve örnekleri paylaşın; ayrıştırıcı gerekirse bunlara göre düzeltilir. **Temizle** listeyi
+      boşaltmalı.
+
+Ücretsiz Apple kimliğiyle kurulan uygulama 7 günde bir yeniden kurulur. Uygulama silinip
+kurulursa Eylem düğmesine ve Arkaya Dokunma'ya atanan kestirme yeniden seçilmelidir.
+
 **Genel**
 - [ ] Ayarlar'dan dili (Türkçe/English) ve temayı (açık/koyu) değiştirin.
 - [ ] Uygulamayı tamamen kapatıp açın: tüm veriler yerinde olmalı.
@@ -92,3 +129,22 @@ Ana ekran widget'ı için Xcode'da extension hedefi eklemek ve App Group kullanm
 
 Bir sorun görürseniz ekran görüntüsü ve kısa bir açıklama yeterli: hangi cihaz, ne yaptınız,
 ne bekliyordunuz.
+
+## Yayın (App Store)
+
+Mağaza sürümü ücretsiz Apple kimliğiyle gönderilemez ve Mac'te Xcode 26 ya da sonrası gerekir.
+App Store Connect yanıtları ve inceleme notu taslağı:
+[uyum belgesi](docs/superpowers/specs/2026-11-23-app-store-compliance.md) §5.
+
+1. Apple Developer Program üyeliği; App Store Connect'te uygulama kaydı (bundle ID
+   `app.pamnot.pamnot`).
+2. `pubspec.yaml` içindeki `version:` her yüklemede artan bir derleme numarası alır (`1.0.0+2`, …).
+3. Xcode 26+: `flutter build ipa --release`, sonra Transporter ya da Organizer ile yükleyin.
+4. Önce TestFlight (dahili test): gerçek cihazda bu dosyadaki kontrol listeleri ve uyum belgesinin
+   §3 ve §4 maddeleri. **Xcode > Product > Archive > Generate Privacy Report** ile (Organizer'da
+   arşivin üzerinde) ML Kit bildirimlerini doğrulayın.
+5. App Store Connect alanları doldurulur (App Privacy, yaş derecelendirmesi, kategori, ekran
+   görüntüleri, destek ve gizlilik adresi, inceleme notu), sonra **Submit for Review**. Gizlilik
+   adresi [`PRIVACY.md`](PRIVACY.md)'nin GitHub sayfasıdır (`lib/services/links.dart`); depo
+   herkese açık değilse oradaki iki sabit değiştirilir.
+6. `CLAUDE.md` kuralı: yayından önce `security-audit` tam denetimi çalıştırılır.

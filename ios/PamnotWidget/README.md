@@ -19,7 +19,11 @@ Contract with the Flutter side (keep in sync):
 - Widget kind `PamnotTodayWidget` (`HomeWidget.updateWidget(iOSName: 'PamnotTodayWidget')`).
 - Tapping opens `pamnot://today?homeWidget`. home_widget only reports URLs that carry the
   `homeWidget` query item (`HomeWidget.initiallyLaunchedFromHomeWidget()` /
-  `HomeWidget.widgetClicked`). The `pamnot` scheme does not need to be registered.
+  `HomeWidget.widgetClicked`).
+- The `pamnot` scheme is now registered for `pamnot://ses` (`CFBundleURLTypes` in
+  `ios/Runner/Info.plist`), which opens the add-by-voice screen. Widget links are still claimed by
+  `home_widget` through `?homeWidget`. `FlutterDeepLinkingEnabled = false` is set on purpose: if it
+  were on, an unclaimed `pamnot://` link would open a second home screen.
 
 The timeline reloads every 30 min. At midnight it switches to an "open the app" placeholder, so
 yesterday's plan is never shown under "Today". The extension links no pods and does not import

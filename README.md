@@ -14,12 +14,14 @@ tabanından **iPhone, iPad, macOS, Android, Windows** (ve Linux/web) üzerinde
 | **Kelime tahmini (TR + EN)** | Klavyenin üstünde 3 öneri. Kelime tamamlama, sonraki kelime önerisi, Türkçe harf katlama (`gorusme` → `görüşme`), tek harf yazım hatası toleransı, Türkçe büyük/küçük harf kuralları (i/İ, ı/I). Notlarınızdan ve görevlerinizden öğrenir. Donanım klavyesinde Tab ilk öneriyi alır. |
 | **Takip** | Görevler (tarih, saat, öncelik, alt görevler, renk, hatırlatma), kaydırarak silme ve geri alma. Alışkanlıklar: haftalık hedef halkası ve seri 🔥. |
 | **Hızlı ekleme** | "yarın 10:00 toplantı", "cuma saat 14 sunum", "call mom tomorrow 6pm" gibi doğal dil ile tarihli görev. |
+| **Sesle ekleme** | iPhone ve iPad'de "yarın akşam yedide annemi ara" deyin: tarihi, saati ve hatırlatmasıyla görev olur. Kestirmeler, Spotlight, Siri, Eylem düğmesi, Arkaya Dokunma ya da hızlı eklemedeki mikrofon düğmesiyle açılır. Ses kaydı saklanmaz. |
 | **Plan** | Hafta şeridi ve ay görünümü, günün zaman çizelgesi (görevler ve tekrarlayan anımsatıcılar). |
 | **Anımsatıcılar** | Bir kez / her gün / her hafta / her ay / her yıl. Uygulama kapalıyken de yerel bildirim. |
 | **Widget** | Ana ekran widget'ı "Bugün": iOS'ta küçük, orta, büyük ve kilit ekranı; Android'de küçük ve orta. |
 | **Tema** | Krem, lavanta, şeftali ve mint tonları; Nunito yazı tipi; açık ve koyu tema. |
 
-Veriler yalnızca cihazda saklanır.
+Veriler cihazda saklanır. Sesle eklemede konuşma Apple'a, el yazısı tanımada kişisel olmayan kullanım
+ölçümleri Google'a gidebilir; ayrıntılar [Gizlilik Politikası](PRIVACY.md)'nda.
 
 ## Performans
 
@@ -50,7 +52,7 @@ flutter run                 # bağlı cihaz / simülatör
 flutter run -d macos        # Mac
 flutter run -d windows      # Windows
 flutter run -d chrome       # hızlı önizleme (web)
-flutter test                # 47 test
+flutter test                # 387 test
 ```
 
 Flutter 3.47 / Dart 3.13 ile geliştirildi.

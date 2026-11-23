@@ -32,6 +32,10 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      - name: iOS ayar ve varlık denetimleri
+        run: |
+          python3 tool/ios/check_ios_config.py
+          python3 tool/ios/check_launch_assets.py
 
   android:
     name: Android APK
@@ -106,9 +110,22 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Plist ve metin dosyalarını denetle
+        run: |
+          plutil -lint ios/Runner.xcodeproj/project.pbxproj ios/Runner/Info.plist \
+            ios/Runner/PrivacyInfo.xcprivacy ios/Runner/*.lproj/*.strings
       # Installing on a device needs signing in Xcode; this proves the app
       # compiles for iOS.
       - run: flutter build ios --release --no-codesign
+      # Kestirme sessizce kaybolmasın: App Intents meta verisi çıkarılmış olmalı.
+      # Her denetim kendi satırında: `bash -e`, `a && b` zincirinde `a` başarısız
+      # olunca durmaz, adım son satırın sonucuyla geçerdi.
+      - name: Kestirme ve gizlilik bildirimi derlemede var mı
+        run: |
+          f=$(find build/ios -name extract.actionsdata | head -1)
+          test -n "$f"
+          grep -q VoiceTaskIntent "$f"
+          test -f build/ios/iphoneos/Runner.app/PrivacyInfo.xcprivacy
       # The home-screen widget has no Xcode target yet (see
       # ios/PamnotWidget/README.md), so type-check its Swift sources directly
       # at the app's minimum iOS version.
