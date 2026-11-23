@@ -16,7 +16,7 @@ Needs Pillow. Run from anywhere: python3 tool/icons/make_app_icon.py
 import json
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 APP_ICON = ROOT / "ios/Runner/Assets.xcassets/AppIcon.appiconset"
@@ -28,10 +28,18 @@ GRADIENT_START = (0xC9, 0xBC, 0xF5)  # top left
 GRADIENT_END = (0xFB, 0xC9, 0xB4)  # bottom right
 CLOUD = (0xFF, 0xFF, 0xFF)
 
-# Cloud geometry in 1024-unit coordinates.
-CLOUD_CIRCLES = ((392, 560, 140), (540, 470, 190), (680, 580, 130))  # centre x, y, radius
-CLOUD_BASE = ((300, 560), (790, 700))  # top left, bottom right
-CLOUD_BASE_RADIUS = 70
+# Cloud geometry in 1024-unit coordinates, relative to the cloud's own origin:
+# y = 0 is the flat bottom edge. Each puff is (centre x, centre y, radius). The
+# two side puffs rest exactly on the bottom edge, so their arcs run into it
+# without a step; the middle puff lies wholly above it. A rectangle between the
+# side puffs' centres fills in the flat bottom. Nothing reaches below y = 0.
+CLOUD_PUFFS = ((0, -130, 130), (145, -230, 190), (320, -150, 150))
+# The shape is 600 x 420 units (about 59 % of the icon's width, inside Apple's
+# icon grid) and draw_master() centres its bounding box in the square.
+# Gaussian blur (in 1024 units) applied before re-thresholding the cloud mask:
+# it fills the two sharp notches where the puffs meet with a soft fillet and
+# leaves the flat bottom and the outer arcs where they are.
+CLOUD_SOFTEN = 8
 
 
 def diagonal_gradient(size):
@@ -46,15 +54,30 @@ def diagonal_gradient(size):
     return Image.composite(end, start, mask)
 
 
+def cloud_mask(size):
+    """L mask, 255 inside the cloud, with the cloud's bounding box centred."""
+    s = size / MASTER
+    left = min(x - r for x, _, r in CLOUD_PUFFS)
+    right = max(x + r for x, _, r in CLOUD_PUFFS)
+    top = min(y - r for _, y, r in CLOUD_PUFFS)
+    dx = MASTER / 2 - (left + right) / 2
+    dy = MASTER / 2 - top / 2  # bottom edge is y = 0
+
+    mask = Image.new("L", (size, size), 0)
+    draw = ImageDraw.Draw(mask)
+    for x, y, r in CLOUD_PUFFS:
+        draw.ellipse(((x - r + dx) * s, (y - r + dy) * s, (x + r + dx) * s, (y + r + dy) * s), fill=255)
+    (first_x, first_y, _), (last_x, _, _) = CLOUD_PUFFS[0], CLOUD_PUFFS[-1]
+    draw.rectangle(((first_x + dx) * s, (first_y + dy) * s, (last_x + dx) * s, dy * s), fill=255)
+
+    soft = mask.filter(ImageFilter.GaussianBlur(CLOUD_SOFTEN * s))
+    return soft.point(lambda v: 255 if v >= 128 else 0)
+
+
 def draw_master():
     size = MASTER * SUPERSAMPLE
     image = diagonal_gradient(size)
-    draw = ImageDraw.Draw(image)
-    s = SUPERSAMPLE
-    for x, y, r in CLOUD_CIRCLES:
-        draw.ellipse(((x - r) * s, (y - r) * s, (x + r) * s, (y + r) * s), fill=CLOUD)
-    (left, top), (right, bottom) = CLOUD_BASE
-    draw.rounded_rectangle((left * s, top * s, right * s, bottom * s), radius=CLOUD_BASE_RADIUS * s, fill=CLOUD)
+    image.paste(CLOUD, mask=cloud_mask(size))
     return image.resize((MASTER, MASTER), Image.Resampling.LANCZOS)
 
 
