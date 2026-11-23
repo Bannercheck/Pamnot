@@ -101,6 +101,7 @@ Sırayla zorunlu zincir: 1 → (2, 4) → 7 → (11 ile birlikte) 8 → 9 → 12
 
 **Files:**
 - Modify: `pubspec.yaml:31-47`, `pubspec.lock`
+- Modify (üretilir, elle düzenlenmez; `flutter pub add` yeniden yazar, depoda izleniyorlar): `linux/flutter/generated_plugin_registrant.cc`, `linux/flutter/generated_plugins.cmake`, `windows/flutter/generated_plugin_registrant.cc`, `windows/flutter/generated_plugins.cmake`, `macos/Flutter/GeneratedPluginRegistrant.swift`
 - Modify: `lib/models/settings.dart:7-82`
 - Modify: `lib/l10n/strings.dart:184-195`
 - Modify: `lib/state/app_controller.dart:55-72`
@@ -335,7 +336,7 @@ Expected: `No issues found!`; 53 test geçer (47 + 6).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add pubspec.yaml pubspec.lock lib/models/settings.dart lib/l10n/strings.dart lib/state/app_controller.dart \
+git add pubspec.yaml pubspec.lock linux/flutter windows/flutter macos/Flutter/GeneratedPluginRegistrant.swift lib/models/settings.dart lib/l10n/strings.dart lib/state/app_controller.dart \
   lib/core/spoken/spoken_task.dart lib/services/speech/speech_engine.dart lib/services/links.dart \
   test/support/fake_speech_engine.dart test/foundation_test.dart
 git commit -m "Sesle ekleme: ortak temel (metinler, ayar alanları, SpeechEngine arayüzü, paketler)" -m "<Global Constraints'teki iki satır>"
@@ -592,7 +593,7 @@ Davranış (tasarım §6.3):
 
 - [ ] **Step 1: Başarısız testleri yaz** — `test/stt_speech_engine_test.dart`
 
-Test, `SpeechToTextPlatform.instance` yerine `SpeechToTextPlatform`'u `extends` eden bir `FakeSttPlatform` koyar (çağrıları `calls` listesine yazar; `listen` çağrısının `SpeechListenOptions` değerini saklar; `emitResult(String words, {required bool isFinal})` → `onTextRecognition!(jsonEncode(SpeechRecognitionResult([SpeechRecognitionWords(words, null, 0.9)], isFinal).toJson()))`; `emitStatus(String)`; `emitError(String msg, bool permanent)` → `onError!(jsonEncode(SpeechRecognitionError(msg, permanent).toJson()))`). Motor her testte `SttSpeechEngine(stt: SpeechToText.withMethodChannel())` ile kurulur.
+Test, `SpeechToTextPlatform.instance` yerine `SpeechToTextPlatform`'u `extends` eden bir `FakeSttPlatform` koyar (çağrıları `calls` listesine yazar; `listen` çağrısının `SpeechListenOptions` değerini saklar; `emitResult(String words, {required bool isFinal})` → `onTextRecognition!(jsonEncode(SpeechRecognitionResult.init([SpeechRecognitionWords(words, null, 0.9)], isFinal ? ResultType.finalResult : ResultType.partial).toJson()))`; `emitStatus(String)`; `emitError(String msg, bool permanent)` → `onError!(jsonEncode(SpeechRecognitionError(msg, permanent).toJson()))`). Motor her testte `SttSpeechEngine(stt: SpeechToText.withMethodChannel())` ile kurulur.
 
 ```dart
 test('pickLocale: tam eşleşme, sonra dil kodu, yoksa null', () {
@@ -830,7 +831,7 @@ git commit -m "Sesle ekleme: addSpokenTask/addSpokenNote, hatırlatma, bildirim 
 
 **Interfaces:**
 - Consumes: yok (Dart koduna bağlı değil).
-- Produces: yöntem kanalı **`app.pamnot/launch`** — Dart→iOS `takePendingAction` (dönüş: `"voice"` ya da `null`, okununca temizlenir); iOS→Dart `actionAvailable` (bağımsız değişken yok). Bağlantılar: `pamnot://ses` ve `pamnot://voice` (yalnız bu iki sunucu adı sahiplenilir). Betikler: `python3 tool/ios/check_ios_config.py` ve `ruby tool/ios/check_project.rb ios/Runner.xcodeproj` (Görev 13 CI'a bağlar).
+- Produces: yöntem kanalı **`app.pamnot/launch`** — Dart→iOS `takePendingAction` (dönüş: `"voice"` ya da `null`, okununca temizlenir); iOS→Dart `actionAvailable` (bağımsız değişken yok). Bağlantılar: `pamnot://ses` ve `pamnot://voice` (yalnız bu iki sunucu adı sahiplenilir). Betikler: `python3 tool/ios/check_ios_config.py` (Görev 13 CI'a bağlar) ve `ruby tool/ios/check_project.rb ios/Runner.xcodeproj` (yalnız yerel doğrulama; CI'da aynı şeyi derleme ve `extract.actionsdata`/`PrivacyInfo.xcprivacy` adımları yakalar).
 
 - [ ] **Step 1: Başarısız denetimleri yaz**
 
@@ -843,7 +844,7 @@ git commit -m "Sesle ekleme: addSpokenTask/addSpokenNote, hatırlatma, bildirim 
 5. `AppDelegate.swift`: `registrar(forPlugin: "PamnotLaunchBridge")` satırı var ve `setPluginRegistrantCallback {` bloğunun kapanışından **sonra**.
 6. `PamnotLaunchBridge.swift`: `"app.pamnot/launch"`, `takePendingAction`, `actionAvailable`, `static let shared` ve `"ses"`, `"voice"` geçer.
 
-`tool/ios/check_project.rb` (`xcodeproj`): Runner hedefinin kaynak aşamasında `PamnotLaunchBridge.swift` ve `VoiceTaskIntent.swift`; kaynak (resources) aşamasında `PrivacyInfo.xcprivacy`, `AppShortcuts.strings`, `Localizable.strings`, `InfoPlist.strings`; her varyant grubunda `en` ve `tr`; `known_regions` içinde `tr`; `object_version == '54'`; başvurulan her dosya diskte var. Başarıda `project ok` yazar.
+`tool/ios/check_project.rb` (`xcodeproj`): Runner hedefinin kaynak aşamasında `PamnotLaunchBridge.swift` ve `VoiceTaskIntent.swift`; kaynak (resources) aşamasında `PrivacyInfo.xcprivacy`, `AppShortcuts.strings`, `Localizable.strings`, `InfoPlist.strings`; her varyant grubunda `en` ve `tr`; `known_regions` içinde `tr`; `object_version == '54'`; bu görevin eklediği dokuz dosya (iki Swift, `PrivacyInfo.xcprivacy`, altı `.strings`) diskte var (projenin öbür başvuruları — `Generated.xcconfig`, `GeneratedPluginRegistrant.*`, `Runner.app` — üretilen dosyalardır, denetlenmez). Başarıda `project ok` yazar.
 
 - [ ] **Step 2: Başarısız olduklarını gör**
 
@@ -1289,7 +1290,7 @@ Expected: 3 test geçer.
 
 ```dart
 testWidgets('Düzelt geri sayımı durdurur; taslak kaydedilir ve yeniden dinlenir', (tester) async {
-  // say('yarın 10 toplantı'); pump(1600ms); c.edit(); pump(5 sn) → tasks boş, phase editing
+  // say('yarın 10:00 toplantı'); pump(1600ms); c.edit(); pump(5 sn) → tasks boş, phase editing
   // c.updateDraft('yarın 10:30 toplantı'); expect(c.preview!.due, DateTime(2026, 11, 24, 10, 30));
   // await c.saveNow(); tasks.single.due == 2026-11-24 10:30; pump(); starts == 2
 });
@@ -1329,7 +1330,7 @@ testWidgets('arka plan: metin yokken mikrofon kapanır, kayıt yok', (tester) as
   // c.onLifecycle(AppLifecycleState.resumed); pump(10 sn) → starts == 1 (mikrofon kendiliğinden açılmaz)
 });
 testWidgets('arka plan: bitmemiş konuşma kaydedilir ve diske yazılır', (tester) async {
-  // say('yarın 10 toplantı'); pump(500ms); hidden → tasks.single.title == 'Toplantı';
+  // say('yarın 10:00 toplantı'); pump(500ms); hidden → tasks.single.title == 'Toplantı';
   // saved.single.inBackground; await tester.pump(); h.store.data['tasks'] contains 'Toplantı'
 });
 testWidgets('arka plan: önizleme hemen kaydedilir', ...);
@@ -1363,7 +1364,7 @@ Run: `flutter test test/voice_capture_controller_test.dart` — Expected: 25 tes
 ```dart
 testWidgets('VoiceOver açıkken: geri sayım yok, kendiliğinden kapanma yok, yeniden dinleme yok', (tester) async {
   final c = await start(tester, h, e, accessible: true);
-  e.say('yarın 10 toplantı');
+  e.say('yarın 10:00 toplantı');
   await tester.pump(VoiceTimings.utteranceGap);
   expect(c.phase, VoicePhase.preview);
   await tester.pump(const Duration(seconds: 30));
@@ -1436,7 +1437,7 @@ class VoiceCapturePage extends StatefulWidget {
 }
 ```
 
-Test anahtarları (`Key('…')`): `voice-close`, `voice-mic`, `voice-status`, `voice-transcript`, `voice-preview`, `voice-fix`, `voice-save`, `voice-draft`, `voice-countdown`, `voice-open-settings`, `voice-saved-<id>`, `voice-undo-<id>`.
+Test anahtarları (`Key('…')`): `voice-close`, `voice-mic`, `voice-status`, `voice-transcript`, `voice-preview`, `voice-fix`, `voice-save`, `voice-draft`, `voice-countdown`, `voice-open-settings`, `voice-saved-<id>`, `voice-undo-<id>`, `voice-ring`, `voice-level-bar`.
 
 Düzen ve davranış (tasarım §5 taslağı, §6.6; uyum §4.1 "Kayıt göstergesi" ve "Ekranın erişilebilirliği"; ui-ux-pro-max):
 
