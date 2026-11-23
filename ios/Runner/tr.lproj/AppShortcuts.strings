@@ -1,0 +1,4 @@
+"Add a task in ${applicationName}" = "${applicationName} ile görev ekle";
+"Add a ${applicationName} task" = "${applicationName} görevi ekle";
+"New task in ${applicationName}" = "Yeni ${applicationName} görevi";
+"Add a voice task in ${applicationName}" = "${applicationName} ile sesle görev ekle";

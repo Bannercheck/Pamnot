@@ -23,5 +23,9 @@ import flutter_local_notifications
       GeneratedPluginRegistrant.register(with: registry)
     }
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // Only for the UI engine: the notification plugin's background engine must not get this.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PamnotLaunchBridge") {
+      PamnotLaunchBridge.register(with: registrar)
+    }
   }
 }
