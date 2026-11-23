@@ -27,6 +27,9 @@ const pastels = <Pastel>[
 
 Pastel pastelAt(int i) => pastels[i.clamp(0, pastels.length - 1)];
 
+/// Pastel vurgu dolgusu üstündeki onay işareti (iki temada da aynı; en düşük çift lavanta 3,68:1).
+const inkOnPastel = Color(0xFF3E3A4A);
+
 /// Ink colours offered in the pen toolbar.
 const inkColors = <Color>[
   Color(0xFF3E3A4A),
@@ -51,7 +54,7 @@ class PamnotTheme {
 
   static ThemeData light() => _build(const ColorScheme(
         brightness: Brightness.light,
-        primary: Color(0xFF8A78CF),
+        primary: Color(0xFF6F5CBF),
         onPrimary: Colors.white,
         primaryContainer: Color(0xFFECE7FB),
         onPrimaryContainer: Color(0xFF3B3060),
@@ -59,23 +62,23 @@ class PamnotTheme {
         onSecondary: Colors.white,
         secondaryContainer: Color(0xFFFDE8DF),
         onSecondaryContainer: Color(0xFF5A3426),
-        tertiary: Color(0xFF6DB59C),
+        tertiary: Color(0xFF3F8F74),
         onTertiary: Colors.white,
         tertiaryContainer: Color(0xFFDDF2EA),
         onTertiaryContainer: Color(0xFF1F4A3C),
-        error: Color(0xFFD9707A),
+        error: Color(0xFFB9434F),
         onError: Colors.white,
         errorContainer: Color(0xFFFBE3E5),
         onErrorContainer: Color(0xFF5E2329),
         surface: Color(0xFFFAF7F2),
         onSurface: Color(0xFF3E3A4A),
-        onSurfaceVariant: Color(0xFF7A7488),
+        onSurfaceVariant: Color(0xFF6A6478),
         surfaceContainerLowest: Color(0xFFFFFFFF),
         surfaceContainerLow: Color(0xFFFFFDF9),
         surfaceContainer: Color(0xFFF6F2EC),
         surfaceContainerHigh: Color(0xFFF1EDE6),
         surfaceContainerHighest: Color(0xFFEBE6DF),
-        outline: Color(0xFFD5CFDF),
+        outline: Color(0xFF8E879C),
         outlineVariant: Color(0xFFECE7F0),
         shadow: Color(0xFF6B5E8A),
         inverseSurface: Color(0xFF3E3A4A),
@@ -109,7 +112,7 @@ class PamnotTheme {
         surfaceContainer: Color(0xFF28252F),
         surfaceContainerHigh: Color(0xFF2E2B36),
         surfaceContainerHighest: Color(0xFF35313D),
-        outline: Color(0xFF524C5E),
+        outline: Color(0xFF7E7790),
         outlineVariant: Color(0xFF3A3642),
         shadow: Color(0xFF000000),
         inverseSurface: Color(0xFFECE8F4),
@@ -157,7 +160,7 @@ class PamnotTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: c.surfaceContainer,
-        hintStyle: TextStyle(color: c.onSurfaceVariant.withValues(alpha: 0.8)),
+        hintStyle: TextStyle(color: c.onSurfaceVariant),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),

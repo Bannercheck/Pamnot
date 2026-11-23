@@ -225,3 +225,17 @@ void showUndoSnack(ScaffoldMessengerState m, String text, VoidCallback onUndo, S
     duration: const Duration(seconds: 4),
   ));
 }
+
+/// Whether the user asked for less motion. Android's "Remove animations"
+/// reaches [MediaQuery.disableAnimationsOf]; iOS "Reduce Motion" does not set
+/// that flag and is only exposed through the platform's accessibility features,
+/// so both are read.
+bool reduceMotionOf(BuildContext context) =>
+    MediaQuery.disableAnimationsOf(context) ||
+    View.of(context).platformDispatcher.accessibilityFeatures.reduceMotion;
+
+/// [d], or no animation at all when the user asked for less motion.
+Duration motion(BuildContext context, Duration d) => reduceMotionOf(context) ? Duration.zero : d;
+
+/// [c], or a plain ease-out (no overshoot or bounce) when the user asked for less motion.
+Curve motionCurve(BuildContext context, Curve c) => reduceMotionOf(context) ? Curves.easeOut : c;
