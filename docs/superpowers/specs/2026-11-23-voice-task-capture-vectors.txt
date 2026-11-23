@@ -1,0 +1,166 @@
+# Konuşma ayrıştırıcı test vektörleri (kabul ölçütü)
+#
+# Biçim: KİMLİK "girdi" => "başlık" | AA-GG SS:DD (ya da yalnız AA-GG, ya da null) [etiketler]
+# Varsayılan "now": 2026-11-23 09:00 (Pazartesi), yerel saat. Yıl yazılmamışsa 2026.
+# Etiketler: en = İngilizce kurallar (yoksa Türkçe), remind = hatırlatma kalıbı,
+#            note = görev değil not, now=... = farklı "şimdi".
+# null = tarihsiz. Saat yazılı değilse hasTime = false.
+# A grubu, yazarak hızlı eklemede bugün de geçen davranıştır; konuşma ayrıştırıcı da aynı sonucu verir.
+#
+A01 "yarın 10:00 toplantı" => "Toplantı" | 11-24 10:00
+A02 "cuma saat 14 sunum" => "Sunum" | 11-27 14:00
+A03 "Annemi ara 20.15'te" => "Annemi ara" | 11-23 20:15
+A04 "haftaya fatura öde" => "Fatura öde" | 11-30
+A05 "kitap oku" => "Kitap oku" | null
+A06 "call mom tomorrow 6pm" => "Call mom" | 11-24 18:00 [en]
+A07 "10:00 koşu" => "Koşu" | 11-24 10:00 [now=11-23 20:00]
+A08 "yarından sonra kuaför" => "Kuaför" | 11-25
+B01 "Yarın 10'da toplantı." => "Toplantı" | 11-24 10:00
+B02 "Yarın saat 10’da toplantı" => "Toplantı" | 11-24 10:00
+B03 "saat 3'te dişçi" => "Dişçi" | 11-23 15:00
+B04 "saat 3te dişçi" => "Dişçi" | 11-23 15:00
+B05 "saat 3 te dişçi" => "Dişçi" | 11-23 15:00
+B06 "19.30'da spor salonu" => "Spor salonu" | 11-23 19:30
+B07 "8'de ilacını iç" => "İlacını iç" | 11-23 20:00
+B08 "11'de banka" => "Banka" | 11-23 11:00
+B09 "yarın 7'de koşu" => "Koşu" | 11-24 07:00
+B10 "cuma 2'de sunum" => "Sunum" | 11-27 14:00
+B11 "saat 12'de öğle yemeği" => "Öğle yemeği" | 11-23 12:00
+B12 "saat 15'te toplantı" => "Toplantı" | 11-23 15:00
+B13 "10.00'da kahvaltı" => "Kahvaltı" | 11-23 10:00
+C01 "yarın sabah dokuzda doktor" => "Doktor" | 11-24 09:00
+C02 "akşam yedide annemi ara" => "Annemi ara" | 11-23 19:00
+C03 "bugün beşte kargo gelecek" => "Kargo gelecek" | 11-23 17:00
+C04 "saat on birde toplantı" => "Toplantı" | 11-23 11:00
+C05 "saat on ikide öğle arası" => "Öğle arası" | 11-23 12:00
+C06 "gece on birde çöpü çıkar" => "Çöpü çıkar" | 11-23 23:00
+C07 "sabah altıda uçak" => "Uçak" | 11-24 06:00
+C08 "öğleden sonra üçte toplantı" => "Toplantı" | 11-23 15:00
+C09 "öğlen birde yemek" => "Yemek" | 11-23 13:00
+C10 "saat dörtte veli görüşmesi" => "Veli görüşmesi" | 11-23 16:00
+C11 "sekizde ilaç" => "İlaç" | 11-23 20:00
+C12 "gece ikide yedek al" => "Yedek al" | 11-24 02:00
+C13 "gece on ikide bilet satışı" => "Bilet satışı" | 11-24 00:00
+D01 "saat iki buçukta veli toplantısı" => "Veli toplantısı" | 11-23 14:30
+D02 "yarın dokuz buçukta toplantı" => "Toplantı" | 11-24 09:30
+D03 "saat yarımda dişçi" => "Dişçi" | 11-23 12:30
+D04 "üçü çeyrek geçe toplantı" => "Toplantı" | 11-23 15:15
+D05 "dörde çeyrek kala çık" => "Çık" | 11-23 15:45
+D06 "akşam sekizi on geçe dizi" => "Dizi" | 11-23 20:10
+D07 "beşe on kala otobüs" => "Otobüs" | 11-23 16:50
+D08 "10 buçukta toplantı" => "Toplantı" | 11-23 10:30
+D09 "sabah 7 buçukta koşu" => "Koşu" | 11-24 07:30
+D10 "saat 3'ü çeyrek geçe arama" => "Arama" | 11-23 15:15
+E01 "yarın sabah doktoru ara" => "Doktoru ara" | 11-24 09:00
+E02 "bu akşam annemi ara" => "Annemi ara" | 11-23 19:00
+E03 "yarın akşam sinema" => "Sinema" | 11-24 19:00
+E04 "cuma öğleden sonra bankaya git" => "Bankaya git" | 11-27 15:00
+E05 "yarın öğlen kuaför" => "Kuaför" | 11-24 12:00
+E06 "bu gece çamaşırları as" => "Çamaşırları as" | 11-23 22:00
+E07 "akşam annemi ara" => "Annemi ara" | 11-23 19:00
+E08 "akşam yemeği hazırla" => "Akşam yemeği hazırla" | null
+E09 "yarın akşam yemeği için alışveriş" => "Akşam yemeği için alışveriş" | 11-24
+E10 "yarın akşam 5'te hediye al" => "Hediye al" | 11-24 17:00
+E11 "pazartesi sabah rapor" => "Rapor" | 11-30 09:00
+F01 "2 gün sonra faturayı öde" => "Faturayı öde" | 11-25
+F02 "iki gün sonra faturayı öde" => "Faturayı öde" | 11-25
+F03 "3 hafta sonra kontrol" => "Kontrol" | 12-14
+F04 "1 saat sonra fırını kapat" => "Fırını kapat" | 11-23 10:00
+F05 "yarım saat sonra çayı demle" => "Çayı demle" | 11-23 09:30
+F06 "bir buçuk saat sonra çık" => "Çık" | 11-23 10:30
+F07 "45 dakika sonra toplantıya katıl" => "Toplantıya katıl" | 11-23 09:45
+F08 "on dakika sonra ara" => "Ara" | 11-23 09:10
+F09 "haftaya salı dişçi" => "Dişçi" | 12-01
+F10 "gelecek hafta cuma sunum" => "Sunum" | 12-04
+F11 "bu cuma halı saha" => "Halı saha" | 11-27
+F12 "pazartesi günü saat 10'da toplantı" => "Toplantı" | 11-30 10:00
+F13 "cumaya kadar raporu bitir" => "Raporu bitir" | 11-27
+F14 "hafta sonu arabayı yıka" => "Arabayı yıka" | 11-28
+F15 "ay sonu kirayı öde" => "Kirayı öde" | 11-30
+F16 "ay sonuna kadar vergi beyannamesi" => "Vergi beyannamesi" | 11-30
+F17 "15 Aralık doğum günü" => "Doğum günü" | 12-15
+F18 "15 aralıkta saat 14'te sunum" => "Sunum" | 12-15 14:00
+F19 "ayın 25'inde maaş" => "Maaş" | 11-25
+F20 "15'inde aidat öde" => "Aidat öde" | 12-15
+F21 "3 ocak vize başvurusu" => "Vize başvurusu" | 2027-01-03
+F22 "yarına kadar ödevi bitir" => "Ödevi bitir" | 11-24
+F23 "2 gün sonra saat 3'te kontrol" => "Kontrol" | 11-25 15:00
+F24 "haftaya hafta sonu kamp" => "Kamp" | 12-05
+G01 "3 ekmek al" => "3 ekmek al" | null
+G02 "10 sayfa oku" => "10 sayfa oku" | null
+G03 "2 kilo elma al" => "2 kilo elma al" | null
+G04 "1.5 litre su iç" => "1.5 litre su iç" | null
+G05 "2 saat çalış" => "2 saat çalış" | null
+G06 "ikide bir su iç" => "İkide bir su iç" | null
+G07 "pastanın üçte birini ayır" => "Pastanın üçte birini ayır" | null
+G08 "defter onda kaldı geri iste" => "Defter onda kaldı geri iste" | null
+G09 "pazara git" => "Pazara git" | null
+G10 "pazar günü pazara git" => "Pazara git" | 11-29
+G11 "saat pili al" => "Saat pili al" | null
+G12 "bir de süt al" => "Bir de süt al" | null
+G13 "on kişilik rezervasyon yap" => "On kişilik rezervasyon yap" | null
+G14 "buy 3 apples" => "Buy 3 apples" | null [en]
+G15 "read 10 pages" => "Read 10 pages" | null [en]
+G16 "sonra ara" => "Sonra ara" | null
+H01 "Bir görev ekle: yarın 10'da toplantı." => "Toplantı" | 11-24 10:00
+H02 "yarın sabah 9'da annemi aramayı hatırlat" => "Annemi ara" | 11-24 09:00 [remind]
+H03 "bana akşam 8'de ilaç içmemi hatırlat" => "İlaç iç" | 11-23 20:00 [remind]
+H04 "yarın faturayı öde diye hatırlat" => "Faturayı öde" | 11-24 [remind]
+H05 "Bir görev ekle, yarın saat 3'te dişçi randevusu." => "Dişçi randevusu" | 11-24 15:00
+H06 "Süt al." => "Süt al" | null
+H07 "Görev ekle süt ve ekmek al" => "Süt ve ekmek al" | null
+I01 "Call mom tomorrow at 6 PM." => "Call mom" | 11-24 18:00 [en]
+I02 "Pay rent at 6:30 PM" => "Pay rent" | 11-23 18:30 [en]
+I03 "Dentist at 3" => "Dentist" | 11-23 15:00 [en]
+I04 "meeting at 10 am tomorrow" => "Meeting" | 11-24 10:00 [en]
+I05 "Remind me to call the bank tomorrow morning." => "Call the bank" | 11-24 09:00 [remind,en]
+I06 "remind me in 2 hours to check the oven" => "Check the oven" | 11-23 11:00 [remind,en]
+I07 "in 30 minutes take out the laundry" => "Take out the laundry" | 11-23 09:30 [en]
+I08 "in half an hour call Ali" => "Call Ali" | 11-23 09:30 [en]
+I09 "Water the plants in 3 days" => "Water the plants" | 11-26 [en]
+I10 "next monday team sync" => "Team sync" | 11-30 [en]
+I11 "submit report next friday" => "Submit report" | 12-04 [en]
+I12 "this friday football" => "Football" | 11-27 [en]
+I13 "dentist on the 15th" => "Dentist" | 12-15 [en]
+I14 "pay taxes on December 15" => "Pay taxes" | 12-15 [en]
+I15 "December 15th at 2 pm presentation" => "Presentation" | 12-15 14:00 [en]
+I16 "wash the car this weekend" => "Wash the car" | 11-28 [en]
+I17 "pay rent end of month" => "Pay rent" | 11-30 [en]
+I18 "Add a task to buy milk." => "Buy milk" | null [en]
+I19 "buy milk tonight" => "Buy milk" | 11-23 19:00 [en]
+I20 "call grandma tomorrow evening" => "Call grandma" | 11-24 19:00 [en]
+I21 "gym tomorrow at seven" => "Gym" | 11-24 07:00 [en]
+I22 "pick up kids at half past three" => "Pick up kids" | 11-23 15:30 [en]
+I23 "standup at quarter to ten" => "Standup" | 11-23 09:45 [en]
+I24 "call mom at 8" => "Call mom" | 11-23 20:00 [en]
+I25 "lunch with Sam at noon" => "Lunch with Sam" | 11-23 12:00 [en]
+I26 "water plants tomorrow afternoon" => "Water plants" | 11-24 15:00 [en]
+I27 "take out trash at 7 o'clock tonight" => "Take out trash" | 11-23 19:00 [en]
+I28 "book flights in 2 weeks" => "Book flights" | 12-07 [en]
+I29 "Remind me to stretch at 6:00 PM." => "Stretch" | 11-23 18:00 [remind,en]
+I30 "next week plan trip" => "Plan trip" | 11-30 [en]
+N01 "8'de ilacını iç" => "İlacını iç" | 11-24 08:00 [now=11-23 20:00]
+N02 "saat 3'te dişçi" => "Dişçi" | 11-23 15:00 [now=11-23 14:00]
+N03 "saat 3'te dişçi" => "Dişçi" | 11-24 15:00 [now=11-23 16:00]
+N04 "10'da toplantı" => "Toplantı" | 11-24 10:00 [now=11-23 14:00]
+N05 "hafta sonu arabayı yıka" => "Arabayı yıka" | 11-28 [now=11-28 10:00]
+N06 "haftaya salı dişçi" => "Dişçi" | 11-03 [now=10-27 18:30]
+N07 "ay sonu kirayı öde" => "Kirayı öde" | 11-30 [now=11-30 09:00]
+N08 "next monday team sync" => "Team sync" | 11-30 [now=11-29 10:00,en]
+N09 "yarın 10'da toplantı" => "Toplantı" | 2027-01-01 10:00 [now=12-31 15:00]
+N10 "sabah ekmek al" => "Ekmek al" | 11-24 09:00 [now=11-23 09:00]
+N11 "akşam annemi ara" => "Annemi ara" | 11-24 19:00 [now=11-23 21:00]
+N12 "15'inde aidat öde" => "Aidat öde" | 12-15 [now=12-10 09:00]
+N13 "15'inde aidat öde" => "Aidat öde" | 2027-01-15 [now=12-20 09:00]
+# Ek vektörler (tasarım incelemesinden sonra eklenen sınır durumları)
+N14 "gece 2'de yedek al" => "Yedek al" | 11-24 02:00 [now=11-24 00:30]
+N15 "gece 12'de bilet satışı" => "Bilet satışı" | 11-24 00:00 [now=11-23 21:00]
+N16 "bu cuma halı saha" => "Halı saha" | 11-27 [now=11-27 10:00]
+N17 "hafta sonu arabayı yıka" => "Arabayı yıka" | 11-29 [now=11-29 10:00]
+N18 "cumaya kadar raporu bitir" => "Raporu bitir" | 12-04 [now=11-27 10:00]
+H08 "annemi aramayı hatırlat" => "Annemi ara" | null [remind]
+H09 "yarın annemi aramayı hatırlat" => "Annemi ara" | 11-24 [remind]
+I31 "remind me to call Ali" => "Call Ali" | null [remind,en]
+K01 "not al: süt bitmiş" => "Süt bitmiş" | null [note]
+K02 "not al yarın saat 10'da toplantı notlarını yaz" => "Yarın saat 10'da toplantı notlarını yaz" | null [note]
+K03 "note: new charger costs 40 dollars" => "New charger costs 40 dollars" | null [note,en]

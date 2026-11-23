@@ -37,8 +37,9 @@ Hedef dışı (bu sürümde yok)
 - Bir cümlede birden fazla görev; konuşmayı "ilgili nota" yönlendirme.
 - Sesle görev tamamlama, silme, düzenleme; "Hey Pamnot" gibi uyandırma sözcüğü; ses kaydı saklama.
 - Denetim Merkezi düğmesi (widget hedefinin Xcode'da bir kez elle kurulmasını bekliyor).
-- Android ve Windows için kestirme (uygulama içi mikrofon düğmesi oralarda da çalışabilir, ama test hedefi
-  iPhone).
+- iOS dışındaki platformlar. Bu sürümde motor yalnız iOS'ta "destekleniyor" der; Android, Windows, web ve
+  macOS'ta mikrofon düğmesi gizlidir ve eklenti hiç çağrılmaz (macOS'ta ses girişi yetkisi olmadan çağrı
+  çökebilir). Mac ve iPad §11'de.
 - Yazarak hızlı eklemenin davranışını değiştirmek (bkz. §11).
 
 Anti-hedefler (çalışsa bile başarısızlık sayılır)
@@ -54,7 +55,7 @@ Anti-hedefler (çalışsa bile başarısızlık sayılır)
 - Flutter 3.47.8 / Dart 3.13.7; iOS en düşük sürüm **16.0** (Podfile ve pbxproj).
 - Geliştirici **ücretsiz Apple ID** ile imzalıyor: App Groups yok, ücretli yetenek yok, kurulum 7 günde
   bir yenilenir. App Intents ve App Shortcuts yetki (entitlement) istemez; Siri yeteneği gerekmez.
-- Mac yok: Swift yalnızca GitHub Actions macOS işinde derlenir. iOS işi `main`, etiketler, elle başlatma
+- Geliştirme ortamında Mac yok: Swift yalnızca GitHub Actions macOS işinde derlenir. iOS işi `main`, etiketler, elle başlatma
   ya da commit mesajında `[full-build]` olunca çalışır.
 - iOS projesi klasik `objectVersion 54`; CI'da CocoaPods (ML Kit) da çalışıyor.
 - `ios/Runner` UIScene kullanıyor (`FlutterSceneDelegate`, `FlutterImplicitEngineDelegate`).
@@ -86,7 +87,10 @@ Kullanıcı 1'i seçti: tarih/saatin yanlış kaydedilmesi bu uygulamada en paha
 7. "Düzelt"e dokunulursa geri sayım durur; metin düzenlenebilir alana geçer, önizleme yazdıkça güncellenir;
    "Kaydet" ile kaydedilir, sonra dinleme yeniden başlar.
 8. Kapatma (✕, geri hareketi) her durumda çalışır; önizlemedeki görev **kaydedilmez** (açıkça "Kaydet"
-   denmedikçe). Kaydedilen her görev "Eklenenler"de kalır ve ekran kapanınca bir özet snack'i çıkar.
+   denmedikçe): kullanıcı ekrana bakarak vazgeçmiştir. Kaydedilen her görev "Eklenenler"de kalır ve ekran
+   kapanınca bir özet snack'i çıkar.
+9. Uygulama arka plana giderse (telefonu kilitlemek, başka uygulamaya geçmek) davranış §6.6'daki
+   "Arka plan" kurallarına uyar: söylenmiş görev kaybolmaz, mikrofon kendiliğinden yeniden açılmaz.
 
 Ekran taslağı:
 
@@ -168,7 +172,10 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
   varsayılan (dictation ipucu "Dikte kapalı" hatasına bağlanıyor).
 - **Bütün eklenti çağrıları tek sıraya** alınır; önceki oturum bitmeden `listen()` çağrılmaz (açık çökme
   hatası #680 tam olarak yeniden dinleme döngüsünde oluyor).
-- Dinleme yalnız uygulama ön plandayken başlar; `inactive`/`paused` olunca iptal edilir.
+- Dinleme yalnız uygulama ön plandayken (`resumed`) başlar. Uygulama gerçekten arka plana geçince
+  (`hidden`/`paused`) oturum durdurulur. Kısa süreli `inactive` (Denetim Merkezi'ni indirmek, bildirim
+  izni penceresi, gelen arama uyarısı) tek başına oturumu kesmez; eklenti bir kesinti hatası bildirirse
+  ekran "duraklatıldı" durumuna geçer. Ekran davranışı §6.6'da.
 - Dil: `PlatformDispatcher.instance.locales` (telefonun dil listesi) → eklentinin `locales()` listesinde
   tam eşleşme → aynı dil kodu → yoksa "dil desteklenmiyor". Yerel ayar her zaman açıkça verilir.
 - Hata eşlemesi: izin yok → Ayarlar'a yönlendir; `error_speech_recognizer_disabled` (201) → "Ayarlar >
@@ -185,23 +192,30 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
   "remind me to"), sayı sözcükleri → rakam (yalnız saat bağlamında), buçuk/çeyrek/geçe/kala/yarım → `h.mm`.
 - `lib/core/spoken/parse.dart` — `parseSpokenTask(transcript, now, lang)` →
   `SpokenTask {title, due, hasTime, remind, ambiguousHour, isNote}`.
-- Kurallar (araştırmadaki 145 test vektörü bunları sabitler):
+- Kurallar. Kabul ölçütü `2026-11-23-voice-task-capture-vectors.txt` dosyasındaki 156 vektördür
+  (145'i araştırmadan, 11'i tasarım incelemesinden); testlere birebir taşınır:
   - **Yalın saat** (sabah/akşam/am/pm yok): 0, 13–23 ve başında sıfır olanlar ("08.30") olduğu gibi;
     1–6 → öğleden sonra (13–18), 7–11 → sabah, 12 → öğle. Gün söylenmemişse ve saat geçmişse 7–9 akşama
     (19–21) döner, diğerleri yarına. Gün söylenmişse çevirme yok. Bu durumda `ambiguousHour` işaretlenir,
     önizlemede saat çipi "?" ile gösterilir.
   - **Gün bölümü**: sabah 09:00, öğle/öğlen 12:00, öğleden sonra 15:00, akşam 19:00, gece 22:00 (İng.
     morning 9, noon 12, afternoon 15, evening/tonight 19, night 22). Saatle birlikte: akşam/öğleden sonra
-    +12; gece 1–5 ertesi gün. Bileşik isimlerde ("akşam yemeği", "sabah kahvesi"…) saat sayılmaz.
+    +12; gece 1–5 "bu gece"nin o saati: akşamdan söylenirse ertesi gün, gece yarısından sonra 05:00'e kadar
+    söylenirse aynı gün ("gece 2'de" 00:30'da → bugün 02:00); gece 12 → yaklaşan gece yarısı (ertesi gün
+    00:00). Bileşik isimlerde ("akşam yemeği", "sabah kahvesi"…) saat sayılmaz.
   - **Tarihler**: bugün, yarın, öbür gün, haftaya (+7), "haftaya salı"/"next friday" (sonraki haftanın
     günü), "bu cuma", hafta sonu (Cumartesi), ay sonu, "N gün/hafta sonra", "N saat/dakika sonra", "yarım
     saat sonra", "in 2 hours", "15 Aralık"/"December 15th" (geçmişse gelecek yıl), "ayın 15'i"/"15'inde"/
-    "on the 15th", "…'e kadar".
+    "on the 15th". "…'e kadar" son günü verir, saat koymaz ("cumaya kadar" → o Cuma). "bu cuma" o gün
+    söylenirse bugün; "hafta sonu" Cumartesi ya da Pazar söylenirse bugün; yalın gün adı aynı gün
+    söylenirse bir sonraki hafta.
   - **Tarih sayılmayanlar**: "3 ekmek al", "10 sayfa oku", "2 saat çalış", "ikide bir", "üçte bir",
     "pazara git", "bir de süt al"…
   - **Hatırlatma kalıbı**: "…mayı/meyi hatırlat" → başlık emir kipine döner ("annemi aramayı hatırlat" →
-    "Annemi ara"), `remind = true`.
-  - **Not**: "not al …"/"not: …"/"note …" ile başlıyorsa `isNote = true` (görev yerine not).
+    "Annemi ara"), `remind = true`. Gün de saat de yoksa görev tarihsiz kaydedilir, bildirim kurulmaz;
+    önizleme bunu gösterir ("Tarihsiz · hatırlatma için gün söyle").
+  - **Not**: "not al …"/"not: …"/"note …" ile başlıyorsa `isNote = true` (görev yerine not). Notun
+    metninde tarih ayrıştırılmaz; kalan metin olduğu gibi (ilk harf büyük) notun gövdesi olur.
   - Dil: `tr` kuralları Türkçe, `en` kuralları İngilizce; diğer dillerde yalnız rakamla saat, gerisi başlık.
     Büyük harf kuralı dile göre (İngilizcede "invite" → "Invite", "İnvite" değil).
 - Canlı önizleme her ara sonuçta çalışır; kayıt yalnız son metinden, `now` = konuşmanın bittiği an.
@@ -229,6 +243,25 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
 - Dokunsal geri bildirim yalnız kayıt anında ve mikrofon kapalıyken (kayıt sırasında iOS titreşimi
   susturur).
 - Dikey ve yatay, Dynamic Type, koyu tema çalışır; 375 pt genişlikte taşma yok.
+
+Arka plan (uygulama `hidden`/`paused` olunca):
+
+| O anki durum | Ne olur |
+| --- | --- |
+| Dinliyor, henüz bir şey söylenmedi | Mikrofon kapanır; dönüşte "Devam etmek için dokun" |
+| Dinliyor, metin var (bitmemiş konuşma) | Eldeki son metin ayrıştırılır ve **kaydedilir** (başlık boş değilse) |
+| Önizleme geri sayımı sürüyor | Hemen **kaydedilir** (geri sayımın bitmesi gibi) |
+| Düzelt'te düzenleniyor | Kaydedilmez; taslak ekranda kalır, dönüşte aynı yerden devam |
+| Kaydedildi / hata / izin yok | Değişmez |
+
+- Neden: yan tuşla "söyle ve telefonu kilitle" doğal kullanım; görevin kaybolması, önizlemenin
+  görülmemesinden daha kötü. Arka planda kaydedilenler dönüşte "Eklenenler"de "Kilitlenirken kaydedildi"
+  notuyla ve geri al düğmesiyle görünür.
+- Dönüşte mikrofon **kendiliğinden açılmaz** (gizlilik); kullanıcı mikrofon düğmesine dokunur.
+- Uygulama 5 dakikadan uzun arka planda kaldıysa dönüşte ekran kendiliğinden kapanır (taslak varsa
+  kapanmaz) ve özet snack'i gösterilir.
+- Kayıt dosyaya mevcut gecikmeli kayıtla yazılır; arka plana geçişte `AppController.flush()` çağrılır ki
+  uygulama askıya alınsa da görev diskte olsun.
 
 ### 6.7 Uygulama içi giriş noktaları
 
@@ -277,9 +310,11 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
 4. Yalın saat kuralı: 1–6 öğleden sonra, 7–11 sabah; önizlemede "?" ile gösterilir.
 5. "hatırlat" + gün, saat yok → 09:00'da bildirim.
 6. "haftaya" = 7 gün sonra (yazarak eklemedeki gibi).
-7. Ekran kapatılırken önizlemedeki görev kaydedilmez.
+7. Ekran ✕ ile kapatılırken önizlemedeki görev kaydedilmez; uygulama arka plana giderken ise kaydedilir.
 8. Siri ifadelerinde uygulama adı eksiz: "Pamnot ile görev ekle".
 9. "Son tanınanlar" günlüğü yalnız cihazda, son 20 kayıt.
+10. Bu sürüm yalnız iOS; diğer platformlarda mikrofon düğmesi gizli.
+11. "gece 1–5" gece yarısından sonra söylenirse aynı gün; "hatırlat" tarihsizse bildirim yok.
 
 ## 9. Builder'a kalanlar
 
