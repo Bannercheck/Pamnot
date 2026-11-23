@@ -13,6 +13,7 @@ import 'package:pamnot/state/app_controller.dart';
 import 'package:pamnot/ui/home_shell.dart';
 import 'package:pamnot/ui/reminders/reminders_page.dart';
 import 'package:pamnot/ui/tasks/task_editor.dart';
+import 'package:pamnot/ui/voice/voice_capture_controller.dart';
 import 'package:pamnot/ui/voice/voice_capture_page.dart';
 
 import 'support/fake_speech_engine.dart';
@@ -139,6 +140,35 @@ void main() {
     expect(engine.calls.where((call) => call.startsWith('prepare:')), hasLength(1));
     expect(engine.calls.where((call) => call.startsWith('start:')), hasLength(1));
     await shutdown(tester);
+  });
+
+  testWidgets('F6: ekran açık ve duraklatılmışken gelen istek yeniden dinletir', (tester) async {
+    await boot(tester);
+    await push(tester, 'pamnot://ses');
+    expect(engine.listening, isTrue);
+    // Stopped with nothing said: the screen waits for a tap.
+    await tester.tap(find.byKey(const Key('voice-mic')));
+    await tester.pump();
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+    expect(engine.listening, isFalse);
+    // The shortcut again: it listens, as a tap on the microphone would.
+    voiceRequests.value = true;
+    await tester.pump();
+    expect(voiceRequests.value, isFalse);
+    await tester.pump(VoiceTimings.startDelay);
+    expect(engine.listening, isTrue);
+    expect(find.text('Dinliyorum…'), findsOneWidget);
+    expect(find.byType(VoiceCapturePage), findsOneWidget);
+    // While listening, a request still changes nothing.
+    voiceRequests.value = true;
+    await tester.pump(const Duration(seconds: 1));
+    expect(voiceRequests.value, isFalse);
+    expect(engine.calls.where((call) => call.startsWith('start:')), hasLength(2));
+    expect(engine.calls.where((call) => call.startsWith('prepare:')), hasLength(1));
+    expect(engine.listening, isTrue);
+    await shutdown(tester);
+    // Once the screen is gone, a stale hook does nothing.
+    expect(VoiceCapturePage.requestAgain, returnsNormally);
   });
 
   testWidgets('HomeShell kurulmadan önce gelen istek ilk kareden sonra açılır', (tester) async {

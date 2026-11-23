@@ -160,6 +160,11 @@ const _partsOfDayTr = {'sabah', 'öğle', 'öğlen', 'öğleyin', 'akşam', 'gec
 const _clockWordsTr = {'buçuk', 'buçukta', 'çeyrek', 'geçe', 'kala'};
 const _unitsAfterTr = {'gün', 'hafta', 'ay', 'saat', 'dakika', 'dk'};
 
+/// Words that make a time or a day approximate: "saat 5 gibi", "10
+/// sularında", "akşam 7 civarı". `parse.dart` drops them after a time or a
+/// day, and a number before one is read as an hour.
+const approxWordsTr = {'gibi', 'gibisi', 'civarı', 'civarında', 'civarlarında', 'sularında', 'sıralarında'};
+
 final _numberWordTr = RegExp(
     '$_b(?:(${_tensTr.keys.join('|')})(?:\\s?(${_unitsTr.keys.join('|')}))?|(${_unitsTr.keys.join('|')}))'
     "('?(?:[dt][ae]|y?[ae]|y?[ıiuü]))?$_e",
@@ -169,7 +174,8 @@ final _fractionAfter = RegExp(r'^(?:bir|biri|birini|birde|1)$');
 final _digits = RegExp(r'^\d');
 
 /// Number words become digits only where they tell a time: after "saat" or
-/// a part of day, before a clock word ("buçuk", "geçe"…), in a duration
+/// a part of day, before a clock word ("buçuk", "geçe"…), before a word
+/// that makes it approximate ("beş gibi"; never "bir"), in a duration
 /// ("iki gün sonra"), or as a bare locative hour ("sekizde"; never "birde"
 /// or "onda", which mostly mean "also" and "at him"). "ikide bir",
 /// "on kişilik", "defter onda kaldı" stay words.
@@ -191,7 +197,8 @@ void _numberWordsTr(_Sentence s) {
         (suffix != null && (_partsOfDayTr.contains(prev) || prev2 == 'öğleden sonra'));
     final bareHour = locative && !fraction && n != 1 && n != 10 && n <= 12;
     final duration = suffix == null && _unitsAfterTr.contains(next) && next2 == 'sonra';
-    if (clock || hourContext || bareHour || duration) {
+    final approx = suffix == null && approxWordsTr.contains(next) && n != 1 && n <= 12;
+    if (clock || hourContext || bareHour || duration || approx) {
       s.replace(m.start, m.end, suffix == null ? '$n' : "$n'$suffix");
     }
   }
@@ -208,7 +215,8 @@ final _halfQuarter = RegExp(
     '$_b(?:at\\s+)?(half|quarter)\\s+(past|to)\\s+(\\d{1,2}|${_numbersEn.keys.join('|')})$_e',
     unicode: true);
 
-/// "at seven", "seven pm", "in ten minutes", "half past three" → digits.
+/// "at seven", "around seven", "seven pm", "in ten minutes", "half past
+/// three" → digits.
 void _numberWordsEn(_Sentence s) {
   for (final m in _halfQuarter.allMatches(s.low).toList().reversed) {
     var h = int.tryParse(m[3]!) ?? _numbersEn[m[3]]!;
@@ -224,7 +232,7 @@ void _numberWordsEn(_Sentence s) {
     final n = _numbersEn[m[1]]!;
     final before = s.low.substring(0, m.start).trim().split(RegExp(r'\s+'));
     final after = s.low.substring(m.end).trim().split(RegExp(r'\s+'));
-    final hour = n <= 12 && (before.last == 'at' || _ampmAfter.hasMatch(after.first));
+    final hour = n <= 12 && (before.last == 'at' || before.last == 'around' || _ampmAfter.hasMatch(after.first));
     final duration = before.last == 'in' && _unitAfterEn.hasMatch(after.first);
     if (hour || duration) s.replace(m.start, m.end, '$n');
   }

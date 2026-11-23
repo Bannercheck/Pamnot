@@ -287,4 +287,8 @@ class S {
   String get done => _('Tamam', 'Done');
   String get close => _('Kapat', 'Close');
   String get dueToday => _('Bugün', 'Today');
+
+  // Final fix wave
+  /// Undo label of a note saved by voice ([text] is the note's beginning).
+  String voiceUndoNote(String text) => _('Notu geri al: $text', 'Undo note: $text');
 }

@@ -27,6 +27,12 @@ class FakeSpeechEngine implements SpeechEngine {
   /// When set, prepare() waits for it before answering.
   Completer<void>? prepareGate;
 
+  /// When set, start() waits for it before the engine reports it started.
+  Completer<void>? startGate;
+
+  /// When set, cancel() throws it (after recording the call).
+  Object? cancelError;
+
   final _events = StreamController<SpeechEvent>.broadcast(sync: true);
   final _queue = <SpeechEvent>[];
   bool _firing = false;
@@ -87,6 +93,8 @@ class FakeSpeechEngine implements SpeechEngine {
   @override
   Future<void> start(String localeId) async {
     calls.add('start:$localeId');
+    final gate = startGate;
+    if (gate != null) await gate.future;
     listening = true;
     _partial = '';
     _emit(const SpeechStarted());
@@ -105,6 +113,8 @@ class FakeSpeechEngine implements SpeechEngine {
   @override
   Future<void> cancel() async {
     calls.add('cancel');
+    final error = cancelError;
+    if (error != null) throw error;
     if (!listening) return;
     listening = false;
     _partial = '';

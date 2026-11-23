@@ -19,6 +19,7 @@ SpokenTask parseSpokenTask(String transcript, DateTime now, String lang) {
   final duration = tr ? _durationTr(s) : en ? _durationEn(s) : null;
   if (duration != null) {
     final at = now.add(duration);
+    _dropApprox(s, tr: tr, en: en);
     return SpokenTask(
       title: _title(s, turkish: tr),
       due: DateTime(at.year, at.month, at.day, at.hour, at.minute),
@@ -31,6 +32,7 @@ SpokenTask parseSpokenTask(String transcript, DateTime now, String lang) {
   final day = _day(s, dateOnly(now), tr ? _dayRulesTr : en ? _dayRulesEn : const []) ??
       ((clock?.today ?? false) ? _Day(dateOnly(now), isToday: true) : null);
   final partOfDay = clock?.partOfDay ?? day?.partOfDay ?? (tr ? _partOfDayTr(s) : en ? _partOfDayEn(s) : null);
+  _dropApprox(s, tr: tr, en: en);
   final title = _title(s, turkish: tr);
   if (clock == null && partOfDay == null) {
     return SpokenTask(title: title, due: day?.date, remind: spoken.remind);
@@ -53,7 +55,13 @@ class _Sentence {
   String _text;
   String low;
 
-  void cut(Match m) => low = low.replaceRange(m.start, m.end, ' ' * (m.end - m.start));
+  /// Where each cut was made, in order.
+  final cuts = <(int, int)>[];
+
+  void cut(Match m) {
+    low = low.replaceRange(m.start, m.end, ' ' * (m.end - m.start));
+    cuts.add((m.start, m.end));
+  }
 
   /// The spoken text without what was cut.
   String get rest {
@@ -84,6 +92,25 @@ const _b = r'(?<![\p{L}\p{N}])';
 const _e = r'(?![\p{L}\p{N}])';
 
 RegExp _re(String body) => RegExp('$_b(?:$body)$_e', unicode: true);
+
+// ---------------------------------------------------------------- approximate
+
+/// An approximating word right after a cut: "saat 5 gibi", "10 sularında",
+/// "at 5 or so", "tomorrow or so". Matched from the cut's end. ("around"
+/// comes before the hour; the English clock rules cut it with the hour.)
+final _approxAfterTr = RegExp('\\s+(?:${approxWordsTr.join('|')})$_e', unicode: true);
+final _approxAfterEn = RegExp('\\s+(?:or\\s+so|-?ish)$_e', unicode: true);
+
+/// Drops the words that only made a recognised time or day approximate, so
+/// they do not stay in the title ("saat 5 gibi ara" → "Ara").
+void _dropApprox(_Sentence s, {required bool tr, required bool en}) {
+  final after = tr ? _approxAfterTr : en ? _approxAfterEn : null;
+  if (after == null) return;
+  for (final (_, end) in s.cuts.toList()) {
+    final m = after.matchAsPrefix(s.low, end);
+    if (m != null) s.cut(m);
+  }
+}
 
 // ---------------------------------------------------------------- vocabulary
 
@@ -122,6 +149,9 @@ const _partTailEn = '(?:\\s+($_partsEn))?';
 const _byEn = r'(?:(?:by|until|till|for)\s+)?';
 const _onEn = r'(?:(?:on|by|until|till|for)\s+)?';
 const _atEn = r'(?:(?:at|by|until|till|for)\s+)?';
+
+/// [_atEn] for an hour, which can also be "around 5 pm", "at around noon".
+const _hourLeadEn = r'(?:(?:at\s+)?around\s+|(?:at|by|until|till|for)\s+)?';
 const _weekendLeadEn = r'(?:(?:on|at|by|until|till|for)\s+)?';
 
 // ---------------------------------------------------------------- durations
@@ -196,9 +226,9 @@ final _unitNext = RegExp(r'^\s+(?:lira|liraya|tl|kuruş|dolar|euro|avro|kilo|kg|
     unicode: true);
 final _dative = RegExp(r'^y?[ae]$');
 
-/// "saat 3'te", "akşam 8'de", "19.30'da", "saat 14", "10:00". A bare number
-/// is never a time ("3 ekmek al", "10 sayfa oku"), nor is an amount
-/// ("2.50 lira", "3'te 1").
+/// "saat 3'te", "akşam 8'de", "19.30'da", "saat 14", "10:00", "10
+/// sularında". A bare number is never a time ("3 ekmek al", "10 sayfa oku"),
+/// nor is an amount ("2.50 lira", "3'te 1", "10 civarı kilo").
 _Clock? _clockTr(_Sentence s) {
   for (final m in _clockTrRe.allMatches(s.low)) {
     final partOfDay = m[2], saat = m[3] != null, hasMinute = m[5] != null;
@@ -209,10 +239,12 @@ _Clock? _clockTr(_Sentence s) {
         (_dative.hasMatch(suffix)
             ? (sep?.startsWith("'") ?? false)
             : (sep == null || sep.startsWith("'") || saat || partOfDay != null));
-    if (!(saat || hasMinute || suffixOk) || (suffix != null && !suffixOk)) continue;
+    // "5 gibi", "10 sularında": the approximating word makes it an hour.
+    final approx = suffix == null ? _approxAfterTr.matchAsPrefix(s.low, m.end) : null;
+    if (!(saat || hasMinute || suffixOk || approx != null) || (suffix != null && !suffixOk)) continue;
     // "3'te 1", "üçte bir": a fraction, not a time.
     if (!saat && partOfDay == null) {
-      final after = s.low.substring(m.end);
+      final after = s.low.substring(approx?.end ?? m.end);
       if (_fractionNext.hasMatch(after) || (suffix == null && _unitNext.hasMatch(after))) continue;
     }
     final clock = _fromDigits(m[4]!, m[5], partOfDay: partOfDay, today: m[1] != null);
@@ -223,9 +255,11 @@ _Clock? _clockTr(_Sentence s) {
   return null;
 }
 
-final _ampmRe = _re("$_atEn(\\d{1,2})(?::(\\d{2}))?\\s*(a\\.?m\\.?|p\\.?m\\.?|o'?clock)");
-final _noonRe = _re('$_atEn(noon|midnight)');
-final _atRe = _re(r'at\s+(\d{1,2})(?::(\d{2}))?');
+final _ampmRe = _re("$_hourLeadEn(\\d{1,2})(?::(\\d{2}))?\\s*(a\\.?m\\.?|p\\.?m\\.?|o'?clock)");
+final _noonRe = _re('$_hourLeadEn(noon|midnight)');
+final _aroundRe = _re(r'(?:at\s+)?around\s+(\d{1,2})(?::(\d{2}))?(?:\s?-?ish)?');
+final _atRe = _re(r'at\s+(\d{1,2})(?::(\d{2}))?(?:\s?-?ish)?');
+final _ishRe = _re(r'(\d{1,2})(?::(\d{2}))?\s?-?ish');
 final _colonEnRe = _re('$_byEn(\\d{1,2}):(\\d{2})');
 final _colonRe = _re(r'(\d{1,2}):(\d{2})');
 
@@ -251,11 +285,14 @@ _Clock? _clockEn(_Sentence s) {
     s.cut(noon);
     return _Clock(noon[1] == 'noon' ? 12 : 24, 0, _HourKind.explicit);
   }
-  for (final m in _atRe.allMatches(s.low)) {
-    final clock = _fromDigits(m[1]!, m[2]);
-    if (clock == null) continue;
-    s.cut(m);
-    return clock;
+  // "around 5", "at 5", "5ish": a bare hour.
+  for (final re in [_aroundRe, _atRe, _ishRe]) {
+    for (final m in re.allMatches(s.low)) {
+      final clock = _fromDigits(m[1]!, m[2]);
+      if (clock == null) continue;
+      s.cut(m);
+      return clock;
+    }
   }
   return _clockDigits(s, _colonEnRe);
 }

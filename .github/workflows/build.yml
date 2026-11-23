@@ -36,6 +36,7 @@ jobs:
         run: |
           python3 tool/ios/check_ios_config.py
           python3 tool/ios/check_launch_assets.py
+          python3 tool/ci/check_docs.py
 
   android:
     name: Android APK
@@ -117,7 +118,10 @@ jobs:
       # Installing on a device needs signing in Xcode; this proves the app
       # compiles for iOS.
       - run: flutter build ios --release --no-codesign
-      # Kestirme sessizce kaybolmasın: App Intents meta verisi çıkarılmış olmalı.
+      # Kestirme sessizce kaybolmasın: App Intents meta verisi çıkarılmış olmalı,
+      # ve kestirme uygulamayı öne açmalı (openAppWhenRun, iOS 26 SDK'da
+      # kullanımdan kalkmış bir uzantıda; çıkarılmadıysa kestirme arka planda
+      # çalışır ve ekran açılmaz).
       # Her denetim kendi satırında: `bash -e`, `a && b` zincirinde `a` başarısız
       # olunca durmaz, adım son satırın sonucuyla geçerdi.
       - name: Kestirme ve gizlilik bildirimi derlemede var mı
@@ -125,6 +129,11 @@ jobs:
           f=$(find build/ios -name extract.actionsdata | head -1)
           test -n "$f"
           grep -q VoiceTaskIntent "$f"
+          if ! grep -Eiq 'openApp[a-z]*"?[[:space:]]*[:=][[:space:]]*(true|1)' "$f"; then
+            echo "::error::$f: openAppWhenRun true değil ya da yok"
+            grep -io '"openapp[^,]*' "$f" || true
+            exit 1
+          fi
           test -f build/ios/iphoneos/Runner.app/PrivacyInfo.xcprivacy
       # The home-screen widget has no Xcode target yet (see
       # ios/PamnotWidget/README.md), so type-check its Swift sources directly

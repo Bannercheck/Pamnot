@@ -139,6 +139,22 @@ class VoiceCaptureController extends ChangeNotifier {
   /// The opening steps wait for the app to come to the foreground.
   bool _openOnResume = false;
 
+  /// A voice request came while the app was in the background: listen once
+  /// it is back in the foreground.
+  bool _listenOnResume = false;
+
+  /// A task with a reminder was saved in the background: ask for
+  /// notifications once the app is back in the foreground.
+  bool _askOnResume = false;
+
+  /// The preview shown ends a listen that the recogniser stopped with an
+  /// error: it is saved by hand, and listening does not restart by itself
+  /// after the save.
+  bool _afterFailure = false;
+
+  /// The notification prompt is up; the microphone stays off meanwhile.
+  bool _asking = false;
+
   VoicePhase get phase => _phase;
 
   /// The live transcript, or the correction draft while editing.
@@ -154,6 +170,10 @@ class VoiceCaptureController extends ChangeNotifier {
   List<SavedItem> get saved => List.unmodifiable(_saved);
 
   String? get localeId => _localeId;
+
+  /// The preview is saved when [VoiceTimings.previewHold] runs out; false
+  /// with VoiceOver and after a recogniser error, where it is saved by hand.
+  bool get previewOnTimer => _phase == VoicePhase.preview && (_holdTimer?.isActive ?? false);
 
   /// VoiceOver or Switch Control is on (compliance §4.2-3): the preview is not
   /// saved on a timer, the screen does not close on silence and listening
@@ -274,6 +294,7 @@ class VoiceCaptureController extends ChangeNotifier {
     _awaitingStart = false;
     _inSession = true;
     _stopRequested = false;
+    _afterFailure = false;
     _transcript = '';
     _preview = null;
     _maxTimer = Timer(VoiceTimings.maxListen, _stopListening);
@@ -315,16 +336,24 @@ class VoiceCaptureController extends ChangeNotifier {
     final text = (_final ?? _partial).trim();
     final parsed = text.isEmpty ? null : parseSpokenTask(text, app.now(), _lang);
     if (parsed == null || parsed.title.trim().isEmpty) return _endWithoutText();
-    _heard = text;
-    _transcript = text;
-    _preview = parsed;
-    _setPhase(VoicePhase.preview);
+    // Before the phase changes, so the screen sees whether it is timed.
     if (!_accessible) _holdTimer = Timer(VoiceTimings.previewHold, () => unawaited(_save()));
+    _showPreview(text, parsed);
   }
 
-  /// A failure ends the session as far as this screen is concerned: what was
-  /// heard is dropped and the session's own [SpeechStopped] is ignored.
-  /// "Nothing recognised" is not a failure; the listen just ends empty.
+  void _showPreview(String heard, SpokenTask parsed) {
+    _heard = heard;
+    _transcript = heard;
+    _preview = parsed;
+    _setPhase(VoicePhase.preview);
+  }
+
+  /// A failure ends the session as far as this screen is concerned, and the
+  /// session's own [SpeechStopped] is ignored. When an interruption, a
+  /// network or an unknown error comes after words were heard, the words are
+  /// kept: they are previewed and saved by hand (design §2: a spoken task is
+  /// not lost), and the error is not shown. "Nothing recognised" is not a
+  /// failure; the listen just ends empty.
   void _onFailure(SpeechErrorKind kind) {
     if (!_inSession && !_awaitingStart) return;
     final phase = switch (kind) {
@@ -335,12 +364,31 @@ class VoiceCaptureController extends ChangeNotifier {
       SpeechErrorKind.network || SpeechErrorKind.unknown => VoicePhase.error,
     };
     if (phase == null) return;
+    final heard = _inSession ? (_final ?? _partial).trim() : '';
     _awaitingStart = false;
     _inSession = false;
     _level = 0;
     _cancelListenTimers();
     _idleTimer?.cancel();
+    // The plugin stops by itself on iOS; this makes sure the microphone is
+    // off whatever the screen shows next.
+    unawaited(_cancelEngine());
+    final keep =
+        kind == SpeechErrorKind.interrupted || kind == SpeechErrorKind.network || kind == SpeechErrorKind.unknown;
+    final parsed = keep && heard.isNotEmpty ? parseSpokenTask(heard, app.now(), _lang) : null;
+    if (parsed != null && parsed.title.trim().isNotEmpty) {
+      _afterFailure = true;
+      return _showPreview(heard, parsed);
+    }
     _setPhase(phase);
+  }
+
+  Future<void> _cancelEngine() async {
+    try {
+      await engine.cancel();
+    } catch (e) {
+      debugPrint('Voice capture could not cancel the engine: $e');
+    }
   }
 
   /// A listen ended with nothing to save: before the first save, or when the
@@ -386,6 +434,31 @@ class VoiceCaptureController extends ChangeNotifier {
     }
   }
 
+  /// Phases in which the microphone is off and waits for a tap.
+  static const _waitingPhases = {VoicePhase.paused, VoicePhase.saved, VoicePhase.error};
+
+  /// A new voice request while this screen is open (the shortcut run again):
+  /// where the microphone waits for a tap it listens, as a tap would, after
+  /// [VoiceTimings.startDelay] (Siri may still hold the audio); while
+  /// listening, previewing or editing it is ignored. From the background it
+  /// listens once the app is back in the foreground.
+  void onVoiceRequest() {
+    if (_closed || _asking || !_waitingPhases.contains(_phase)) return;
+    if (!_foreground) {
+      _listenOnResume = true;
+      return;
+    }
+    _scheduleRequestedListen();
+  }
+
+  void _scheduleRequestedListen() {
+    _startTimer?.cancel();
+    _startTimer = Timer(VoiceTimings.startDelay, () {
+      if (_closed || _asking || !_foreground || !_waitingPhases.contains(_phase)) return;
+      toggleMic();
+    });
+  }
+
   // ---------------------------------------------------------- preview and edit
 
   /// Preview → correction: the countdown stops and [transcript] becomes the
@@ -424,15 +497,28 @@ class VoiceCaptureController extends ChangeNotifier {
   // ------------------------------------------------------------------- saving
 
   /// Saves the preview in the foreground: the microphone is off now. A task
-  /// with a reminder asks for notifications before listening again.
+  /// with a reminder asks for notifications before listening again. After a
+  /// recogniser error the screen waits for a tap instead of listening again.
   Future<void> _save() async {
+    final relisten = !_afterFailure;
     final item = _commit();
     if (item == null) return;
     _setPhase(VoicePhase.saved);
     onSaved?.call();
-    if (item.reminder && _foreground) await app.ensureNotificationPermission();
-    if (_closed || _accessible || _phase != VoicePhase.saved) return;
+    if (item.reminder && _foreground) await _askNotifications();
+    if (_closed || _accessible || !relisten || _phase != VoicePhase.saved) return;
     await _listen();
+  }
+
+  /// Asks for notification permission if it was never asked (design §6.5),
+  /// with the microphone off.
+  Future<void> _askNotifications() async {
+    _asking = true;
+    try {
+      await app.ensureNotificationPermission();
+    } finally {
+      _asking = false;
+    }
   }
 
   /// Adds the previewed task or note to the app and to [saved].
@@ -441,6 +527,7 @@ class VoiceCaptureController extends ChangeNotifier {
     final p = _preview;
     final locale = _localeId;
     if (_closed || p == null || locale == null) return null;
+    _afterFailure = false;
     final SavedItem item;
     if (p.isNote) {
       final n = app.addSpokenNote(p.title);
@@ -460,6 +547,8 @@ class VoiceCaptureController extends ChangeNotifier {
       );
     }
     app.logRecognized(_heard, parseSpokenTask(_heard, app.now(), _lang), localeId: locale);
+    // Saved out of sight: the notification prompt waits for the foreground.
+    if (inBackground && item.reminder) _askOnResume = true;
     _saved.insert(0, item);
     _transcript = '';
     _preview = null;
@@ -489,6 +578,8 @@ class VoiceCaptureController extends ChangeNotifier {
     if (!_foreground) return;
     _foreground = false;
     _backgroundAt = app.now();
+    // Out of sight, only the five-minute rule closes the screen.
+    _idleTimer?.cancel();
     if (_startTimer?.isActive ?? false) {
       _startTimer!.cancel();
       _openOnResume = true;
@@ -499,7 +590,6 @@ class VoiceCaptureController extends ChangeNotifier {
         _inSession = false;
         _level = 0;
         _cancelListenTimers();
-        _idleTimer?.cancel();
         unawaited(engine.cancel());
         final parsed = text.isEmpty ? null : parseSpokenTask(text, app.now(), _lang);
         if (parsed != null && parsed.title.trim().isNotEmpty) {
@@ -524,21 +614,43 @@ class VoiceCaptureController extends ChangeNotifier {
     unawaited(app.flush());
   }
 
-  /// The microphone never comes back on by itself; after more than
+  /// The microphone never comes back on by itself (only a listen asked for
+  /// before or while away starts); after more than
   /// [VoiceTimings.backgroundClose] away the screen closes, unless a
-  /// correction is being typed.
+  /// correction is being typed or a new voice request came. A task with a
+  /// reminder saved while away asks for notifications first, with the
+  /// microphone off.
   void _toForeground() {
     if (_foreground) return;
     _foreground = true;
     final since = _backgroundAt;
     _backgroundAt = null;
-    if (since != null && app.now().difference(since) > VoiceTimings.backgroundClose && _phase != VoicePhase.editing) {
+    final ask = _askOnResume, open = _openOnResume, listen = _listenOnResume;
+    _askOnResume = _openOnResume = _listenOnResume = false;
+    if (since != null &&
+        app.now().difference(since) > VoiceTimings.backgroundClose &&
+        _phase != VoicePhase.editing &&
+        !listen) {
       unawaited(close());
+      if (ask) unawaited(app.ensureNotificationPermission());
       return;
     }
-    if (_openOnResume) {
-      _openOnResume = false;
+    unawaited(_resume(ask: ask, open: open, listen: listen));
+  }
+
+  Future<void> _resume({required bool ask, required bool open, required bool listen}) async {
+    if (ask) await _askNotifications();
+    if (_closed) return;
+    if (!_foreground) {
+      // Away again while the prompt was up.
+      _openOnResume |= open;
+      _listenOnResume |= listen;
+      return;
+    }
+    if (open) {
       _scheduleOpen();
+    } else if (listen) {
+      _scheduleRequestedListen();
     }
   }
 

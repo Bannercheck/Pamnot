@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Checks the CI guards of the iOS voice feature and the documents that ship with it.
 
-1. .github/workflows/build.yml: the `checks` job runs tool/ios/check_ios_config.py and
-   tool/ios/check_launch_assets.py. The `ios` job runs `plutil -lint` on the pbxproj,
-   Info.plist, PrivacyInfo.xcprivacy and the .strings tables before `flutter build ios`,
-   and after it checks that extract.actionsdata names VoiceTaskIntent and that the built
-   Runner.app carries PrivacyInfo.xcprivacy.
+1. .github/workflows/build.yml: the `checks` job runs tool/ios/check_ios_config.py,
+   tool/ios/check_launch_assets.py and this script. The `ios` job runs `plutil -lint` on the
+   pbxproj, Info.plist, PrivacyInfo.xcprivacy and the .strings tables before
+   `flutter build ios`, and after it checks that extract.actionsdata names VoiceTaskIntent
+   and openAppWhenRun, and that the built Runner.app carries PrivacyInfo.xcprivacy.
 2. PRIVACY.md exists, has a "Gizlilik Politikası" and a "Privacy Policy" section heading, names
    Apple, Google ML Kit and the last 20 texts, and has a contact line in each language.
 3. TESTING.md has a "Sesle görev ekleme" and a "Yayın" heading and never says "Yan tuş".
@@ -34,6 +34,7 @@ WIDGET_README = ROOT / "ios" / "PamnotWidget" / "README.md"
 CHECKS_JOB_SCRIPTS = (
     "python3 tool/ios/check_ios_config.py",
     "python3 tool/ios/check_launch_assets.py",
+    "python3 tool/ci/check_docs.py",
 )
 IOS_BUILD = "flutter build ios"
 LINT = "plutil -lint"
@@ -168,6 +169,8 @@ def check_workflow():
                 fail(f"build.yml: `{LINT}` before `{IOS_BUILD}` does not cover {name}")
     if first_step(ios, "extract.actionsdata", "VoiceTaskIntent", start=build + 1) is None:
         fail(f"build.yml: no step after `{IOS_BUILD}` looks for VoiceTaskIntent in extract.actionsdata")
+    if first_step(ios, "extract.actionsdata", "openApp", start=build + 1) is None:
+        fail(f"build.yml: no step after `{IOS_BUILD}` looks for openAppWhenRun in extract.actionsdata")
     if first_step(ios, "Runner.app/PrivacyInfo.xcprivacy", start=build + 1) is None:
         fail(f"build.yml: no step after `{IOS_BUILD}` checks Runner.app/PrivacyInfo.xcprivacy")
 

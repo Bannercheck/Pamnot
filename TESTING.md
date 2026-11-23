@@ -108,11 +108,18 @@ Not: `main`'e birleştirmeden önce bu liste cihazda geçilir.
 - [ ] Önizlemedeyken ekranı ✕ ile kapatın: görev kaydedilmemeli.
 - [ ] Bir görev söyleyip hemen telefonu kilitleyin: görev kaydedilmeli. Geri dönünce
       **Kilitlenirken kaydedildi** görünmeli; mikrofon kendiliğinden açılmamalı.
+- [ ] Bildirim izni hiç sorulmamışken saatli bir görev söyleyip ("yarın 10'da toplantı") hemen
+      kilitleyin: geri dönünce bildirim izni sorulmalı, mikrofon kapalıyken.
+- [ ] Ekran açık ve **Duraklatıldı** yazarken Eylem düğmesine (ya da kestirmeye) yeniden basın:
+      dinleme başlamalı. Dinlerken basınca bir şey değişmemeli.
+- [ ] Bir cümlenin yarısında uçak modunu açın: söylenen kaybolmamalı; önizlemede geri sayım olmadan
+      **Kaydet** ile kaydedilebilmeli.
 - [ ] Mikrofon ya da Konuşma Tanıma iznini reddedin: ekranda **Ayarlar'ı Aç** çıkmalı ve iOS
       Ayarlar'da Pamnot'u açmalı. Sistem izni bir daha sorulmamalı.
 - [ ] **Ayarlar > Genel > Klavye**'de Dikte kapalıyken ekranı açın: Dikte'yi açmaya yönlendirmeli.
 - [ ] VoiceOver açıkken bir görev söyleyin: önizlemede geri sayım olmamalı; görev **Kaydet** ile
-      kaydedilmeli.
+      kaydedilmeli. Dinleme başlarken VoiceOver "Dinliyorum" dememeli ve tanınan metne VoiceOver'ın
+      sesi karışmamalı.
 - [ ] Pamnot'ta **Ayarlar > Sesle ekleme > Tanınan metinleri sakla**'yı açın ve birkaç gerçek görev
       söyleyin. **Son tanınanlar** listesinde saatlerin nasıl yazıldığına bakın ("10'da" mı, "onda"
       mı) ve örnekleri paylaşın; ayrıştırıcı gerekirse bunlara göre düzeltilir. **Temizle** listeyi

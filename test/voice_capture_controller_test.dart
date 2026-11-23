@@ -415,9 +415,11 @@ void main() {
     await h.dispose(tester);
   });
 
-  testWidgets('arka planda bildirim izni sorulmaz', (tester) async {
+  testWidgets('arka planda bildirim izni sorulmaz; dönüşte, mikrofon kapalıyken bir kez sorulur', (tester) async {
     final h = await VoiceHarness.create(tester);
     final e = FakeSpeechEngine();
+    var micOnAtRequest = true;
+    h.scheduler.onRequest = () => micOnAtRequest = e.listening;
     final c = await start(tester, h, e);
     e.say('yarın 10:00 toplantı');
     await tester.pump(const Duration(milliseconds: 500));
@@ -427,10 +429,50 @@ void main() {
     expect(c.saved.single.reminder, isTrue);
     expect(h.scheduler.permissionRequests, 0);
     expect(h.app.settings.notificationsAsked, isFalse);
+    // F5: the reminder would stay silent; it is asked for on the way back.
     c.onLifecycle(AppLifecycleState.resumed);
     await tester.pump(const Duration(seconds: 3));
+    expect(h.scheduler.permissionRequests, 1);
+    expect(micOnAtRequest, isFalse);
+    expect(h.app.settings.notificationsAsked, isTrue);
+    expect((c.phase, starts(e)), (VoicePhase.paused, 1));
+    // Not again on a later return.
+    c.onLifecycle(AppLifecycleState.hidden);
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(const Duration(seconds: 3));
+    expect(h.scheduler.permissionRequests, 1);
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('F5: arka planda saatsiz kayıt dönüşte izin sormaz', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(const Duration(milliseconds: 500));
+    c.onLifecycle(AppLifecycleState.hidden);
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(const Duration(seconds: 3));
+    expect(h.app.tasks.single.remindAt, isNull);
     expect(h.scheduler.permissionRequests, 0);
     await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('F5: 5 dakikadan uzun arka planda kapanan ekran da izni mikrofon kapalıyken sorar', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('yarın 10:00 toplantı');
+    await tester.pump(VoiceTimings.utteranceGap);
+    c.onLifecycle(AppLifecycleState.paused);
+    expect(c.saved.single.reminder, isTrue);
+    h.now = h.now.add(const Duration(minutes: 6));
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(const Duration(seconds: 1));
+    expect((c.phase, e.listening), (VoicePhase.closed, false));
+    expect(h.scheduler.permissionRequests, 1);
     await h.dispose(tester);
   });
 
@@ -682,6 +724,185 @@ void main() {
     expect(c.saved, isEmpty);
     expect(c.level, 0);
     expect(e.calls.length, callsAtClose);
+    await h.dispose(tester);
+  });
+
+  // ------------------------------------------------- final fix wave (F1, F3, F4, F6)
+
+  for (final kind in [SpeechErrorKind.network, SpeechErrorKind.unknown, SpeechErrorKind.interrupted]) {
+    testWidgets('F1: söylendikten sonra gelen $kind hatası metni atmaz; önizleme elle kaydedilir', (tester) async {
+      final h = await VoiceHarness.create(tester);
+      final e = FakeSpeechEngine();
+      final c = await start(tester, h, e);
+      e.say('yarın 10:00 toplantı');
+      e.fail(kind);
+      expect((c.phase, c.transcript, c.preview!.title), (VoicePhase.preview, 'yarın 10:00 toplantı', 'Toplantı'));
+      expect(c.previewOnTimer, isFalse);
+      // F3: the microphone is surely off.
+      expect((e.calls.last, e.listening), ('cancel', false));
+      // No countdown: a sentence cut off by an error waits for Save.
+      await tester.pump(const Duration(seconds: 10));
+      expect(c.phase, VoicePhase.preview);
+      expect(h.app.tasks, isEmpty);
+      await c.saveNow();
+      final t = h.app.tasks.single;
+      expect((t.title, t.due), ('Toplantı', DateTime(2026, 11, 24, 10)));
+      expect(c.saved.single.id, t.id);
+      // After an error the microphone does not come back on by itself.
+      await tester.pump(const Duration(seconds: 10));
+      expect((c.phase, starts(e), e.listening), (VoicePhase.saved, 1, false));
+      c.toggleMic();
+      await tester.pump();
+      expect((c.phase, starts(e)), (VoicePhase.listening, 2));
+      // The next listen is an ordinary one again: timed preview, re-listen.
+      e.say('süt al');
+      await tester.pump(VoiceTimings.utteranceGap);
+      expect(c.previewOnTimer, isTrue);
+      await tester.pump(VoiceTimings.previewHold);
+      await tester.pump();
+      expect((h.app.tasks.length, starts(e), c.phase), (2, 3, VoicePhase.listening));
+      await c.close();
+      await h.dispose(tester);
+    });
+  }
+
+  testWidgets('F1: hatadan sonraki önizleme düzeltilip kaydedilebilir', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('yarın 10:00 topl');
+    e.fail(SpeechErrorKind.network);
+    c.edit();
+    c.updateDraft('yarın 10:00 toplantı');
+    await c.saveNow();
+    expect(h.app.tasks.single.title, 'Toplantı');
+    await tester.pump(const Duration(seconds: 10));
+    expect((c.phase, starts(e)), (VoicePhase.saved, 1));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('F1/F3: hiçbir şey duyulmadan gelen hata gösterilir ve motor iptal edilir', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.fail(SpeechErrorKind.network);
+    expect((c.phase, c.preview, e.calls.last), (VoicePhase.error, null, 'cancel'));
+    c.toggleMic();
+    await tester.pump();
+    e.fail(SpeechErrorKind.interrupted);
+    expect((c.phase, c.preview, e.calls.last), (VoicePhase.paused, null, 'cancel'));
+    expect(h.app.tasks, isEmpty);
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('F3: hatadaki iptal kendi hatasını yutar', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.cancelError = StateError('plugin');
+    e.fail(SpeechErrorKind.network);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect((c.phase, e.calls.last), (VoicePhase.error, 'cancel'));
+    e.cancelError = null;
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('F4: arka plana geçince 6 sn sessizlik zamanlayıcısı ekranı kapatmaz', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await tester.pump(VoiceTimings.previewHold);
+    await tester.pump();
+    expect((starts(e), c.phase), (2, VoicePhase.listening));
+    // The re-listen ends by itself with nothing said; the next one is slow
+    // to start, so the screen is between listens when it goes away.
+    e.startGate = Completer<void>();
+    e.fail(SpeechErrorKind.noMatch, permanent: false);
+    expect((c.phase, starts(e)), (VoicePhase.preparing, 3));
+    c.onLifecycle(AppLifecycleState.hidden);
+    expect(c.phase, VoicePhase.paused);
+    await tester.pump(VoiceTimings.idleClose * 2);
+    expect(c.phase, VoicePhase.paused);
+    // Back within five minutes: the screen is still there, microphone off.
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(VoiceTimings.idleClose * 2);
+    expect((c.phase, e.listening), (VoicePhase.paused, false));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('F6: açık ekranda yeni istek: beklerken dinler; dinlerken, önizlemede, düzeltmede yok sayılır', (
+    tester,
+  ) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect((c.phase, starts(e)), (VoicePhase.listening, 1));
+    e.say('yarın 10:00 toplantı');
+    await tester.pump(VoiceTimings.utteranceGap);
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect((c.phase, starts(e), h.app.tasks.length), (VoicePhase.preview, 1, 0));
+    c.edit();
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect((c.phase, starts(e)), (VoicePhase.editing, 1));
+    await c.saveNow();
+    await tester.pump();
+    expect((c.phase, starts(e)), (VoicePhase.listening, 2));
+
+    // Paused: a request listens as a tap on the microphone would.
+    c.toggleMic();
+    expect((c.phase, e.listening), (VoicePhase.paused, false));
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay);
+    expect((c.phase, starts(e), e.listening), (VoicePhase.listening, 3, true));
+
+    // Error: the same.
+    e.fail(SpeechErrorKind.network);
+    expect(c.phase, VoicePhase.error);
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay);
+    expect((c.phase, starts(e)), (VoicePhase.listening, 4));
+
+    // Arriving before the app is back in front: it listens once it is.
+    c.onLifecycle(AppLifecycleState.hidden);
+    expect((c.phase, e.listening), (VoicePhase.paused, false));
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect(starts(e), 4);
+    // Even after more than five minutes away: the request keeps the screen.
+    h.now = h.now.add(const Duration(minutes: 6));
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(VoiceTimings.startDelay);
+    await tester.pump();
+    expect((c.phase, starts(e), e.listening), (VoicePhase.listening, 5, true));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('F6: bildirim izni sorulurken gelen istek mikrofonu açmaz', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    // VoiceOver: after the save the screen waits for a tap, so a request
+    // would be the only thing to open the microphone.
+    final c = await start(tester, h, e, accessible: true);
+    h.scheduler.onRequest = c.onVoiceRequest;
+    e.say('yarın 10:00 toplantı');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    expect(h.scheduler.permissionRequests, 1);
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect((c.phase, starts(e), e.listening), (VoicePhase.saved, 1, false));
+    await c.close();
     await h.dispose(tester);
   });
 }

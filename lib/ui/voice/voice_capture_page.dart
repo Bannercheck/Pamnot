@@ -24,8 +24,16 @@ class VoiceCapturePage extends StatefulWidget {
 
   static bool _open = false;
 
+  /// The showing screen's answer to a new voice request.
+  static VoidCallback? _onRequest;
+
   /// A screen opened with [open] is showing.
   static bool get isOpen => _open;
+
+  /// A new voice request (the shortcut run again) while a screen is showing:
+  /// it listens if its microphone waits for a tap (paused, saved, error), as
+  /// a tap would; while listening, previewing or editing nothing happens.
+  static void requestAgain() => _onRequest?.call();
 
   /// Opens the screen full screen on the root navigator; does nothing while
   /// one is already open. When it closes having saved something, a summary
@@ -33,10 +41,11 @@ class VoiceCapturePage extends StatefulWidget {
   static Future<void> open(BuildContext context) async {
     if (_open) return;
     _open = true;
-    // Taken before the push: this context may be gone when the screen closes.
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final s = S.of(context);
     try {
+      // Taken before the push: this context may be gone when the screen
+      // closes. Inside the try, so a failed lookup cannot leave [isOpen] set.
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      final s = S.of(context);
       final saved = await Navigator.of(
         context,
         rootNavigator: true,
@@ -93,7 +102,7 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
   VoicePhase? _phase;
 
   /// The preview shown is saved by the controller's timer (VoiceOver was off
-  /// when it appeared).
+  /// and the listen did not end with an error when it appeared).
   bool _timedPreview = false;
 
   /// The route has been closed (it is closed once).
@@ -118,6 +127,7 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
     // and the first build shows that anyway.
     _phase = _c.phase;
     _c.addListener(_onChange);
+    VoiceCapturePage._onRequest = _c.onVoiceRequest;
   }
 
   void _onChange() {
@@ -132,7 +142,8 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
 
   void _enter(VoicePhase phase) {
     if (phase == VoicePhase.preview) {
-      _timedPreview = !_c.accessible;
+      // Not after a recogniser error or with VoiceOver: saved by hand.
+      _timedPreview = _c.previewOnTimer;
       if (_timedPreview) _countdown.forward(from: 0);
     } else {
       _countdown.stop();
@@ -164,6 +175,7 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
 
   @override
   void dispose() {
+    if (VoiceCapturePage._onRequest == _c.onVoiceRequest) VoiceCapturePage._onRequest = null;
     _lifecycle.dispose();
     _c.removeListener(_onChange);
     // close() cancels the engine; dispose() alone would leave it listening.
@@ -327,7 +339,13 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
                     key: const Key('voice-ring'),
                     width: 108,
                     height: 108,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: c.primaryContainer),
+                    // The soft fill alone is 1.1:1 on the surface; the primary
+                    // edge keeps the ring visible (>= 3:1 in both themes).
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: c.primaryContainer,
+                      border: Border.all(color: c.primary, width: 2),
+                    ),
                   ),
                 ),
               ),
@@ -352,7 +370,9 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
   }
 
   /// Icon and text for the phase; it changes only when the phase does, and
-  /// is the live region VoiceOver announces.
+  /// is the live region VoiceOver announces, except while the microphone is
+  /// about to open or open: VoiceOver's voice would reach the recogniser
+  /// (compliance §4.1, accessibility 3).
   Widget? _status(S s, VoicePhase phase) {
     final status = switch (phase) {
       VoicePhase.preparing => (Icons.hourglass_top_rounded, s.voicePreparing, null),
@@ -422,7 +442,7 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
     return Semantics(
       key: const Key('voice-status'),
       container: true,
-      liveRegion: true,
+      liveRegion: phase != VoicePhase.listening && phase != VoicePhase.preparing,
       child: Column(
         children: [
           Row(
@@ -686,13 +706,20 @@ class _SavedRow extends StatelessWidget {
           IconButton(
             key: Key('voice-undo-${item.id}'),
             icon: const Icon(Icons.undo_rounded),
-            tooltip: s.voiceUndoItem(item.title),
+            tooltip: item.isNote ? s.voiceUndoNote(_short(item.title)) : s.voiceUndoItem(_short(item.title)),
             onPressed: onUndo,
           ),
         ],
       ),
     );
   }
+}
+
+/// [text] on one line and at most 60 characters, for a button's label: a
+/// 600-character title would fill the screen as a tooltip.
+String _short(String text) {
+  final line = text.replaceAll(RegExp(r'\s+'), ' ').trim().characters;
+  return line.length <= 60 ? line.string : '${line.take(59).string.trimRight()}…';
 }
 
 /// The input level in five still steps, for Reduce Motion. Visual only.

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,7 @@ import 'package:pamnot/theme/pamnot_theme.dart';
 import 'package:pamnot/ui/voice/voice_capture_controller.dart';
 import 'package:pamnot/ui/voice/voice_capture_page.dart';
 
+import 'support/contrast.dart';
 import 'support/fake_speech_engine.dart';
 import 'support/voice_harness.dart';
 
@@ -433,6 +435,9 @@ void main() {
     final n = h.app.notes.single;
     expect(find.byKey(Key('voice-saved-${n.id}')), findsOneWidget);
     expect(find.text('Süt bitmiş · Not'), findsOneWidget);
+    // F7: a note is not called a task.
+    expect(find.byTooltip('Notu geri al: Süt bitmiş'), findsOneWidget);
+    expect(find.byTooltip('Süt bitmiş görevini geri al'), findsNothing);
     await shutdown(tester, h);
   });
 
@@ -543,12 +548,13 @@ void main() {
     await shutdown(tester, h);
   });
 
-  testWidgets('durum satırı canlı bölgedir, canlı metin değildir', (tester) async {
+  testWidgets('dinlerken durum satırı ve canlı metin canlı bölge değildir', (tester) async {
     final h = await VoiceHarness.create(tester);
     final e = await pumpPage(tester, h);
+    // F2: VoiceOver would say "Dinliyorum…" into the open microphone.
     expect(
       tester.getSemantics(find.byKey(const Key('voice-status'))),
-      isSemantics(label: 'Dinliyorum…', isLiveRegion: true),
+      isSemantics(label: 'Dinliyorum…', isLiveRegion: false),
     );
     e.say('yarın akşam yedide annemi ara');
     await tester.pump();
@@ -559,7 +565,7 @@ void main() {
     // The words coming in do not change the status line.
     expect(
       tester.getSemantics(find.byKey(const Key('voice-status'))),
-      isSemantics(label: 'Dinliyorum…', isLiveRegion: true),
+      isSemantics(label: 'Dinliyorum…', isLiveRegion: false),
     );
     // The live preview is not read out while the words still come...
     expect(tester.getSemantics(find.byKey(const Key('voice-preview'))), isSemantics(isLiveRegion: false));
@@ -574,8 +580,64 @@ void main() {
     await tester.pump();
     expect(
       tester.getSemantics(find.byKey(const Key('voice-status'))),
-      isSemantics(label: 'Dinliyorum…', isLiveRegion: true),
+      isSemantics(label: 'Dinliyorum…', isLiveRegion: false),
     );
+    await shutdown(tester, h);
+  });
+
+  testWidgets('F2: durum satırı hazırlanırken ve dinlerken sessiz, değişimlerde canlı bölgedir', (tester) async {
+    SemanticsNode status() => tester.getSemantics(find.byKey(const Key('voice-status')));
+    final h = await VoiceHarness.create(tester);
+    final e = await pumpPage(tester, h, engine: FakeSpeechEngine()..prepareGate = Completer<void>());
+    // Getting ready: the microphone opens right after; nothing is announced.
+    expect(status(), isSemantics(label: 'Hazırlanıyor…', isLiveRegion: false));
+    e.prepareGate!.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(status(), isSemantics(label: 'Dinliyorum…', isLiveRegion: false));
+    // Stopped with nothing said: "Paused" is announced, the microphone is off.
+    await tester.tap(find.byKey(const Key('voice-mic')));
+    await tester.pump();
+    expect(e.listening, isFalse);
+    expect(status().label, startsWith('Duraklatıldı'));
+    expect(status(), isSemantics(isLiveRegion: true));
+    // An error is announced.
+    await tester.tap(find.byKey(const Key('voice-mic')));
+    await tester.pump();
+    expect(status(), isSemantics(label: 'Dinliyorum…', isLiveRegion: false));
+    e.fail(SpeechErrorKind.network);
+    await tester.pump();
+    expect(status(), isSemantics(label: tr.voiceErrorGeneric, isLiveRegion: true));
+    await shutdown(tester, h);
+
+    // "Saved" is announced (VoiceOver: it stays until a tap).
+    final h2 = await VoiceHarness.create(tester);
+    final e2 = await pumpPage(tester, h2, accessibleNavigation: true);
+    e2.say('yarın akşam yedide annemi ara');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await tester.tap(find.byKey(const Key('voice-save')));
+    await tester.pump();
+    expect(status(), isSemantics(label: 'Kaydedildi', isLiveRegion: true));
+    await shutdown(tester, h2);
+  });
+
+  testWidgets('F1: hatayla biten dinlemede söylenen önizlenir; geri sayım yok, Kaydet ile kaydedilir', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = await pumpPage(tester, h);
+    e.say('yarın akşam yedide annemi ara');
+    e.fail(SpeechErrorKind.unknown);
+    await tester.pump();
+    expect(find.text(tr.voiceErrorGeneric), findsNothing);
+    expect(find.bySemanticsLabel('Annemi ara, Yarın 19:00, hatırlatma açık'), findsOneWidget);
+    expect(find.byKey(const Key('voice-countdown')), findsNothing);
+    expect(find.byKey(const Key('voice-fix')), findsOneWidget);
+    await tester.pump(const Duration(seconds: 10));
+    expect(h.app.tasks, isEmpty);
+    await tester.tap(find.byKey(const Key('voice-save')));
+    await tester.pump();
+    expect(h.app.tasks.single.title, 'Annemi ara');
+    expect(find.text('Kaydedildi'), findsOneWidget);
+    expect(e.listening, isFalse);
     await shutdown(tester, h);
   });
 
@@ -745,6 +807,9 @@ void main() {
     final t = h.app.tasks.single;
     expect(t.title.length, long.length);
     expect(t.title, 'K${long.substring(1)}');
+    // F7: the undo button's label keeps the first 60 characters.
+    final undo = tester.widget<IconButton>(find.byKey(Key('voice-undo-${t.id}')));
+    expect(undo.tooltip, '${t.title.substring(0, 59)}… görevini geri al');
     e.say('satır bir\nsatır iki');
     await tester.pump(VoiceTimings.utteranceGap + VoiceTimings.previewHold);
     await tester.pump();
@@ -752,4 +817,30 @@ void main() {
     expect(h.app.tasks, hasLength(2));
     await shutdown(tester, h);
   });
+
+  // ---------------------------------------------------- final fix wave
+
+  testWidgets('F8: open içindeki bir arama hata verirse isOpen takılı kalmaz', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    await pumpLauncher(tester, h);
+    final context = tester.element(find.text('Aç'));
+    // The launcher is gone: every lookup through its context fails.
+    await tester.pumpWidget(const SizedBox());
+    await expectLater(VoiceCapturePage.open(context), throwsA(anything));
+    expect(VoiceCapturePage.isOpen, isFalse);
+    await h.dispose(tester);
+  });
+
+  for (final (name, theme) in [('açık', PamnotTheme.light()), ('koyu', PamnotTheme.dark())]) {
+    testWidgets('F11: $name tema, ses halkasının kenarı yüzeye karşı en az 3:1', (tester) async {
+      final h = await VoiceHarness.create(tester);
+      await pumpPage(tester, h, theme: theme);
+      final ring = tester.widget<Container>(find.byKey(const Key('voice-ring')));
+      final border = (ring.decoration! as BoxDecoration).border! as Border;
+      expect(border.top.width, greaterThanOrEqualTo(2));
+      expect(border.top.color.a, 1);
+      expect(contrast(border.top.color, theme.colorScheme.surface), greaterThanOrEqualTo(3));
+      await shutdown(tester, h);
+    });
+  }
 }

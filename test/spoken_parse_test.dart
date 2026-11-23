@@ -126,6 +126,53 @@ void main() {
     });
   });
 
+  group('F9: saatten ya da günden sonraki "gibi", "civarı", "sularında" başlıkta kalmaz', () {
+    test('verilen dört cümle', () {
+      for (final (s, lang, title, due) in [
+        ('saat 5 gibi ara', 'tr', 'Ara', DateTime(2026, 11, 23, 17)),
+        ('yarın 10 sularında toplantı', 'tr', 'Toplantı', DateTime(2026, 11, 24, 10)),
+        ('akşam 7 civarı annemi ara', 'tr', 'Annemi ara', DateTime(2026, 11, 23, 19)),
+        ('call mom around 5', 'en', 'Call mom', DateTime(2026, 11, 23, 17)),
+      ]) {
+        final r = parseSpokenTask(s, now, lang);
+        expect((r.title, r.due, r.hasTime), (title, due, true), reason: s);
+      }
+    });
+    test('öbür biçimler', () {
+      for (final (s, lang, title, due, hasTime) in [
+        ("saat 3'te gibi dişçi", 'tr', 'Dişçi', DateTime(2026, 11, 23, 15), true),
+        ('yarın 9 civarında rapor', 'tr', 'Rapor', DateTime(2026, 11, 24, 9), true),
+        ('saat beş gibi ara', 'tr', 'Ara', DateTime(2026, 11, 23, 17), true),
+        ('beş gibi ara', 'tr', 'Ara', DateTime(2026, 11, 23, 17), true),
+        ('akşam gibi annemi ara', 'tr', 'Annemi ara', DateTime(2026, 11, 23, 19), true),
+        ('yarın gibisi faturayı öde', 'tr', 'Faturayı öde', DateTime(2026, 11, 24), false),
+        ('cuma civarı raporu bitir', 'tr', 'Raporu bitir', DateTime(2026, 11, 27), false),
+        ('call mom at 5ish', 'en', 'Call mom', DateTime(2026, 11, 23, 17), true),
+        ('call mom 5ish', 'en', 'Call mom', DateTime(2026, 11, 23, 17), true),
+        ('call mom at 5 or so', 'en', 'Call mom', DateTime(2026, 11, 23, 17), true),
+        ('call mom around 5 pm', 'en', 'Call mom', DateTime(2026, 11, 23, 17), true),
+        ('call mom around five', 'en', 'Call mom', DateTime(2026, 11, 23, 17), true),
+        ('pay rent tomorrow or so', 'en', 'Pay rent', DateTime(2026, 11, 24), false),
+      ]) {
+        final r = parseSpokenTask(s, now, lang);
+        expect((r.title, r.due, r.hasTime), (title, due, hasTime), reason: s);
+      }
+    });
+    test('saat ya da gün yoksa sözcük yerinde kalır', () {
+      for (final (s, lang) in [
+        ('annem gibi yemek yap', 'tr'),
+        ('ev civarında yürüyüş', 'tr'),
+        ('10 civarı kilo ver', 'tr'),
+        ('walk around the park', 'en'),
+        ('buy 5 or so apples', 'en'),
+      ]) {
+        final r = parseSpokenTask(s, now, lang);
+        expect((r.due, r.hasTime), (null, false), reason: s);
+        expect(r.title.toLowerCase(), s, reason: s);
+      }
+    });
+  });
+
   group('İngilizce başlıkta edat yalnız tarih ya da saatle gider', () {
     SpokenTask en(String s) => parseSpokenTask(s, now, 'en');
     test('tarih ya da saat yoksa sondaki edat başlıkta kalır', () {

@@ -62,11 +62,13 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   /// Opens the voice screen for a request from the shortcut, a link or the
-  /// microphone button. A request while the screen is showing is dropped.
+  /// microphone button. A request while the screen is showing goes to it: it
+  /// listens again if it waits for a tap (paused), and is ignored while it
+  /// listens, previews or is being corrected.
   void _onVoiceRequest() {
     if (!voiceRequests.value || !mounted) return;
     voiceRequests.value = false;
-    if (VoiceCapturePage.isOpen) return;
+    if (VoiceCapturePage.isOpen) return VoiceCapturePage.requestAgain();
     unawaited(VoiceCapturePage.open(context));
   }
 
