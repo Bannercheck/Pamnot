@@ -52,7 +52,7 @@ flutter run                 # bağlı cihaz / simülatör
 flutter run -d macos        # Mac
 flutter run -d windows      # Windows
 flutter run -d chrome       # hızlı önizleme (web)
-flutter test                # 426 test
+flutter test                # 430 test
 ```
 
 Flutter 3.47 / Dart 3.13 ile geliştirildi.

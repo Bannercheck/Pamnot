@@ -143,6 +143,9 @@ class VoiceCaptureController extends ChangeNotifier {
   /// it is back in the foreground.
   bool _listenOnResume = false;
 
+  /// [_startTimer] waits to listen for a voice request, not to open.
+  bool _startIsRequest = false;
+
   /// A task with a reminder was saved in the background: ask for
   /// notifications once the app is back in the foreground.
   bool _askOnResume = false;
@@ -207,6 +210,7 @@ class VoiceCaptureController extends ChangeNotifier {
 
   void _scheduleOpen() {
     _startTimer?.cancel();
+    _startIsRequest = false;
     _startTimer = Timer(VoiceTimings.startDelay, () => unawaited(_prepareAndListen()));
   }
 
@@ -453,6 +457,7 @@ class VoiceCaptureController extends ChangeNotifier {
 
   void _scheduleRequestedListen() {
     _startTimer?.cancel();
+    _startIsRequest = true;
     _startTimer = Timer(VoiceTimings.startDelay, () {
       if (_closed || _asking || !_foreground || !_waitingPhases.contains(_phase)) return;
       toggleMic();
@@ -580,9 +585,15 @@ class VoiceCaptureController extends ChangeNotifier {
     _backgroundAt = app.now();
     // Out of sight, only the five-minute rule closes the screen.
     _idleTimer?.cancel();
+    // A start still waiting resumes the same way on return: a voice
+    // request as a tap would, the opening through its steps.
     if (_startTimer?.isActive ?? false) {
       _startTimer!.cancel();
-      _openOnResume = true;
+      if (_startIsRequest) {
+        _listenOnResume = true;
+      } else {
+        _openOnResume = true;
+      }
     }
     switch (_phase) {
       case VoicePhase.listening:

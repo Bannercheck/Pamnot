@@ -143,7 +143,9 @@ void main() {
         ("saat 3'te gibi dişçi", 'tr', 'Dişçi', DateTime(2026, 11, 23, 15), true),
         ('yarın 9 civarında rapor', 'tr', 'Rapor', DateTime(2026, 11, 24, 9), true),
         ('saat beş gibi ara', 'tr', 'Ara', DateTime(2026, 11, 23, 17), true),
-        ('beş gibi ara', 'tr', 'Ara', DateTime(2026, 11, 23, 17), true),
+        // R8-F1: nothing anchors "beş gibi" as a time, so the number stays.
+        ('beş gibi ara', 'tr', 'Beş gibi ara', null, false),
+        ('yarın beş gibi ara', 'tr', 'Ara', DateTime(2026, 11, 24, 17), true),
         ('akşam gibi annemi ara', 'tr', 'Annemi ara', DateTime(2026, 11, 23, 19), true),
         ('yarın gibisi faturayı öde', 'tr', 'Faturayı öde', DateTime(2026, 11, 24), false),
         ('cuma civarı raporu bitir', 'tr', 'Raporu bitir', DateTime(2026, 11, 27), false),
@@ -169,6 +171,48 @@ void main() {
         final r = parseSpokenTask(s, now, lang);
         expect((r.due, r.hasTime), (null, false), reason: s);
         expect(r.title.toLowerCase(), s, reason: s);
+      }
+    });
+  });
+
+  group('R8-F1: yaklaşık sayı yalnız saat bağlamında saattir; sayılan miktar başlıkta kalır', () {
+    test('sayılan miktar: saatsiz, sayı başlıkta', () {
+      for (final (s, lang, title) in [
+        ('buy around 10 apples', 'en', 'Buy around 10 apples'),
+        ('walk around 5 blocks', 'en', 'Walk around 5 blocks'),
+        ('invite around twelve people', 'en', 'Invite around twelve people'),
+        ('email around 20 people', 'en', 'Email around 20 people'),
+        ('turn around 2 times', 'en', 'Turn around 2 times'),
+        ('buy 5ish apples', 'en', 'Buy 5ish apples'),
+        ('buy around five apples', 'en', 'Buy around five apples'),
+        ('20 civarında misafir gelecek', 'tr', '20 civarında misafir gelecek'),
+        ('on iki civarında kişi davet et', 'tr', 'On iki civarında kişi davet et'),
+        ('beş gibi ekmek al', 'tr', 'Beş gibi ekmek al'),
+        // "at" after a verb is a particle, not a time ("look at").
+        ('look at around 20 photos', 'en', 'Look at around 20 photos'),
+        ('buy around 10, maybe 12 apples', 'en', 'Buy around 10, maybe 12 apples'),
+      ]) {
+        final r = parseSpokenTask(s, now, lang);
+        expect((r.title, r.due, r.hasTime), (title, null, false), reason: s);
+      }
+    });
+    test('önünde ya da ardında saat ya da gün sözcüğü varsa, ya da cümle bitiyorsa saattir', () {
+      for (final (s, lang, title, due) in [
+        ('tomorrow around 5 call mom', 'en', 'Call mom', DateTime(2026, 11, 24, 17)),
+        ('call mom around 5 tomorrow', 'en', 'Call mom', DateTime(2026, 11, 24, 17)),
+        ('call mom around 5 on friday', 'en', 'Call mom', DateTime(2026, 11, 27, 17)),
+        ('call mom at around 5', 'en', 'Call mom', DateTime(2026, 11, 23, 17)),
+        ('call mom around 5 or so', 'en', 'Call mom', DateTime(2026, 11, 23, 17)),
+        ('call mom around 5 in the evening', 'en', 'Call mom', DateTime(2026, 11, 23, 17)),
+        ('at around 5 call mom', 'en', 'Call mom', DateTime(2026, 11, 23, 17)),
+        ('tomorrow at around 5 call mom', 'en', 'Call mom', DateTime(2026, 11, 24, 17)),
+        ('tomorrow 5ish call mom', 'en', 'Call mom', DateTime(2026, 11, 24, 17)),
+        ('toplantı 10 civarında', 'tr', 'Toplantı', DateTime(2026, 11, 23, 10)),
+        ('5 gibi yarın ara', 'tr', 'Ara', DateTime(2026, 11, 24, 17)),
+        ('cuma 10 civarında toplantı', 'tr', 'Toplantı', DateTime(2026, 11, 27, 10)),
+      ]) {
+        final r = parseSpokenTask(s, now, lang);
+        expect((r.title, r.due, r.hasTime), (title, due, true), reason: s);
       }
     });
   });

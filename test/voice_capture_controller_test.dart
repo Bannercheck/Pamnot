@@ -889,6 +889,49 @@ void main() {
     await h.dispose(tester);
   });
 
+  testWidgets('R8-F2: istekle bekleyen dinleme arka plandan dönüşte istek yoluyla başlar', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    c.toggleMic();
+    expect((c.phase, e.listening), (VoicePhase.paused, false));
+    final calls = e.calls.length;
+    c.onVoiceRequest();
+    // Away before the request's start delay ran out.
+    await tester.pump(VoiceTimings.startDelay ~/ 2);
+    c.onLifecycle(AppLifecycleState.hidden);
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect((c.phase, starts(e)), (VoicePhase.paused, 1));
+    // More than five minutes away: the pending request keeps the screen
+    // open, and it listens as a tap would, without preparing again.
+    h.now = h.now.add(const Duration(minutes: 6));
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(VoiceTimings.startDelay);
+    await tester.pump();
+    expect((c.phase, starts(e), e.listening), (VoicePhase.listening, 2, true));
+    expect(e.calls.sublist(calls).where((x) => x == 'resolve' || x.startsWith('prepare:')), isEmpty);
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('R8-F2: açılışta bekleyen dinleme arka plandan dönüşte açılış yoluyla başlar', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = VoiceCaptureController(app: h.app, engine: e, deviceLocales: () => const [Locale('tr', 'TR')]);
+    unawaited(c.open());
+    await tester.pump(VoiceTimings.startDelay ~/ 2);
+    c.onLifecycle(AppLifecycleState.hidden);
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect(e.calls, isEmpty);
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(VoiceTimings.startDelay);
+    await tester.pump();
+    expect(e.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
+    expect(c.phase, VoicePhase.listening);
+    await c.close();
+    await h.dispose(tester);
+  });
+
   testWidgets('F6: bildirim izni sorulurken gelen istek mikrofonu açmaz', (tester) async {
     final h = await VoiceHarness.create(tester);
     final e = FakeSpeechEngine();

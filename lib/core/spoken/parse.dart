@@ -226,9 +226,10 @@ final _unitNext = RegExp(r'^\s+(?:lira|liraya|tl|kuruş|dolar|euro|avro|kilo|kg|
     unicode: true);
 final _dative = RegExp(r'^y?[ae]$');
 
-/// "saat 3'te", "akşam 8'de", "19.30'da", "saat 14", "10:00", "10
-/// sularında". A bare number is never a time ("3 ekmek al", "10 sayfa oku"),
-/// nor is an amount ("2.50 lira", "3'te 1", "10 civarı kilo").
+/// "saat 3'te", "akşam 8'de", "19.30'da", "saat 14", "10:00", "yarın 10
+/// sularında". A bare number is never a time ("3 ekmek al", "10 sayfa oku",
+/// "20 civarında misafir gelecek"), nor is an amount ("2.50 lira", "3'te 1",
+/// "10 civarı kilo").
 _Clock? _clockTr(_Sentence s) {
   for (final m in _clockTrRe.allMatches(s.low)) {
     final partOfDay = m[2], saat = m[3] != null, hasMinute = m[5] != null;
@@ -239,9 +240,13 @@ _Clock? _clockTr(_Sentence s) {
         (_dative.hasMatch(suffix)
             ? (sep?.startsWith("'") ?? false)
             : (sep == null || sep.startsWith("'") || saat || partOfDay != null));
-    // "5 gibi", "10 sularında": the approximating word makes it an hour.
+    // "akşam 7 civarı", "yarın 10 sularında": the approximating word makes
+    // it an hour where the sentence anchors it as a time.
     final approx = suffix == null ? _approxAfterTr.matchAsPrefix(s.low, m.end) : null;
-    if (!(saat || hasMinute || suffixOk || approx != null) || (suffix != null && !suffixOk)) continue;
+    final approxHour = approx != null &&
+        (partOfDay != null ||
+            approxHourAnchored(s.low.substring(0, m.start), s.low.substring(approx.end), turkish: true));
+    if (!(saat || hasMinute || suffixOk || approxHour) || (suffix != null && !suffixOk)) continue;
     // "3'te 1", "üçte bir": a fraction, not a time.
     if (!saat && partOfDay == null) {
       final after = s.low.substring(approx?.end ?? m.end);
@@ -285,9 +290,11 @@ _Clock? _clockEn(_Sentence s) {
     s.cut(noon);
     return _Clock(noon[1] == 'noon' ? 12 : 24, 0, _HourKind.explicit);
   }
-  // "around 5", "at 5", "5ish": a bare hour.
-  for (final re in [_aroundRe, _atRe, _ishRe]) {
+  // "around 5", "at 5", "5ish": a bare hour; "around" and "ish" only where
+  // the sentence anchors it as a time ("buy around 10 apples" counts).
+  for (final (re, approx) in [(_aroundRe, true), (_atRe, false), (_ishRe, true)]) {
     for (final m in re.allMatches(s.low)) {
+      if (approx && !_approxHourEn(s, m)) continue;
       final clock = _fromDigits(m[1]!, m[2]);
       if (clock == null) continue;
       s.cut(m);
@@ -296,6 +303,13 @@ _Clock? _clockEn(_Sentence s) {
   }
   return _clockDigits(s, _colonEnRe);
 }
+
+/// "around 5:30", or anchored by the words around it; the match's own "at"
+/// counts as a word before it.
+bool _approxHourEn(_Sentence s, Match m) =>
+    m[2] != null ||
+    approxHourAnchored(s.low.substring(0, m.start + (m[0]!.startsWith('at') ? 2 : 0)), s.low.substring(m.end),
+        turkish: false);
 
 /// "14:30" — the only time read in languages other than Turkish and English.
 _Clock? _clockDigits(_Sentence s, [RegExp? colon]) {

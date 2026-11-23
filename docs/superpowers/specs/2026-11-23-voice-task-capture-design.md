@@ -159,7 +159,10 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
 - `_PamnotAppState.didPushRouteInformation`: `pamnot` şemasını yakalar (`ses` → `voiceRequests`), Flutter'ın
   rota eklemesini engeller (Android'de olduğu gibi).
 - `HomeShell`: `notificationTaps` gibi `voiceRequests`'i dinler (dinleyici + ilk kare sonrası kontrol) ve
-  ekranı kök navigatörle tam ekran açar. Ekran zaten açıksa yeni istek yok sayılır.
+  ekranı kök navigatörle tam ekran açar. Ekran zaten açıksa yeni istek ikinci bir ekran açmaz:
+  mikrofonun dokunuş beklediği durumlarda (duraklatıldı, kaydedildi, hata) mikrofona dokunulmuş gibi
+  dinlemeye başlar; hazırlanırken, dinlerken, önizlemede, düzeltmede ve bildirim izni sorulurken yok
+  sayılır.
 - Bağlantı yalnızca ekranı açar; içinde metin olsa bile görev yazmaz.
 
 ### 6.3 Konuşma tanıma motoru
@@ -182,6 +185,8 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
   tam eşleşme → aynı dil kodu → yoksa "dil desteklenmiyor". Yerel ayar her zaman açıkça verilir.
 - Hata eşlemesi: izin yok → Ayarlar'a yönlendir; `error_speech_recognizer_disabled` (201) → "Ayarlar >
   Genel > Klavye > Dikte'yi aç" yönlendirmesi; boş/eşleşme yok → boşta say; ağ/kısıtlama → "Tekrar dene".
+  Konuşma duyulduktan sonra gelen kesinti, ağ ya da bilinmeyen hata cümleyi atmaz: duyulan metin
+  önizlemeye gider ve elle "Kaydet" ile kaydedilir (§6.6); hata yalnız hiçbir şey duyulmadıysa gösterilir.
 - `FakeSpeechEngine` (testler): `say()`, `level()`, `fail()`; widget testleri gerçek zamanı `pump` ile
   sürer.
 - Uygulama motorun varsayılanı olarak `UnsupportedSpeechEngine` alır; mevcut testler değişmez.
@@ -241,7 +246,11 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
 - Yalnız mikrofon halkası ses düzeyiyle hafifçe canlanır; iOS'ta "Hareketi Azalt" açıksa
   (`AccessibilityFeatures.reduceMotion`) durağan.
 - Dokunma hedefleri ≥ 44 pt, aralar ≥ 8 pt; ✕ her zaman görünür; VoiceOver etiketleri; durum metni
-  `Semantics(liveRegion: true)`.
+  `Semantics(liveRegion: true)`, hazırlanırken ve dinlerken hariç: VoiceOver'ın sesi mikrofona girip
+  tanınan metne karışmasın (uyumluluk belgesi §4.1).
+- Tanıyıcı konuşma duyulduktan sonra hatayla durursa cümle atılmaz: önizleme geri sayım olmadan açılır,
+  "Düzelt" ya da elle "Kaydet" ile kaydedilir; kayıttan sonra mikrofon kendiliğinden açılmaz. Hiçbir şey
+  duyulmadıysa hata ya da "duraklatıldı" gösterilir.
 - Dokunsal geri bildirim yalnız kayıt anında ve mikrofon kapalıyken (kayıt sırasında iOS titreşimi
   susturur).
 - Dikey ve yatay, Dynamic Type, koyu tema çalışır; 375 pt genişlikte taşma yok.
@@ -321,6 +330,11 @@ Arka plan (uygulama `hidden`/`paused` olunca):
 9. "Son tanınanlar" günlüğü yalnız cihazda, son 20 kayıt.
 10. Bu sürüm yalnız iOS; diğer platformlarda mikrofon düğmesi gizli.
 11. "gece 1–5" gece yarısından sonra söylenirse aynı gün; "hatırlat" tarihsizse bildirim yok.
+12. Ekran açıkken gelen yeni sesli istek duraklatıldı, kaydedildi ve hata durumlarında dinlemeye başlar;
+    hazırlanırken, dinlerken, önizlemede, düzeltmede ve bildirim izni sorulurken yok sayılır.
+13. Durum metni hazırlanırken ve dinlerken canlı bölge değildir; VoiceOver mikrofona konuşmaz.
+14. Konuşma duyulduktan sonra gelen tanıyıcı hatası cümleyi atmaz: önizleme elle "Kaydet" ile kaydedilir;
+    hata yalnız hiçbir şey duyulmadıysa gösterilir.
 
 ## 9. Builder'a kalanlar
 

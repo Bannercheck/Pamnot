@@ -162,8 +162,45 @@ const _unitsAfterTr = {'gün', 'hafta', 'ay', 'saat', 'dakika', 'dk'};
 
 /// Words that make a time or a day approximate: "saat 5 gibi", "10
 /// sularında", "akşam 7 civarı". `parse.dart` drops them after a time or a
-/// day, and a number before one is read as an hour.
+/// day, and a number before one is read as an hour where
+/// [approxHourAnchored] says so.
 const approxWordsTr = {'gibi', 'gibisi', 'civarı', 'civarında', 'civarlarında', 'sularında', 'sıralarında'};
+
+const _anchorPartsTr = r'öğleden\s+sonra|öğleyin|öğlen|öğle|sabah|akşam|gece';
+const _anchorDaysTr = r'yarın|bugün|öbür\s+gün|yarından\s+sonra|haftaya|hafta\s?sonu|'
+    r'(?:pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar)(?:\s+günü)?';
+const _anchorPartsEn = 'morning|afternoon|evening|night';
+const _anchorWeekdaysEn = 'monday|tuesday|wednesday|thursday|friday|saturday|sunday';
+
+final _anchorBeforeTr = RegExp('$_b(?:saat|$_anchorPartsTr|$_anchorDaysTr)\\s*\$', unicode: true);
+final _anchorAfterTr = RegExp('^\\s*(?:\$|[.!?]|(?:$_anchorPartsTr|$_anchorDaysTr)$_e)', unicode: true);
+
+/// "at" opening the sentence or after a day word ("at around 5 call mom",
+/// "tomorrow at around 5"); after a verb it is mostly a particle ("look at
+/// around 20 photos").
+final _anchorBeforeEn = RegExp(
+    '(?:^\\s*at|$_b(?:today|tonight|tomorrow|weekend|$_anchorPartsEn|$_anchorWeekdaysEn)(?:\\s+at)?)\\s*\$',
+    unicode: true);
+final _anchorAfterEn = RegExp(
+    '^\\s*(?:or\\s+so$_e\\s*)?(?:\$|[.!?]|'
+    '(?:(?:on|by|until|till|for)\\s+)?(?:today|tonight|tomorrow|day\\s+after\\s+tomorrow|(?:the\\s+)?weekend|'
+    '(?:this|next)\\s+(?:week|weekend|$_anchorPartsEn|$_anchorWeekdaysEn)|$_anchorWeekdaysEn)$_e|'
+    'in\\s+the\\s+(?:morning|afternoon|evening)$_e|at\\s+night$_e)',
+    unicode: true);
+
+/// A number said with an approximating word ("around 5", "5ish", "5 gibi",
+/// "10 sularında") is an hour only where the sentence anchors it as a time:
+/// a time or day word right before it ("saat", "akşam", "yarın", "at",
+/// "tomorrow"), one right after it ("yarın", "tomorrow", "on friday", "in
+/// the evening"), or nothing after it: the phrase ends the sentence ("call
+/// mom around 5"). Otherwise it counts something ("buy around 10 apples",
+/// "20 civarında misafir gelecek") and stays in the title: a bare number is
+/// never a time (design §6.4). [before] and [after] are the lowercase text
+/// before and after the phrase ("around 5", "5 gibi"); a leading "at" is
+/// part of [before].
+bool approxHourAnchored(String before, String after, {required bool turkish}) => turkish
+    ? _anchorBeforeTr.hasMatch(before) || _anchorAfterTr.hasMatch(after)
+    : _anchorBeforeEn.hasMatch(before) || _anchorAfterEn.hasMatch(after);
 
 final _numberWordTr = RegExp(
     '$_b(?:(${_tensTr.keys.join('|')})(?:\\s?(${_unitsTr.keys.join('|')}))?|(${_unitsTr.keys.join('|')}))'
@@ -175,7 +212,8 @@ final _digits = RegExp(r'^\d');
 
 /// Number words become digits only where they tell a time: after "saat" or
 /// a part of day, before a clock word ("buçuk", "geçe"…), before a word
-/// that makes it approximate ("beş gibi"; never "bir"), in a duration
+/// that makes it approximate where the sentence anchors it as a time
+/// ("yarın beş gibi"; never "bir"; not "beş gibi ekmek al"), in a duration
 /// ("iki gün sonra"), or as a bare locative hour ("sekizde"; never "birde"
 /// or "onda", which mostly mean "also" and "at him"). "ikide bir",
 /// "on kişilik", "defter onda kaldı" stay words.
@@ -197,7 +235,12 @@ void _numberWordsTr(_Sentence s) {
         (suffix != null && (_partsOfDayTr.contains(prev) || prev2 == 'öğleden sonra'));
     final bareHour = locative && !fraction && n != 1 && n != 10 && n <= 12;
     final duration = suffix == null && _unitsAfterTr.contains(next) && next2 == 'sonra';
-    final approx = suffix == null && approxWordsTr.contains(next) && n != 1 && n <= 12;
+    final approx = suffix == null &&
+        approxWordsTr.contains(next) &&
+        n != 1 &&
+        n <= 12 &&
+        approxHourAnchored(s.low.substring(0, m.start), s.low.substring(m.end).trimLeft().substring(next.length),
+            turkish: true);
     if (clock || hourContext || bareHour || duration || approx) {
       s.replace(m.start, m.end, suffix == null ? '$n' : "$n'$suffix");
     }
@@ -215,8 +258,10 @@ final _halfQuarter = RegExp(
     '$_b(?:at\\s+)?(half|quarter)\\s+(past|to)\\s+(\\d{1,2}|${_numbersEn.keys.join('|')})$_e',
     unicode: true);
 
-/// "at seven", "around seven", "seven pm", "in ten minutes", "half past
-/// three" → digits.
+final _aroundEnd = RegExp(r'around\s*$');
+
+/// "at seven", "around seven" (where [approxHourAnchored]), "seven pm", "in
+/// ten minutes", "half past three" → digits. "buy around five apples" stays.
 void _numberWordsEn(_Sentence s) {
   for (final m in _halfQuarter.allMatches(s.low).toList().reversed) {
     var h = int.tryParse(m[3]!) ?? _numbersEn[m[3]]!;
@@ -232,7 +277,10 @@ void _numberWordsEn(_Sentence s) {
     final n = _numbersEn[m[1]]!;
     final before = s.low.substring(0, m.start).trim().split(RegExp(r'\s+'));
     final after = s.low.substring(m.end).trim().split(RegExp(r'\s+'));
-    final hour = n <= 12 && (before.last == 'at' || before.last == 'around' || _ampmAfter.hasMatch(after.first));
+    final around = before.last == 'around' &&
+        approxHourAnchored(s.low.substring(0, m.start).replaceFirst(_aroundEnd, ''), s.low.substring(m.end),
+            turkish: false);
+    final hour = n <= 12 && (before.last == 'at' || around || _ampmAfter.hasMatch(after.first));
     final duration = before.last == 'in' && _unitAfterEn.hasMatch(after.first);
     if (hour || duration) s.replace(m.start, m.end, '$n');
   }
