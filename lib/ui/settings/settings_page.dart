@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../l10n/strings.dart';
 import '../../models/settings.dart';
 import '../../services/handwriting.dart';
+import '../../services/links.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
 import '../common/soft.dart';
+import 'voice_settings.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -26,6 +28,15 @@ class SettingsPage extends StatelessWidget {
               SectionHeader(title),
               SoftCard(padding: const EdgeInsets.symmetric(vertical: 6), child: Column(children: children)),
             ],
+          ),
+        );
+
+    /// A small explanatory line inside a group.
+    Widget note(String text) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          child: SizedBox(
+            width: double.infinity,
+            child: Text(text, style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
           ),
         );
 
@@ -103,7 +114,10 @@ class SettingsPage extends StatelessWidget {
                     value: st.autoStylusOnly,
                     onChanged: (v) => set(st.copyWith(autoStylusOnly: v)),
                   ),
-                  if (app.handwriting.isSupported) _ModelTiles(app: app),
+                  if (app.handwriting.isSupported) ...[
+                    _ModelTiles(app: app),
+                    note(s.handwritingPrivacyNote),
+                  ],
                 ]),
                 group(s.planner, [
                   SwitchListTile(
@@ -112,26 +126,32 @@ class SettingsPage extends StatelessWidget {
                     onChanged: (v) => set(st.copyWith(mondayFirst: v)),
                   ),
                 ]),
-                group(s.notifications, [
-                  ListTile(
-                    leading: const Icon(Icons.notifications_active_outlined),
-                    title: Text(s.allow),
-                    onTap: () => app.scheduler.requestPermission(),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.send_rounded),
-                    title: Text(s.testNotification),
-                    onTap: () async {
-                      await app.scheduler.requestPermission();
-                      await app.scheduler.showNow('Pamnot', s.testNotificationBody);
-                    },
-                  ),
-                ]),
+                if (app.speech.isSupported) VoiceSettingsGroup(app: app),
+                group(s.notifications, [_NotificationTiles(app: app)]),
                 group(s.about, [
                   ListTile(
-                    leading: const Text('☁️', style: TextStyle(fontSize: 24)),
+                    leading: const ExcludeSemantics(child: Text('☁️', style: TextStyle(fontSize: 24))),
                     title: const Text('Pamnot'),
                     subtitle: Text(s.aboutText),
+                  ),
+                  note(s.dataNote),
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: Text(s.privacyPolicy),
+                    trailing: const Icon(Icons.open_in_new_rounded),
+                    onTap: () => openExternal(Uri.parse(privacyPolicyUrl)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.help_outline_rounded),
+                    title: Text(s.support),
+                    trailing: const Icon(Icons.open_in_new_rounded),
+                    onTap: () => openExternal(Uri.parse(supportUrl)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined),
+                    title: Text(s.licenses),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => showLicensePage(context: context, applicationName: 'Pamnot'),
                   ),
                 ]),
                 const SizedBox(height: 8),
@@ -205,6 +225,85 @@ class _ModelTilesState extends State<_ModelTiles> {
                         child: Text(s.download),
                       ),
           ),
+      ],
+    );
+  }
+}
+
+/// The notification status line and the test notification. The status is
+/// read when the page opens and again whenever the app comes back to the
+/// foreground (e.g. from the system Settings app).
+class _NotificationTiles extends StatefulWidget {
+  const _NotificationTiles({required this.app});
+
+  final AppController app;
+
+  @override
+  State<_NotificationTiles> createState() => _NotificationTilesState();
+}
+
+class _NotificationTilesState extends State<_NotificationTiles> {
+  late final AppLifecycleListener _lifecycle;
+
+  /// Null until the first answer arrives.
+  NotificationAccess? _access;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _refresh);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final access = await widget.app.notificationAccess();
+    if (mounted) setState(() => _access = access);
+  }
+
+  Future<void> _request() async {
+    await widget.app.requestNotifications();
+    await _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Column(
+      children: [
+        switch (_access) {
+          // One row's height, so nothing jumps when the answer arrives.
+          null => const SizedBox(height: 56),
+          NotificationAccess.notAsked => ListTile(
+              leading: const Icon(Icons.notifications_active_outlined),
+              title: Text(s.notificationsAllow),
+              onTap: _request,
+            ),
+          // The system prompt does not come back; only Settings can change it.
+          NotificationAccess.denied => ListTile(
+              leading: const Icon(Icons.notifications_off_outlined),
+              title: Text(s.notificationsDenied),
+              trailing: const Icon(Icons.open_in_new_rounded),
+              onTap: openAppSettings,
+            ),
+          NotificationAccess.granted => ListTile(
+              leading: const Icon(Icons.check_circle_outline_rounded),
+              title: Text(s.notificationsOn),
+            ),
+        },
+        ListTile(
+          leading: const Icon(Icons.send_rounded),
+          title: Text(s.testNotification),
+          onTap: () async {
+            await _request();
+            await widget.app.scheduler.showNow('Pamnot', s.testNotificationBody);
+          },
+        ),
       ],
     );
   }
