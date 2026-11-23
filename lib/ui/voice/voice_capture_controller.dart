@@ -115,6 +115,10 @@ class VoiceCaptureController extends ChangeNotifier {
   /// Between this screen's [SpeechStarted] and the matching [SpeechStopped].
   bool _inSession = false;
 
+  /// The user tapped the microphone to stop the current listen; it must not
+  /// restart by itself. Cleared on the next [SpeechStarted].
+  bool _stopRequested = false;
+
   /// The latest partial and the first final text of the current session.
   String _partial = '';
   String? _final;
@@ -269,6 +273,7 @@ class VoiceCaptureController extends ChangeNotifier {
     if (!_awaitingStart) return;
     _awaitingStart = false;
     _inSession = true;
+    _stopRequested = false;
     _transcript = '';
     _preview = null;
     _maxTimer = Timer(VoiceTimings.maxListen, _stopListening);
@@ -338,12 +343,16 @@ class VoiceCaptureController extends ChangeNotifier {
     _setPhase(phase);
   }
 
-  /// A listen ended with nothing to save: before the first save the screen
-  /// waits for a tap; after it, it listens again and closes on silence.
+  /// A listen ended with nothing to save: before the first save, or when the
+  /// user stopped it, the screen waits for a tap; otherwise it listens again
+  /// and closes on silence.
   void _endWithoutText() {
     _transcript = '';
     _preview = null;
-    if (_saved.isEmpty || _accessible) return _setPhase(VoicePhase.paused);
+    if (_saved.isEmpty || _accessible || _stopRequested) {
+      _idleTimer?.cancel();
+      return _setPhase(VoicePhase.paused);
+    }
     // The microphone is off until the engine reports the next start.
     _setPhase(VoicePhase.preparing);
     unawaited(_listen());
@@ -360,11 +369,13 @@ class VoiceCaptureController extends ChangeNotifier {
     }
   }
 
-  /// While listening: stops and previews what was said. After a save, a
-  /// pause or an error: listens again.
+  /// While listening: stops and previews what was said; with nothing said
+  /// the microphone stays off. After a save, a pause or an error: listens
+  /// again.
   void toggleMic() {
     switch (_phase) {
       case VoicePhase.listening:
+        _stopRequested = true;
         _stopListening();
       case VoicePhase.error when !_prepared:
         _setPhase(VoicePhase.preparing);

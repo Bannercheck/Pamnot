@@ -262,6 +262,33 @@ void main() {
     await h.dispose(tester);
   });
 
+  testWidgets('F1: kayıttan sonra sessiz dinlemede toggleMic mikrofonu kapatır, yeniden açmaz', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await tester.pump(VoiceTimings.previewHold);
+    await tester.pump();
+    expect((h.app.tasks.length, starts(e), c.phase), (1, 2, VoicePhase.listening));
+    await tester.pump(const Duration(seconds: 1));
+    c.toggleMic();
+    await tester.pump();
+    expect((c.phase, e.listening, e.calls.last, starts(e)), (VoicePhase.paused, false, 'stop', 2));
+    // The re-listen's silence timer does not close the paused screen.
+    await tester.pump(VoiceTimings.idleClose);
+    expect((c.phase, e.listening, starts(e)), (VoicePhase.paused, false, 2));
+    await tester.pump(VoiceTimings.maxListen);
+    expect((c.phase, starts(e), h.app.tasks.length), (VoicePhase.paused, 2, 1));
+    // A tap listens again; a listen that ends by itself still re-listens.
+    c.toggleMic();
+    await tester.pump();
+    expect((c.phase, e.listening, starts(e)), (VoicePhase.listening, true, 3));
+    await tester.pump(VoiceTimings.idleClose);
+    expect((c.phase, e.listening), (VoicePhase.closed, false));
+    await h.dispose(tester);
+  });
+
   testWidgets('arka plan: metin yokken mikrofon kapanır, kayıt yok', (tester) async {
     final h = await VoiceHarness.create(tester);
     final e = FakeSpeechEngine();
