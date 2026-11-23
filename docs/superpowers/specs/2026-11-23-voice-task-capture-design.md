@@ -55,7 +55,9 @@ Anti-hedefler (çalışsa bile başarısızlık sayılır)
 - Flutter 3.47.8 / Dart 3.13.7; iOS en düşük sürüm **16.0** (Podfile ve pbxproj).
 - Geliştirici **ücretsiz Apple ID** ile imzalıyor: App Groups yok, ücretli yetenek yok, kurulum 7 günde
   bir yenilenir. App Intents ve App Shortcuts yetki (entitlement) istemez; Siri yeteneği gerekmez.
-- Geliştirme ortamında Mac yok: Swift yalnızca GitHub Actions macOS işinde derlenir. iOS işi `main`, etiketler, elle başlatma
+- Geliştirme ortamında Mac yok: Swift yalnızca GitHub Actions macOS işinde derlenir. Kullanıcının Mac'i ve
+  Xcode'u var: cihaza kurulum ve cihazda deneme orada, `TESTING.md`'deki Xcode adımlarıyla yapılır
+  (ücretsiz Apple ID ile imzalama). Ek dağıtım yolu (IPA, Sideloadly) gerekmez. iOS işi `main`, etiketler, elle başlatma
   ya da commit mesajında `[full-build]` olunca çalışır.
 - iOS projesi klasik `objectVersion 54`; CI'da CocoaPods (ML Kit) da çalışıyor.
 - `ios/Runner` UIScene kullanıyor (`FlutterSceneDelegate`, `FlutterImplicitEngineDelegate`).
@@ -298,7 +300,11 @@ Arka plan (uygulama `hidden`/`paused` olunca):
   ekran açıkken gelen yeni istek; uygulama arka plana gidince iptal.
 - Derin bağlantı: `pamnot://ses` ikinci HomeShell açmaz, ekranı açar; `?homeWidget` bağlantıları değişmez.
 - Erişilebilirlik: etiketler, hedef boyutları, metin ölçeği 2.0'da taşma yok.
-- iOS: CI'da derleme + metadata kontrolü. Cihazda elle: TESTING.md listesi.
+- iOS: CI'da derleme + metadata kontrolü. Cihazda elle: TESTING.md listesi; kullanıcı Mac'inde Xcode ile
+  kurar. Siri ifadeleri, Xcode > Product > App Shortcuts Preview ile de denenebilir.
+- **`main`'e birleştirmeden önce cihazda deneme yapılır**: kestirme Kestirmeler'de görünüyor mu, yan tuş /
+  Arkaya Dokunma ekranı açıyor mu, Türkçe tanıma çalışıyor mu, "Son tanınanlar"dan birkaç gerçek örnek
+  (saatlerin nasıl yazıldığı) toplanır ve gerekirse ayrıştırıcı bunlara göre düzeltilir.
 
 ## 8. Kararlarım (kullanıcının kontrol etmesi için)
 
