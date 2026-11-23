@@ -19,6 +19,7 @@ import '../models/task.dart';
 import '../prediction/word_predictor.dart';
 import '../services/handwriting.dart';
 import '../services/reminder_scheduler.dart';
+import '../services/speech/speech_engine.dart';
 import '../services/widget_sync.dart';
 import '../theme/pamnot_theme.dart';
 import 'sample_data.dart';
@@ -57,17 +58,20 @@ class AppController extends ChangeNotifier {
     ReminderScheduler? scheduler,
     WidgetSync? widgetSync,
     HandwritingRecognizer? handwriting,
+    SpeechEngine? speech,
     DateTime Function()? clock,
     this.saveDelay = const Duration(milliseconds: 400),
   })  : scheduler = scheduler ?? NoopScheduler(),
         widgetSync = widgetSync ?? NoopWidgetSync(),
         handwriting = handwriting ?? UnsupportedRecognizer(),
+        speech = speech ?? UnsupportedSpeechEngine(),
         now = clock ?? DateTime.now;
 
   final KeyValueStore store;
   final ReminderScheduler scheduler;
   final WidgetSync widgetSync;
   final HandwritingRecognizer handwriting;
+  final SpeechEngine speech;
   final DateTime Function() now;
   final Duration saveDelay;
   static const _uuid = Uuid();

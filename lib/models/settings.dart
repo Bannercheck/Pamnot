@@ -14,6 +14,8 @@ class AppSettings {
     this.autoStylusOnly = true,
     this.mondayFirst = true,
     this.seeded = false,
+    this.keepVoiceLog = false,
+    this.notificationsAsked = false,
   });
 
   final AppLanguage language;
@@ -33,6 +35,12 @@ class AppSettings {
   /// Sample content was created on first launch.
   final bool seeded;
 
+  /// Keep the last recognised voice transcripts on this device (off by default).
+  final bool keepVoiceLog;
+
+  /// The notification permission prompt has been shown once already.
+  final bool notificationsAsked;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -42,6 +50,8 @@ class AppSettings {
     bool? autoStylusOnly,
     bool? mondayFirst,
     bool? seeded,
+    bool? keepVoiceLog,
+    bool? notificationsAsked,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -52,6 +62,8 @@ class AppSettings {
         autoStylusOnly: autoStylusOnly ?? this.autoStylusOnly,
         mondayFirst: mondayFirst ?? this.mondayFirst,
         seeded: seeded ?? this.seeded,
+        keepVoiceLog: keepVoiceLog ?? this.keepVoiceLog,
+        notificationsAsked: notificationsAsked ?? this.notificationsAsked,
       );
 
   Map<String, Object?> toJson() => {
@@ -63,6 +75,8 @@ class AppSettings {
         'autoStylusOnly': autoStylusOnly,
         'mondayFirst': mondayFirst,
         'seeded': seeded,
+        'keepVoiceLog': keepVoiceLog,
+        'notificationsAsked': notificationsAsked,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -78,5 +92,7 @@ class AppSettings {
         autoStylusOnly: j['autoStylusOnly'] != false,
         mondayFirst: j['mondayFirst'] != false,
         seeded: j['seeded'] == true,
+        keepVoiceLog: j['keepVoiceLog'] == true,
+        notificationsAsked: j['notificationsAsked'] == true,
       );
 }

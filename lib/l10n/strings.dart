@@ -182,10 +182,105 @@ class S {
   String get download => _('İndir', 'Download');
   String get ready => _('Hazır', 'Ready');
   String get about => _('Hakkında', 'About');
-  String get aboutText => _('Pamnot — yumuşacık notlar, planlar ve anımsatıcılar. Verilerin yalnızca cihazında saklanır.',
-      'Pamnot — soft notes, plans and reminders. Your data stays on your device.');
+  String get aboutText => _('Pamnot — yumuşacık notlar, planlar ve anımsatıcılar. Notların ve görevlerin yalnızca cihazında saklanır.',
+      'Pamnot — soft notes, plans and reminders. Your notes and tasks stay on your device.');
   String get turkish => 'Türkçe';
   String get english => 'English';
+
+  // Voice
+  String get voiceTitle => _('Sesle ekle', 'Add by voice');
+  String get voiceMicTooltip => _('Sesle görev ekle', 'Add a task by voice');
+  String get voicePreparing => _('Hazırlanıyor…', 'Getting ready…');
+  String get voiceListening => _('Dinliyorum…', 'Listening…');
+  String get voicePaused => _('Duraklatıldı', 'Paused');
+  String get voiceTapToContinue => _('Devam etmek için dokun', 'Tap to continue');
+  String get voiceSaved => _('Kaydedildi', 'Saved');
+  String get voiceFix => _('Düzelt', 'Fix');
+  String get voiceDraftHint => _('Görevi düzelt', 'Fix the task');
+  String get voiceStartListening => _('Dinlemeyi başlat', 'Start listening');
+  String get voiceStopListening => _('Dinlemeyi durdur', 'Stop listening');
+  String get voiceAdded => _('Eklenenler', 'Added');
+  String get voiceSavedOnLock => _('Kilitlenirken kaydedildi', 'Saved while locking');
+  String voiceUndoItem(String title) => _('$title görevini geri al', 'Undo $title');
+  String get voiceUndatedRemindHint => _(
+      'Tarihsiz · hatırlatma için gün söyle',
+      'No date · say a day to get a reminder');
+  String get voiceReminderOn => _('hatırlatma açık', 'reminder on');
+  String get voiceTimeGuess => _('saat tahmini', 'time is a guess');
+  String get voiceNoteChip => _('Not', 'Note');
+  String voiceCountdown(int n) => _('$n sn', '$n s');
+  String voiceSummary(int n) => _('$n kayıt eklendi', n == 1 ? '1 item added' : '$n items added');
+  String get voiceErrorGeneric => _(
+      'Şu anda dinleyemiyorum. Bağlantını kontrol edip tekrar dene.',
+      'I can’t listen right now. Check your connection and try again.');
+  String get voiceRetry => _('Tekrar dene', 'Try again');
+  String get voicePermissionDenied => _(
+      'Mikrofon ya da Konuşma Tanıma izni kapalı. Sesle eklemek için Ayarlar’dan ikisini de aç. Yazarak eklemeye devam edebilirsin.',
+      'Microphone or Speech Recognition access is off. Turn both on in Settings to add by voice. You can still add tasks by typing.');
+  String get openSettings => _('Ayarlar’ı Aç', 'Open Settings');
+  String get voiceDictationOff => _(
+      'Dikte kapalı. Ayarlar > Genel > Klavye > Dikte’yi aç, sonra tekrar dene.',
+      'Dictation is off. Turn on Settings > General > Keyboard > Enable Dictation, then try again.');
+  String get voiceUnsupportedLocale => _(
+      'Telefonunun dili için konuşma tanıma yok.',
+      'Speech recognition isn’t available for your phone’s language.');
+  String get voiceUnsupportedPlatform => _(
+      'Sesle ekleme bu cihazda henüz yok.',
+      'Adding by voice isn’t available on this device yet.');
+
+  // Voice settings
+  String get voiceSettings => _('Sesle ekleme', 'Add by voice');
+  String get voiceSetupReady => _(
+      '“Sesle Görev Ekle” eylemi Kestirmeler’de, Spotlight’ta ve Eylem düğmesi ayarlarında hazır.',
+      '“Add Voice Task” is ready in Shortcuts, Spotlight and the Action button settings.');
+  String get voiceSiriHint => _('Siri’ye “Pamnot ile görev ekle” de.', 'Say “Add a task in Pamnot” to Siri.');
+  String get voiceBackTapTitle => _('Arkaya Dokunma', 'Back Tap');
+  String get voiceBackTapSteps => _(
+      '1. Kestirmeler’de + ile yeni bir kestirme oluştur ve Pamnot > Sesle Görev Ekle eylemini ekle.\n2. Ayarlar > Erişilebilirlik > Dokunma > Arkaya Dokunma’da bu kestirmeyi seç.',
+      '1. In Shortcuts, tap + to create a shortcut and add the Pamnot > Add Voice Task action.\n2. In Settings > Accessibility > Touch > Back Tap, choose that shortcut.');
+  String get voiceVoiceControlTitle => _('Sesle Denetim', 'Voice Control');
+  String get voiceVoiceControlSteps => _(
+      '1. Kestirmeler’de tek eylemli bir kestirme oluştur: Pamnot > Sesle Görev Ekle.\n2. Ayarlar > Erişilebilirlik > Sesle Denetim > Komutlar > Yeni Komut Yarat > Eylem > Kestirmeyi Çalıştır’da bu kestirmeyi seç.',
+      '1. In Shortcuts, create a shortcut with one action: Pamnot > Add Voice Task.\n2. In Settings > Accessibility > Voice Control > Commands > Create New Command > Action > Run Shortcut, choose that shortcut.');
+  String get voiceKeepLog => _('Tanınan metinleri sakla', 'Keep recognised text');
+  String get voiceKeepLogSub => _(
+      'Son 20 metin, yalnız bu cihazda. Tarih ve saat tanımayı iyileştirmeye yarar.',
+      'The last 20, on this device only. Helps improve date and time recognition.');
+  String get voiceRecent => _('Son tanınanlar', 'Recently recognised');
+  String get voiceRecentEmpty => _('Henüz kayıt yok.', 'Nothing yet.');
+  String get voiceClearLog => _('Temizle', 'Clear');
+  String get voicePrivacyNote => _(
+      'Konuşman Apple’ın konuşma tanımasıyla yazıya çevrilir. Çevrimiçiyken sesin, klavyedeki dikte gibi Apple’a gidebilir. Pamnot ses kaydı saklamaz.',
+      'Your speech is turned into text by Apple’s speech recognition. When you’re online, your voice may be sent to Apple, like keyboard dictation. Pamnot doesn’t save audio.');
+  String get notificationsAllow => _('Bildirimlere izin ver', 'Allow notifications');
+  String get notificationsDenied => _('Bildirimler kapalı — Ayarlar’ı aç', 'Notifications are off — open Settings');
+  String get notificationsOn => _('Bildirimler açık', 'Notifications are on');
+
+  // Privacy and about
+  String get privacyPolicy => _('Gizlilik Politikası', 'Privacy Policy');
+  String get support => _('Destek', 'Support');
+  String get licenses => _('Açık kaynak lisansları', 'Open-source licences');
+  String get dataNote => _(
+      'Sesle eklerken konuşman Apple’a, el yazısı tanımada kişisel olmayan kullanım ölçümleri Google’a gidebilir. Ayrıntılar Gizlilik Politikası’nda.',
+      'When you add by voice, your speech may go to Apple; handwriting recognition may send non-personal usage metrics to Google. Details are in the Privacy Policy.');
+  String get handwritingPrivacyNote => _(
+      'El yazısı cihazında yazıya çevrilir; yazdıkların Google’a gönderilmez. Google ML Kit, tanıma modelini indirir ve Google’a kişisel olmayan kullanım ve performans ölçümleri gönderir.',
+      'Handwriting is converted to text on your device; what you write is not sent to Google. Google ML Kit downloads the recognition model and sends non-personal usage and performance metrics to Google.');
+  String get handwritingDownloadTitle => _('El yazısı modeli indirilsin mi?', 'Download the handwriting model?');
+  String get handwritingDownloadBody => _('Yaklaşık 20 MB.', 'About 20 MB.');
+
+  // Accessibility
+  /// Spoken name of note colour [i] (0..7), in the palette's order.
+  String colorName(int i) => isTr
+      ? const ['krem', 'şeftali', 'nane', 'lavanta', 'gök mavisi', 'tereyağı', 'gül', 'adaçayı'][i]
+      : const ['cream', 'peach', 'mint', 'lavender', 'sky', 'butter', 'rose', 'sage'][i];
+  String get previous => _('Önceki', 'Previous');
+  String get next => _('Sonraki', 'Next');
+  String get removeSubtask => _('Alt görevi kaldır', 'Remove subtask');
+  String get clearSearch => _('Aramayı temizle', 'Clear search');
+  String get overdueLabel => _('Gecikti', 'Overdue');
+  String inkColor(int n) => _('Renk $n', 'Colour $n');
+  String strokeWidth(int n) => _('Kalınlık $n', 'Width $n');
 
   // Misc
   String get edit => _('Düzenle', 'Edit');
