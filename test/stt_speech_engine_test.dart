@@ -156,6 +156,7 @@ void main() {
   test('önceki oturum bitmeden ikinci listen çağrılmaz', () async {
     await engine.prepare('tr-TR');
     await engine.start('tr-TR');
+    platform.emitStatus('listening'); // iOS sends it before the listen call returns
     unawaited(engine.stop());
     final second = engine.start('tr-TR'); // sıraya girer
     await pumpEventQueue();
@@ -169,7 +170,7 @@ void main() {
     await pumpEventQueue(); // well before the 3 s fallback could fire
     expect(listens(), 2);
     await second;
-    expect(seen, ['Final(süt al)', 'Stopped']);
+    expect(seen, ['Started', 'Final(süt al)', 'Stopped']);
     expect(platform.calls, isNot(contains('cancel'))); // an ending session is waited for
   });
 
@@ -301,6 +302,146 @@ void main() {
     expect(platform.calls.where((c) => c != 'locales'), ['initialize', 'listen', 'cancel', 'listen']);
     await pumpEventQueue();
     expect(seen, ['Started', 'Stopped']);
+  });
+
+  test('iptal edilen oturumun geç gelen durumları ve hatası sonraki oturuma işlemez', () {
+    fakeAsync((async) {
+      final engine = SttSpeechEngine(stt: SpeechToText.withMethodChannel());
+      final seen = <String>[];
+      engine.events.listen((e) => seen.add(show(e)));
+      engine.prepare('tr-TR');
+      engine.start('tr-TR');
+      async.flushMicrotasks();
+      platform.emitStatus('listening');
+      engine.cancel();
+      async.flushMicrotasks();
+      expect(seen, ['Started', 'Stopped']);
+      engine.start('tr-TR');
+      async.flushMicrotasks();
+      expect(listens(), 2);
+      // cancelSpeech replies before the cancelled task's delegates run, and
+      // the next listen() has already reset the plugin's _userEnded, so the
+      // plugin passes all of these on. The new session has not reported
+      // "listening" yet.
+      platform.emitStatus('notListening'); // speechRecognitionTaskWasCancelled
+      platform.emitResult('süt', isFinal: false); // a hypothesis still in flight
+      platform.emitStatus('doneNoResult'); // didFinishSuccessfully(false)...
+      platform.emitError('error_request_cancelled', true); // ...its error...
+      platform.emitStatus('done'); // ...and its stopCurrentListen()
+      async.flushMicrotasks();
+      expect(seen, ['Started', 'Stopped']);
+      platform.emitStatus('listening'); // the new session's own
+      async.elapse(const Duration(seconds: 10));
+      expect(seen, ['Started', 'Stopped', 'Started']); // no failure, no 3 s end
+      platform.emitResult('süt al', isFinal: true);
+      platform.emitStatus('done');
+      async.flushMicrotasks();
+      expect(seen, ['Started', 'Stopped', 'Started', 'Final(süt al)', 'Stopped']);
+      engine.dispose();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('hiçbir şey duyulmadan biten oturumun geç hatası yeniden başlayan oturuma işlemez', () {
+    fakeAsync((async) {
+      final engine = SttSpeechEngine(stt: SpeechToText.withMethodChannel());
+      final seen = <String>[];
+      var restarted = false;
+      engine.events.listen((e) {
+        seen.add(show(e));
+        // The voice screen's re-listen loop: start again on Stopped.
+        if (e is SpeechStopped && !restarted) {
+          restarted = true;
+          engine.start('tr-TR');
+        }
+      });
+      engine.prepare('tr-TR');
+      engine.start('tr-TR');
+      async.flushMicrotasks();
+      platform.emitStatus('listening');
+      engine.stop();
+      async.flushMicrotasks();
+      platform.emitStatus('done'); // stopSpeech's own; the plugin swallows it (no text)
+      platform.emitStatus('notListening');
+      platform.emitStatus('doneNoResult'); // nothing heard
+      async.flushMicrotasks();
+      expect(seen, ['Started', 'Stopped']);
+      expect(listens(), 2);
+      // didFinishSuccessfully(false) sent its error right after that status,
+      // but the restart's listen() ran first and reset the plugin's _userEnded.
+      platform.emitError('error_retry', true);
+      platform.emitStatus('done');
+      async.flushMicrotasks();
+      expect(seen, ['Started', 'Stopped']);
+      platform.emitStatus('listening');
+      async.elapse(const Duration(seconds: 10));
+      expect(seen, ['Started', 'Stopped', 'Started']);
+      platform.emitResult('süt', isFinal: false);
+      async.flushMicrotasks();
+      expect(seen, ['Started', 'Stopped', 'Started', 'Partial(süt)']);
+      engine.dispose();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('listening hiç gelmezse oturum 3 sn sonra Failure(unknown) ile biter, eklenti iptal edilir', () {
+    fakeAsync((async) {
+      final engine = SttSpeechEngine(stt: SpeechToText.withMethodChannel());
+      final seen = <String>[];
+      engine.events.listen((e) => seen.add(show(e)));
+      engine.prepare('tr-TR');
+      engine.start('tr-TR');
+      async.flushMicrotasks();
+      // listenForSpeech failed natively: the call returned without
+      // "listening". What follows cannot be told apart from a previous
+      // task's late callbacks, so it does not count.
+      platform.emitStatus('notListening');
+      platform.emitError('error_listen_failed', true);
+      platform.emitStatus('doneNoResult');
+      async.elapse(const Duration(milliseconds: 2999));
+      expect(seen, isEmpty);
+      async.elapse(const Duration(milliseconds: 1));
+      expect(seen, ['Failure(unknown, permanent: true)', 'Stopped']);
+      engine.start('tr-TR');
+      async.flushMicrotasks();
+      // Whatever the plugin still held is cancelled before the next listen.
+      expect(platform.calls.where((c) => c != 'locales'), ['initialize', 'listen', 'cancel', 'listen']);
+      engine.dispose();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('listen hata fırlatırsa yalnız bir Failure ve Stopped, sonra başka olay yok', () {
+    fakeAsync((async) {
+      final engine = SttSpeechEngine(stt: SpeechToText.withMethodChannel());
+      final seen = <String>[];
+      engine.events.listen((e) => seen.add(show(e)));
+      engine.prepare('tr-TR');
+      async.flushMicrotasks();
+      platform.listenError = PlatformException(code: 'noRecognizerError');
+      engine.start('tr-TR');
+      async.elapse(const Duration(seconds: 10));
+      expect(seen, ['Failure(unknown, permanent: true)', 'Stopped']);
+      expect(platform.calls, isNot(contains('cancel')));
+      engine.dispose();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('listening gelmeden stop: Failure yok, oturum 3 sn içinde biter', () {
+    fakeAsync((async) {
+      final engine = SttSpeechEngine(stt: SpeechToText.withMethodChannel());
+      final seen = <String>[];
+      engine.events.listen((e) => seen.add(show(e)));
+      engine.prepare('tr-TR');
+      engine.start('tr-TR');
+      async.flushMicrotasks();
+      engine.stop();
+      async.elapse(const Duration(seconds: 3));
+      expect(seen, ['Stopped']);
+      engine.dispose();
+      async.flushMicrotasks();
+    });
   });
 
   test('listen başarısız olursa Failure ve Stopped, sıra kilitlenmez', () async {

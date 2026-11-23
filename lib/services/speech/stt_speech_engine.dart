@@ -60,7 +60,13 @@ class _Session {
   final ended = Completer<void>();
   bool get isEnded => ended.isCompleted;
 
+  /// The plugin reported "listening" for this session. Until then its
+  /// statuses, errors and results are not this session's.
   bool started = false;
+
+  /// Ends a session whose listen call returned without "listening".
+  Timer? startDeadline;
+
   bool heardFinal = false;
   bool failed = false;
 
@@ -89,6 +95,17 @@ class _Session {
 /// ends on its own with no final text (iOS: the recognition task failed) gets
 /// "done" first and the error right after it; the session stays open until the
 /// error arrives, so [SpeechFailure] still comes before [SpeechStopped].
+///
+/// The plugin's statuses and errors carry no session, and an ended session's
+/// recognition task can still report after the next `listen` (a cancelled
+/// task's "notListening", "done" and error; the error that follows a
+/// text-less "done" once the next session has started). A session therefore
+/// takes statuses other than "listening", errors and results only after its
+/// own "listening": iOS sends that from inside the native `listen`, after
+/// everything the previous task had already sent. A session whose listen call
+/// returns without "listening" did not start; it ends after [endFallback] with
+/// [SpeechFailure] (unknown), and the plugin is cancelled before the next
+/// `listen`.
 class SttSpeechEngine implements SpeechEngine {
   SttSpeechEngine({SpeechToText? stt}) : _stt = stt ?? SpeechToText();
 
@@ -166,6 +183,10 @@ class SttSpeechEngine implements SpeechEngine {
           s.failed = true;
           _emit(const SpeechFailure(SpeechErrorKind.unknown));
           _end(s);
+          return;
+        }
+        if (!s.started) {
+          s.startDeadline = Timer(endFallback, () => _onNeverStarted(s));
         }
       });
 
@@ -175,7 +196,8 @@ class SttSpeechEngine implements SpeechEngine {
         if (s == null || s.isEnded) return;
         s.stopRequested = true;
         if (s.doneWithoutText) {
-          // Already over; the plugin now drops the error that was due.
+          // Already over. The error that was due is dropped: by the plugin
+          // until the next listen, by the next session until its "listening".
           _end(s);
           return;
         }
@@ -206,12 +228,16 @@ class SttSpeechEngine implements SpeechEngine {
   void _onStatus(String status) {
     final s = _session;
     if (s == null || s.isEnded) return;
+    if (status == SpeechToText.listeningStatus) {
+      if (!s.started) {
+        s.started = true;
+        s.startDeadline?.cancel();
+        _emit(const SpeechStarted());
+      }
+      return;
+    }
+    if (!s.started) return; // a previous task's
     switch (status) {
-      case SpeechToText.listeningStatus:
-        if (!s.started) {
-          s.started = true;
-          _emit(const SpeechStarted());
-        }
       case SpeechToText.notListeningStatus:
         _armFallback(s);
       case SpeechToText.doneStatus:
@@ -226,7 +252,7 @@ class SttSpeechEngine implements SpeechEngine {
 
   void _onError(SpeechRecognitionError error) {
     final s = _session;
-    if (s == null || s.isEnded) return;
+    if (s == null || s.isEnded || !s.started) return;
     final failure = mapSttError(error.errorMsg, permanent: error.permanent);
     s.failed = true;
     _emit(failure);
@@ -238,7 +264,9 @@ class SttSpeechEngine implements SpeechEngine {
   }
 
   void _onResult(_Session s, SpeechRecognitionResult result) {
-    if (s.isEnded) return;
+    // The plugin hands results to the latest listen's callback, so a previous
+    // task's late text would land here before "listening".
+    if (s.isEnded || !s.started) return;
     if (result.finalResult) {
       s.heardFinal = true;
       _emit(SpeechFinal(result.recognizedWords));
@@ -253,10 +281,26 @@ class SttSpeechEngine implements SpeechEngine {
 
   void _armFallback(_Session s) => s.fallback ??= Timer(endFallback, () => _end(s));
 
+  /// The listen call returned [endFallback] ago and "listening" never came:
+  /// the native listen failed, or the plugin refused it because an earlier
+  /// task was still running. Nothing it reported since counted, so this is
+  /// the session's only end report.
+  void _onNeverStarted(_Session s) {
+    if (!s.stopRequested) _emit(const SpeechFailure(SpeechErrorKind.unknown));
+    _end(s);
+    // Whatever the plugin still holds is cancelled before the next listen,
+    // unless a start() waiting for this session got there first (only after
+    // stop(), which already reached the plugin).
+    _serial(() async {
+      if (identical(_session, s)) await _stt.cancel();
+    }).ignore();
+  }
+
   /// Ends [s] once: [SpeechStopped], then the queue moves on.
   void _end(_Session s) {
     if (s.isEnded) return;
     s.fallback?.cancel();
+    s.startDeadline?.cancel();
     _emit(const SpeechStopped());
     s.ended.complete();
   }
