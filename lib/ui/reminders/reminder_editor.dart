@@ -68,7 +68,7 @@ class _ReminderEditorState extends State<_ReminderEditor> {
     final nav = Navigator.of(context);
     if (title.isNotEmpty) {
       widget.app.upsertReminder(_r.copyWith(title: title, note: _note.text.trim(), enabled: true));
-      await widget.app.scheduler.requestPermission();
+      await widget.app.requestNotifications();
     }
     nav.pop();
   }

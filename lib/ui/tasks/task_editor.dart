@@ -94,7 +94,7 @@ class _TaskEditorState extends State<TaskEditor> {
     final tm = await showTimePicker(context: context, initialTime: initial);
     if (tm == null) return;
     setState(() => _t = _t.copyWith(remindAt: () => DateTime(base.year, base.month, base.day, tm.hour, tm.minute)));
-    await widget.app.scheduler.requestPermission();
+    await widget.app.requestNotifications();
   }
 
   void _addSub() {
