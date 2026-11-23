@@ -53,6 +53,7 @@ class _NotesPageState extends State<NotesPage> {
                     suffixIcon: _query.isEmpty
                         ? null
                         : IconButton(
+                            tooltip: s.clearSearch,
                             icon: const Icon(Icons.close_rounded),
                             onPressed: () => setState(() {
                               _search.clear();

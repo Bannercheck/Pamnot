@@ -73,7 +73,11 @@ class _PlannerPageState extends State<PlannerPage> {
                   children: [
                     Row(
                       children: [
-                        IconButton(onPressed: () => shift(-1), icon: const Icon(Icons.chevron_left_rounded)),
+                        IconButton(
+                          tooltip: s.previous,
+                          onPressed: () => shift(-1),
+                          icon: const Icon(Icons.chevron_left_rounded),
+                        ),
                         Expanded(
                           child: Center(
                             child: SegmentedButton<bool>(
@@ -90,12 +94,16 @@ class _PlannerPageState extends State<PlannerPage> {
                             ),
                           ),
                         ),
-                        IconButton(onPressed: () => shift(1), icon: const Icon(Icons.chevron_right_rounded)),
+                        IconButton(
+                          tooltip: s.next,
+                          onPressed: () => shift(1),
+                          icon: const Icon(Icons.chevron_right_rounded),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
+                      duration: motion(context, const Duration(milliseconds: 220)),
                       child: _month
                           ? _MonthGrid(
                               key: ValueKey('m${anchor.year}-${anchor.month}'),
@@ -304,42 +312,51 @@ class _DayCell extends StatelessWidget {
     final isSel = isSameDay(day, selected);
     final isToday = isSameDay(day, today);
     final fg = isSel ? c.onPrimary : (isToday ? c.primary : c.onSurface);
-    return GestureDetector(
+    // Read as the full date ("Salı 27 Ekim") instead of "Sal" and "27".
+    return Semantics(
+      container: true,
+      button: true,
+      selected: isSel,
+      label: DateFormat('EEEE d MMMM', S.of(context).locale).format(day),
       onTap: () => onTap(day),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.all(3),
-        padding: EdgeInsets.symmetric(vertical: showWeekday ? 10 : 6),
-        decoration: BoxDecoration(
-          color: isSel ? c.primary : (isToday ? c.primaryContainer : Colors.transparent),
-          borderRadius: BorderRadius.circular(showWeekday ? 18 : 14),
-        ),
-        child: Column(
-          children: [
-            if (showWeekday)
-              Text(
-                DateFormat('E', S.of(context).locale).format(day),
-                style: t.textTheme.labelSmall?.copyWith(color: isSel ? c.onPrimary : c.onSurfaceVariant),
-              ),
-            Text('${day.day}', style: t.textTheme.titleMedium?.copyWith(color: fg)),
-            const SizedBox(height: 3),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var i = 0; i < count.clamp(0, 3); i++)
-                  Container(
-                    width: 5,
-                    height: 5,
-                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                    decoration: BoxDecoration(
-                      color: isSel ? c.onPrimary.withValues(alpha: 0.8) : c.secondary,
-                      shape: BoxShape.circle,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => onTap(day),
+        child: AnimatedContainer(
+          duration: motion(context, const Duration(milliseconds: 200)),
+          margin: const EdgeInsets.all(3),
+          padding: EdgeInsets.symmetric(vertical: showWeekday ? 10 : 6),
+          decoration: BoxDecoration(
+            color: isSel ? c.primary : (isToday ? c.primaryContainer : Colors.transparent),
+            borderRadius: BorderRadius.circular(showWeekday ? 18 : 14),
+          ),
+          child: Column(
+            children: [
+              if (showWeekday)
+                Text(
+                  DateFormat('E', S.of(context).locale).format(day),
+                  style: t.textTheme.labelSmall?.copyWith(color: isSel ? c.onPrimary : c.onSurfaceVariant),
+                ),
+              Text('${day.day}', style: t.textTheme.titleMedium?.copyWith(color: fg)),
+              const SizedBox(height: 3),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < count.clamp(0, 3); i++)
+                    Container(
+                      width: 5,
+                      height: 5,
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      decoration: BoxDecoration(
+                        color: isSel ? c.onPrimary.withValues(alpha: 0.8) : c.secondary,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                if (count == 0) const SizedBox(height: 5),
-              ],
-            ),
-          ],
+                  if (count == 0) const SizedBox(height: 5),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -364,7 +381,8 @@ class AgendaRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 58,
+          // Wide enough for "18:00" on one line at any text size.
+          width: MediaQuery.textScalerOf(context).scale(58),
           child: Padding(
             padding: const EdgeInsets.only(top: 16),
             child: Text(
@@ -390,7 +408,12 @@ class AgendaRow extends StatelessWidget {
             child: Row(
               children: [
                 if (isTask)
-                  SoftCheck(done: entry.done, colorIndex: entry.colorIndex, onTap: () => app.toggleTask(entry.id))
+                  SoftCheck(
+                    done: entry.done,
+                    label: entry.title,
+                    colorIndex: entry.colorIndex,
+                    onTap: () => app.toggleTask(entry.id),
+                  )
                 else
                   Padding(
                     padding: const EdgeInsets.all(9),

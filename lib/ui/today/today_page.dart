@@ -87,7 +87,8 @@ class TodayPage extends StatelessWidget {
           SoftCard(child: Text(s.noNotes))
         else
           SizedBox(
-            height: 196,
+            // Grows with the system text size so the cards' text fits.
+            height: MediaQuery.textScalerOf(context).scale(196),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: recent.length,
@@ -150,6 +151,54 @@ class _ProgressCard extends StatelessWidget {
     final (done, total) = app.progressOn(app.now());
     final value = total == 0 ? 0.0 : done / total;
     final dark = t.brightness == Brightness.dark;
+    // The ring grows with the system text size so the count inside fits.
+    // When it gets that big the text moves below it instead of being
+    // squeezed beside it.
+    final ring = MediaQuery.textScalerOf(context).scale(74);
+    final stacked = ring > 100;
+    final progress = SizedBox(
+      width: ring,
+      height: ring,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(end: value),
+              duration: motion(context, const Duration(milliseconds: 650)),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => CircularProgressIndicator(
+                value: v,
+                strokeWidth: 7,
+                strokeCap: StrokeCap.round,
+                color: c.primary,
+                backgroundColor: c.surfaceContainerLowest.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          // The cloud is decoration; the text beside it says there is nothing today.
+          total == 0
+              ? ExcludeSemantics(child: Text('☁️', style: t.textTheme.titleMedium))
+              : Text('$done/$total', style: t.textTheme.titleMedium),
+        ],
+      ),
+    );
+    final summary = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(s.todaysPlan, style: t.textTheme.titleLarge),
+        const SizedBox(height: 4),
+        Text(
+          total == 0 ? s.nothingToday : (done == total ? s.allDone : s.progressLabel(done, total)),
+          style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+        ),
+      ],
+    );
+    final add = IconButton.filledTonal(
+      tooltip: s.newTask,
+      onPressed: () => showTaskEditor(context, app, app.draftTask(due: dateOnly(app.now())), isNew: true),
+      icon: const Icon(Icons.add_rounded),
+    );
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -163,53 +212,23 @@ class _ProgressCard extends StatelessWidget {
         ),
         boxShadow: softShadow(context),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 74,
-            height: 74,
-            child: Stack(
-              alignment: Alignment.center,
+      child: stacked
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox.expand(
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(end: value),
-                    duration: const Duration(milliseconds: 650),
-                    curve: Curves.easeOutCubic,
-                    builder: (_, v, _) => CircularProgressIndicator(
-                      value: v,
-                      strokeWidth: 7,
-                      strokeCap: StrokeCap.round,
-                      color: c.primary,
-                      backgroundColor: c.surfaceContainerLowest.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-                Text(total == 0 ? '☁️' : '$done/$total', style: t.textTheme.titleMedium),
+                Row(children: [progress, const Spacer(), add]),
+                const SizedBox(height: 14),
+                summary,
+              ],
+            )
+          : Row(
+              children: [
+                progress,
+                const SizedBox(width: 18),
+                Expanded(child: summary),
+                add,
               ],
             ),
-          ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(s.todaysPlan, style: t.textTheme.titleLarge),
-                const SizedBox(height: 4),
-                Text(
-                  total == 0 ? s.nothingToday : (done == total ? s.allDone : s.progressLabel(done, total)),
-                  style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          IconButton.filledTonal(
-            tooltip: s.newTask,
-            onPressed: () => showTaskEditor(context, app, app.draftTask(due: dateOnly(app.now())), isNew: true),
-            icon: const Icon(Icons.add_rounded),
-          ),
-        ],
-      ),
     );
   }
 }

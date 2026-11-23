@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/strings.dart';
 import '../../../theme/pamnot_theme.dart';
+import '../../common/soft.dart';
 import 'ink_controller.dart';
 
 /// Floating pill with the pen tools, colours, sizes and undo/redo.
@@ -51,21 +52,23 @@ class InkToolbar extends StatelessWidget {
                 toolBtn(CanvasTool.eraser, Icons.cleaning_services_rounded, s.eraser),
                 toolBtn(CanvasTool.hand, Icons.pan_tool_alt_rounded, s.hand),
                 _divider(c),
-                for (final col in colors)
+                for (var i = 0; i < colors.length; i++)
                   _ColorDot(
-                    color: col,
-                    selected: col.toARGB32() == current.toARGB32() &&
+                    color: colors[i],
+                    label: s.inkColor(i + 1),
+                    selected: colors[i].toARGB32() == current.toARGB32() &&
                         (tool == CanvasTool.pen || tool == CanvasTool.highlighter),
-                    onTap: () => controller.setColor(col),
+                    onTap: () => controller.setColor(colors[i]),
                   ),
                 if (tool == CanvasTool.pen) ...[
                   _divider(c),
-                  for (final w in _widths)
+                  for (var i = 0; i < _widths.length; i++)
                     _WidthDot(
-                      width: w,
+                      width: _widths[i],
+                      label: s.strokeWidth(i + 1),
                       color: controller.penColor,
-                      selected: controller.penWidth == w,
-                      onTap: () => controller.penWidth = w,
+                      selected: controller.penWidth == _widths[i],
+                      onTap: () => controller.penWidth = _widths[i],
                     ),
                 ],
                 _divider(c),
@@ -125,7 +128,7 @@ class _ToolButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+          duration: motion(context, const Duration(milliseconds: 160)),
           width: 44,
           height: 44,
           decoration: BoxDecoration(
@@ -139,38 +142,58 @@ class _ToolButton extends StatelessWidget {
   }
 }
 
+/// A swatch: a 24–30 pt dot inside a 44×44 pt target.
 class _ColorDot extends StatelessWidget {
-  const _ColorDot({required this.color, required this.selected, required this.onTap});
+  const _ColorDot({required this.color, required this.label, required this.selected, required this.onTap});
 
   final Color color;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: selected ? 30 : 24,
-          height: selected ? 30 : 24,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: selected ? Theme.of(context).colorScheme.surfaceContainerLowest : Colors.transparent,
-              width: 3,
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: AnimatedContainer(
+                duration: motion(context, const Duration(milliseconds: 160)),
+                width: selected ? 30 : 24,
+                height: selected ? 30 : 24,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected ? Theme.of(context).colorScheme.surfaceContainerLowest : Colors.transparent,
+                    width: 3,
+                  ),
+                  boxShadow: selected ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8)] : null,
+                ),
+              ),
             ),
-            boxShadow: selected ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8)] : null,
           ),
         ),
       );
 }
 
 class _WidthDot extends StatelessWidget {
-  const _WidthDot({required this.width, required this.color, required this.selected, required this.onTap});
+  const _WidthDot({
+    required this.width,
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   final double width;
+  final String label;
   final Color color;
   final bool selected;
   final VoidCallback onTap;
@@ -178,21 +201,26 @@ class _WidthDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? c.primaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
         child: Container(
-          width: width * 2.2 + 2,
-          height: width * 2.2 + 2,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? c.primaryContainer : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Container(
+            width: width * 2.2 + 2,
+            height: width * 2.2 + 2,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
         ),
       ),
     );

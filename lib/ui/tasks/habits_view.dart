@@ -67,7 +67,7 @@ class HabitCard extends StatelessWidget {
                   children: [
                     TweenAnimationBuilder<double>(
                       tween: Tween(end: progress),
-                      duration: const Duration(milliseconds: 500),
+                      duration: motion(context, const Duration(milliseconds: 500)),
                       curve: Curves.easeOutCubic,
                       builder: (_, v, _) => CircularProgressIndicator(
                         value: v,
@@ -104,10 +104,11 @@ class HabitCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
+          // Equal slots, so seven 44 pt targets fit on a 375 pt phone.
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              for (var i = 0; i < 7; i++) _DayBubble(app: app, habit: habit, day: addDays(weekStart, i), today: today),
+              for (var i = 0; i < 7; i++)
+                Expanded(child: _DayBubble(app: app, habit: habit, day: addDays(weekStart, i), today: today)),
             ],
           ),
         ],
@@ -132,31 +133,55 @@ class _DayBubble extends StatelessWidget {
     final done = habit.doneOn(day);
     final future = day.isAfter(today);
     final isToday = isSameDay(day, today);
-    final label = DateFormat('E', S.of(context).locale).format(day);
+    final s = S.of(context);
+    final label = DateFormat('E', s.locale).format(day);
     return Column(
       children: [
-        Text(label.substring(0, label.length.clamp(0, 3)),
-            style: t.textTheme.labelSmall?.copyWith(
-              color: isToday ? c.primary : c.onSurfaceVariant,
-              fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-            )),
-        const SizedBox(height: 6),
-        GestureDetector(
-          onTap: future ? null : () => app.toggleHabit(habit.id, day),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutBack,
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: done ? p.accent : (future ? Colors.transparent : p.paper(t.brightness)),
-              border: Border.all(
-                color: isToday ? p.accent : (future ? c.outlineVariant : Colors.transparent),
-                width: isToday ? 2 : 1,
+        // The ring below reads the full date; the short name would repeat it.
+        // At large text sizes the name shrinks to its slot rather than overflow.
+        ExcludeSemantics(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(label.substring(0, label.length.clamp(0, 3)),
+                maxLines: 1,
+                style: t.textTheme.labelSmall?.copyWith(
+                  color: isToday ? c.primary : c.onSurfaceVariant,
+                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                )),
+          ),
+        ),
+        const SizedBox(height: 1),
+        Semantics(
+          container: true,
+          button: true,
+          checked: done,
+          enabled: !future,
+          label: DateFormat('EEEE d MMMM', s.locale).format(day),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: future ? null : () => app.toggleHabit(habit.id, day),
+            // A 44×44 pt target around the 34 pt ring.
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: AnimatedContainer(
+                  duration: motion(context, const Duration(milliseconds: 220)),
+                  curve: motionCurve(context, Curves.easeOutBack),
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: done ? p.accent : (future ? Colors.transparent : p.paper(t.brightness)),
+                    border: Border.all(
+                      color: isToday ? p.accent : (future ? c.outlineVariant : Colors.transparent),
+                      width: isToday ? 2 : 1,
+                    ),
+                  ),
+                  child: done ? const Icon(Icons.check_rounded, size: 18, color: inkOnPastel) : null,
+                ),
               ),
             ),
-            child: done ? const Icon(Icons.check_rounded, size: 18, color: Colors.white) : null,
           ),
         ),
       ],
@@ -249,18 +274,25 @@ class _HabitEditorState extends State<_HabitEditor> {
               runSpacing: 6,
               children: [
                 for (final e in _emojis)
-                  GestureDetector(
+                  Semantics(
+                    button: true,
+                    selected: e == _emoji,
+                    label: e,
                     onTap: () => setState(() => _emoji = e),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: e == _emoji ? c.primaryContainer : c.surfaceContainer,
-                        borderRadius: BorderRadius.circular(14),
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _emoji = e),
+                      child: AnimatedContainer(
+                        duration: motion(context, const Duration(milliseconds: 150)),
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: e == _emoji ? c.primaryContainer : c.surfaceContainer,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(e, style: const TextStyle(fontSize: 22)),
                       ),
-                      child: Text(e, style: const TextStyle(fontSize: 22)),
                     ),
                   ),
               ],

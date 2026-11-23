@@ -140,14 +140,19 @@ class _HomeShellState extends State<HomeShell> {
               )
             : Scaffold(
                 body: body,
-                bottomNavigationBar: NavigationBar(
-                  selectedIndex: _index,
-                  onDestinationSelected: _go,
-                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                  destinations: [
-                    for (final (icon, sel, label) in dests)
-                      NavigationDestination(icon: Icon(icon), selectedIcon: Icon(sel), label: label),
-                  ],
+                // Like the iOS tab bar, the labels grow only a little with
+                // the system text size; the pages above follow it in full.
+                bottomNavigationBar: MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: 1.3,
+                  child: NavigationBar(
+                    selectedIndex: _index,
+                    onDestinationSelected: _go,
+                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                    destinations: [
+                      for (final (icon, sel, label) in dests)
+                        NavigationDestination(icon: Icon(icon), selectedIcon: Icon(sel), label: label),
+                    ],
+                  ),
                 ),
               ),
       ),
@@ -171,7 +176,8 @@ class _Logo extends StatelessWidget {
         gradient: const LinearGradient(colors: [Color(0xFFC9BCF5), Color(0xFFFBC9B4)]),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Text('☁️', style: TextStyle(fontSize: 22)),
+      // Decoration only; VoiceOver skips it.
+      child: const ExcludeSemantics(child: Text('☁️', style: TextStyle(fontSize: 22))),
     );
     if (!extended) return mark;
     return Row(

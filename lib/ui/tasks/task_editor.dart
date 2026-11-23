@@ -239,6 +239,7 @@ class _TaskEditorState extends State<TaskEditor> {
                       children: [
                         SoftCheck(
                           done: st.done,
+                          label: st.title,
                           size: 22,
                           colorIndex: _t.colorIndex,
                           onTap: () => setState(() => _t = _t.copyWith(subtasks: [
@@ -252,7 +253,7 @@ class _TaskEditorState extends State<TaskEditor> {
                           ),
                         ),
                         IconButton(
-                          visualDensity: VisualDensity.compact,
+                          tooltip: s.removeSubtask,
                           icon: const Icon(Icons.close_rounded, size: 18),
                           onPressed: () => setState(() => _t = _t.copyWith(subtasks: [
                                 for (final x in _t.subtasks)

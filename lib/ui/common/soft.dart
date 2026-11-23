@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/strings.dart';
 import '../../theme/pamnot_theme.dart';
 
 /// A rounded card with a gentle shadow; the basic building block of Pamnot.
@@ -93,7 +94,8 @@ class EmptyState extends StatelessWidget {
               height: 88,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: t.colorScheme.primaryContainer, shape: BoxShape.circle),
-              child: Text(emoji, style: const TextStyle(fontSize: 38)),
+              // Decoration: the text below says it all.
+              child: ExcludeSemantics(child: Text(emoji, style: const TextStyle(fontSize: 38))),
             ),
             const SizedBox(height: 18),
             Text(
@@ -123,7 +125,8 @@ class PastelDot extends StatelessWidget {
       );
 }
 
-/// A row of pastel swatches.
+/// A row of pastel swatches. Each swatch is a 44×44 pt target around a
+/// 34 pt circle, read by its colour name in the app's language.
 class PastelPicker extends StatelessWidget {
   const PastelPicker({super.key, required this.selected, required this.onChanged});
 
@@ -132,31 +135,39 @@ class PastelPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final b = Theme.of(context).brightness;
+    final s = S.of(context);
+    final t = Theme.of(context);
+    final b = t.brightness;
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
       children: [
         for (var i = 0; i < pastels.length; i++)
           Semantics(
             button: true,
             selected: i == selected,
-            label: pastels[i].name,
+            label: s.colorName(i),
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => onChanged(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: pastels[i].paper(b),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: i == selected ? pastels[i].accent : pastels[i].accent.withValues(alpha: 0.35),
-                    width: i == selected ? 3 : 1.5,
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: motion(context, const Duration(milliseconds: 180)),
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: pastels[i].paper(b),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: i == selected ? pastels[i].accent : pastels[i].accent.withValues(alpha: 0.35),
+                        width: i == selected ? 3 : 1.5,
+                      ),
+                    ),
+                    // onSurface on the paper tone keeps the check readable in both themes.
+                    child: i == selected ? Icon(Icons.check_rounded, size: 18, color: t.colorScheme.onSurface) : null,
                   ),
                 ),
-                child: i == selected ? Icon(Icons.check_rounded, size: 18, color: pastels[i].accent) : null,
               ),
             ),
           ),
@@ -187,14 +198,18 @@ class SoftChip extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[Icon(icon, size: 16, color: fg), const SizedBox(width: 6)],
-              Text(label, style: t.textTheme.labelLarge?.copyWith(color: fg)),
-            ],
+        // At least 44 pt tall, the iOS minimum target.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[Icon(icon, size: 16, color: fg), const SizedBox(width: 6)],
+                Text(label, style: t.textTheme.labelLarge?.copyWith(color: fg)),
+              ],
+            ),
           ),
         ),
       ),
