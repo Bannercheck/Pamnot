@@ -20,7 +20,7 @@ SpokenTask parseSpokenTask(String transcript, DateTime now, String lang) {
   if (duration != null) {
     final at = now.add(duration);
     return SpokenTask(
-      title: _title(s, tr: tr, en: en),
+      title: _title(s, turkish: tr),
       due: DateTime(at.year, at.month, at.day, at.hour, at.minute),
       hasTime: true,
       remind: spoken.remind,
@@ -31,7 +31,7 @@ SpokenTask parseSpokenTask(String transcript, DateTime now, String lang) {
   final day = _day(s, dateOnly(now), tr ? _dayRulesTr : en ? _dayRulesEn : const []) ??
       ((clock?.today ?? false) ? _Day(dateOnly(now), isToday: true) : null);
   final partOfDay = clock?.partOfDay ?? day?.partOfDay ?? (tr ? _partOfDayTr(s) : en ? _partOfDayEn(s) : null);
-  final title = _title(s, tr: tr, en: en);
+  final title = _title(s, turkish: tr);
   if (clock == null && partOfDay == null) {
     return SpokenTask(title: title, due: day?.date, remind: spoken.remind);
   }
@@ -65,14 +65,17 @@ class _Sentence {
   }
 }
 
-String _title(_Sentence s, {required bool tr, required bool en}) {
-  var t = s.rest
+/// What is left of the sentence once the day and the hour are cut, tidied.
+/// A preposition that brought the day or hour in ("until friday", "by 5 pm")
+/// was cut with it by its rule; any other word stays ("log in", "turn the
+/// heater on").
+String _title(_Sentence s, {required bool turkish}) {
+  final t = s.rest
       .replaceAll(RegExp(r'\s+'), ' ')
       .replaceAllMapped(RegExp(r'\s+([,;:])'), (m) => m[1]!)
       .replaceAllMapped(RegExp(r'([,;:])(?:\s*[,;:])+'), (m) => m[1]!)
       .replaceAll(RegExp(r'^[\s,;:.\-]+|[\s,;:.\-]+$'), '');
-  if (en) t = t.replaceAll(RegExp(r'\s+(?:at|on|by|in|for|until)$'), '');
-  return tt.capitalize(t, turkish: tr);
+  return tt.capitalize(t, turkish: turkish);
 }
 
 // Dart's \b only knows ASCII letters; these treat every Unicode letter as a
@@ -109,6 +112,17 @@ const _compound = r'yemeğ\p{L}*|yemek\p{L}*|kahvaltı\p{L}*|kahve\p{L}*|koşu\p
 const _notCompound = '(?!\\s+(?:$_compound)$_e)';
 const _partTailTr = '(?:\\s+($_partsTr)$_notCompound)?';
 const _partTailEn = '(?:\\s+($_partsEn))?';
+
+/// English words that bring a day or an hour in; the rule that reads the day
+/// or hour cuts its word with it, so the title keeps every other word.
+/// "in" is not among them: it is a particle in "sign in" and "check in", and
+/// the rules that need it ("in 2 hours", "in the morning") spell it out.
+/// "on" brings in a weekday, a date or the weekend, never "tomorrow" ("turn
+/// the heater on tomorrow"); "at" an hour, the weekend or the month's end.
+const _byEn = r'(?:(?:by|until|till|for)\s+)?';
+const _onEn = r'(?:(?:on|by|until|till|for)\s+)?';
+const _atEn = r'(?:(?:at|by|until|till|for)\s+)?';
+const _weekendLeadEn = r'(?:(?:on|at|by|until|till|for)\s+)?';
 
 // ---------------------------------------------------------------- durations
 
@@ -209,9 +223,10 @@ _Clock? _clockTr(_Sentence s) {
   return null;
 }
 
-final _ampmRe = _re(r"(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|o'?clock)");
-final _noonRe = _re(r'(?:at\s+)?(noon|midnight)');
+final _ampmRe = _re("$_atEn(\\d{1,2})(?::(\\d{2}))?\\s*(a\\.?m\\.?|p\\.?m\\.?|o'?clock)");
+final _noonRe = _re('$_atEn(noon|midnight)');
 final _atRe = _re(r'at\s+(\d{1,2})(?::(\d{2}))?');
+final _colonEnRe = _re('$_byEn(\\d{1,2}):(\\d{2})');
 final _colonRe = _re(r'(\d{1,2}):(\d{2})');
 
 _Clock? _clockEn(_Sentence s) {
@@ -242,12 +257,12 @@ _Clock? _clockEn(_Sentence s) {
     s.cut(m);
     return clock;
   }
-  return _clockDigits(s);
+  return _clockDigits(s, _colonEnRe);
 }
 
 /// "14:30" — the only time read in languages other than Turkish and English.
-_Clock? _clockDigits(_Sentence s) {
-  for (final m in _colonRe.allMatches(s.low)) {
+_Clock? _clockDigits(_Sentence s, [RegExp? colon]) {
+  for (final m in (colon ?? _colonRe).allMatches(s.low)) {
     final clock = _fromDigits(m[1]!, m[2]);
     if (clock == null) continue;
     s.cut(m);
@@ -376,29 +391,35 @@ final _dayRulesTr = <_DayRule>[
 final _dayRulesEn = <_DayRule>[
   (_re(r'in\s+(\d{1,3}|an?)\s+(days?|weeks?|months?)'), (m, t) => _Day(_later(t, int.tryParse(m[1]!) ?? 1, m[2]!))),
   (
-    _re("(?:on\\s+)?(${_monthsEn.join('|')})\\s+(\\d{1,2})(?:st|nd|rd|th)?"),
+    _re("$_onEn(${_monthsEn.join('|')})\\s+(\\d{1,2})(?:st|nd|rd|th)?"),
     (m, t) => _dayOf(_nextDate(t, _monthsEn.indexOf(m[1]!) + 1, int.parse(m[2]!))),
   ),
   (
-    _re("(?:on\\s+)?(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${_monthsEn.join('|')})"),
+    _re("$_onEn(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${_monthsEn.join('|')})"),
     (m, t) => _dayOf(_nextDate(t, _monthsEn.indexOf(m[2]!) + 1, int.parse(m[1]!))),
   ),
-  (_re(r'(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)'), (m, t) => _dayOf(_dayOfMonth(t, int.parse(m[1]!)))),
+  (_re('${_onEn}the\\s+(\\d{1,2})(?:st|nd|rd|th)'), (m, t) => _dayOf(_dayOfMonth(t, int.parse(m[1]!)))),
   (
-    _re('next\\s+(?:week\\s+)?($_weekdayEn)$_partTailEn'),
+    _re('${_onEn}next\\s+(?:week\\s+)?($_weekdayEn)$_partTailEn'),
     (m, t) => _Day(_nextWeek(t, _weekday(m[1]!)), partOfDay: m[2]),
   ),
-  (_re(r'next\s+weekend'), (m, t) => _Day(_nextWeek(t, DateTime.saturday))),
-  (_re('this\\s+($_weekdayEn)$_partTailEn'), (m, t) => _Day(_thisWeekday(t, _weekday(m[1]!)), partOfDay: m[2])),
-  (_re(r'(?:this\s+|the\s+|by\s+the\s+)?weekend'), (m, t) => _Day(_weekend(t))),
-  (_re(r'(?:by\s+the\s+|at\s+the\s+)?end\s+of\s+(?:the\s+)?month'), (m, t) => _Day(_monthEnd(t))),
-  (_re('day\\s+after\\s+tomorrow$_partTailEn'), (m, t) => _Day(addDays(t, 2), partOfDay: m[1])),
-  (_re(r'this\s+(morning|afternoon|evening)|(tonight)'), (m, t) => _Day(t, isToday: true, partOfDay: m[1] ?? m[2])),
-  (_re('today$_partTailEn'), (m, t) => _Day(t, isToday: true, partOfDay: m[1])),
-  (_re('(?:by\\s+|for\\s+)?tomorrow$_partTailEn'), (m, t) => _Day(addDays(t, 1), partOfDay: m[1])),
-  (_re(r'next\s+week'), (m, t) => _Day(addDays(t, 7))),
+  (_re('${_weekendLeadEn}next\\s+weekend'), (m, t) => _Day(_nextWeek(t, DateTime.saturday))),
   (
-    _re('(?:on\\s+|by\\s+)?($_weekdayEn)$_partTailEn'),
+    _re('${_onEn}this\\s+($_weekdayEn)$_partTailEn'),
+    (m, t) => _Day(_thisWeekday(t, _weekday(m[1]!)), partOfDay: m[2]),
+  ),
+  (_re('$_weekendLeadEn(?:this\\s+|the\\s+)?weekend'), (m, t) => _Day(_weekend(t))),
+  (_re('$_atEn(?:the\\s+)?end\\s+of\\s+(?:the\\s+)?month'), (m, t) => _Day(_monthEnd(t))),
+  (_re('${_byEn}day\\s+after\\s+tomorrow$_partTailEn'), (m, t) => _Day(addDays(t, 2), partOfDay: m[1])),
+  (
+    _re('$_byEn(?:this\\s+(morning|afternoon|evening)|(tonight))'),
+    (m, t) => _Day(t, isToday: true, partOfDay: m[1] ?? m[2]),
+  ),
+  (_re('${_byEn}today$_partTailEn'), (m, t) => _Day(t, isToday: true, partOfDay: m[1])),
+  (_re('${_byEn}tomorrow$_partTailEn'), (m, t) => _Day(addDays(t, 1), partOfDay: m[1])),
+  (_re('${_byEn}next\\s+week'), (m, t) => _Day(addDays(t, 7))),
+  (
+    _re('$_onEn($_weekdayEn)$_partTailEn'),
     (m, t) => _Day(_comingWeekday(t, _weekday(m[1]!)), partOfDay: m[2]),
   ),
 ];
@@ -457,16 +478,13 @@ int _withPartOfDay(int h, String partOfDay) {
   if (hour > 24 && (!daySaid || todaySaid) && now.hour < 5) hour -= 24;
 
   if (kind == _HourKind.bare) {
-    // 1–6 afternoon, 7–11 morning, 12 noon; once passed, 7–9 turn to the
-    // evening and the rest to tomorrow — unless a day was said.
+    // 1–6 afternoon, 7–11 morning, 12 noon. Once passed, 7–9 turn to the
+    // evening and the rest to tomorrow, but only when no day was said: a
+    // said day, "bugün" included, keeps the hour as heard (design §6.4).
     var due = at(hour <= 6 ? hour + 12 : hour, minute);
-    if (!due.isAfter(now) && (!daySaid || todaySaid)) {
+    if (!due.isAfter(now) && !daySaid) {
       final evening = at(hour + 12, minute);
-      if (hour >= 7 && hour <= 9 && evening.isAfter(now)) {
-        due = evening;
-      } else if (!daySaid) {
-        due = addDays(due, 1);
-      }
+      due = hour >= 7 && hour <= 9 && evening.isAfter(now) ? evening : addDays(due, 1);
     }
     return (due, hour <= 11);
   }

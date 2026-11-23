@@ -126,6 +126,66 @@ void main() {
     });
   });
 
+  group('İngilizce başlıkta edat yalnız tarih ya da saatle gider', () {
+    SpokenTask en(String s) => parseSpokenTask(s, now, 'en');
+    test('tarih ya da saat yoksa sondaki edat başlıkta kalır', () {
+      for (final (s, title) in [
+        ('log in', 'Log in'),
+        ('turn the heater on', 'Turn the heater on'),
+        ('what is this for', 'What is this for'),
+      ]) {
+        final r = en(s);
+        expect((r.title, r.due), (title, null), reason: s);
+      }
+    });
+    test('tarihe ya da saate ait olmayan edat başlıkta kalır', () {
+      for (final (s, title, due, hasTime) in [
+        ('sign in tomorrow', 'Sign in', DateTime(2026, 11, 24), false),
+        ('check in at 3', 'Check in', DateTime(2026, 11, 23, 15), true),
+        ('log in at noon', 'Log in', DateTime(2026, 11, 23, 12), true),
+        ('turn the heater on tomorrow', 'Turn the heater on', DateTime(2026, 11, 24), false),
+      ]) {
+        final r = en(s);
+        expect((r.title, r.due, r.hasTime), (title, due, hasTime), reason: s);
+      }
+    });
+    test('tarihi ya da saati getiren edat onunla birlikte çıkar', () {
+      for (final (s, title, due, hasTime) in [
+        ('pay rent until friday', 'Pay rent', DateTime(2026, 11, 27), false),
+        ('send invoice until tomorrow', 'Send invoice', DateTime(2026, 11, 24), false),
+        ('prepare slides for monday', 'Prepare slides', DateTime(2026, 11, 30), false),
+        ('file taxes by december 15', 'File taxes', DateTime(2026, 12, 15), false),
+        ('clean up at the weekend', 'Clean up', DateTime(2026, 11, 28), false),
+        ('finish report by 5 pm', 'Finish report', DateTime(2026, 11, 23, 17), true),
+        ('finish report by 14:30', 'Finish report', DateTime(2026, 11, 23, 14, 30), true),
+        ('dinner for 7pm', 'Dinner', DateTime(2026, 11, 23, 19), true),
+      ]) {
+        final r = en(s);
+        expect((r.title, r.due, r.hasTime), (title, due, hasTime), reason: s);
+      }
+    });
+  });
+
+  group('gün söylenince yalın saat çevrilmez (tasarım §6.4)', () {
+    test('"bugün" ile geçmiş yalın saat akşama dönmez, olduğu gibi kalır', () {
+      for (final h in [9, 10]) {
+        final r = parseSpokenTask("bugün 8'de ilaç", DateTime(2026, 11, 23, h), 'tr');
+        expect((r.title, r.due, r.hasTime, r.ambiguousHour), ('İlaç', DateTime(2026, 11, 23, 8), true, true),
+            reason: '$h:00');
+      }
+      final e = parseSpokenTask('take pills today at 8', DateTime(2026, 11, 23, 10), 'en');
+      expect((e.title, e.due, e.ambiguousHour), ('Take pills', DateTime(2026, 11, 23, 8), true));
+    });
+    test('"bugün" ile henüz gelmemiş yalın saat bugünün o saatidir', () {
+      final r = parseSpokenTask("bugün 8'de ilaç", DateTime(2026, 11, 23, 7), 'tr');
+      expect(r.due, DateTime(2026, 11, 23, 8));
+    });
+    test('gün söylenmezse geçmiş 7-9 akşama döner', () {
+      final r = parseSpokenTask("8'de ilaç", DateTime(2026, 11, 23, 10), 'tr');
+      expect((r.due, r.ambiguousHour), (DateTime(2026, 11, 23, 20), true));
+    });
+  });
+
   group('istisna atmaz', () {
     test('vektörlerin her ön ve son parçası, üç dilde, gece yarısı ve gün ortasında', () {
       final nows = [DateTime(2026, 11, 23, 0, 30), DateTime(2026, 2, 28, 23, 59), now];
