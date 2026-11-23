@@ -1,0 +1,135 @@
+import 'dart:async';
+import 'dart:ui' show Locale;
+
+/// Why the engine cannot listen right now. The sheet shows one state per value.
+enum SpeechAvailability {
+  ready,
+
+  /// Microphone or speech-recognition permission denied (can retry in Settings).
+  permissionDenied,
+
+  /// Parental controls / MDM block speech recognition.
+  restricted,
+
+  /// No recognizer for the requested language on this device.
+  unsupportedLocale,
+
+  /// Recognizer exists but is temporarily unavailable (offline, server busy,
+  /// Siri & Dictation turned off).
+  unavailable,
+
+  /// No implementation on this platform (web, Linux, tests by default).
+  unsupportedPlatform,
+}
+
+enum SpeechErrorKind {
+  /// The user said nothing recognisable. Not shown as an error; the sheet
+  /// treats it as silence.
+  noMatch,
+  network,
+  busy,
+  permission,
+  audio,
+  unknown,
+}
+
+/// Everything the sheet reacts to arrives as one of these, in order.
+sealed class SpeechEvent {
+  const SpeechEvent();
+}
+
+/// The engine started capturing audio (mic indicator is on).
+class SpeechStarted extends SpeechEvent {
+  const SpeechStarted();
+}
+
+/// Live transcript of the current utterance so far (replaces the previous one).
+class SpeechPartial extends SpeechEvent {
+  const SpeechPartial(this.text);
+  final String text;
+}
+
+/// The recogniser's final text for the utterance. Always followed by [SpeechStopped].
+class SpeechFinal extends SpeechEvent {
+  const SpeechFinal(this.text, {this.confidence});
+  final String text;
+
+  /// 0..1 when the platform reports it.
+  final double? confidence;
+}
+
+/// Input level, normalised to 0..1 (iOS reports dB, Android another scale).
+class SpeechLevel extends SpeechEvent {
+  const SpeechLevel(this.level);
+  final double level;
+}
+
+/// Capturing ended (after stop(), cancel(), a platform timeout or an error).
+class SpeechStopped extends SpeechEvent {
+  const SpeechStopped();
+}
+
+class SpeechFailure extends SpeechEvent {
+  const SpeechFailure(this.kind, {this.permanent = true, this.detail});
+  final SpeechErrorKind kind;
+
+  /// A permanent failure ends the session; a transient one may be retried.
+  final bool permanent;
+  final String? detail;
+}
+
+/// One-utterance speech recogniser. The UI owns all timing (utterance gap,
+/// preview hold, idle close), so a fake engine plus `tester.pump(duration)`
+/// drives every state without a device.
+abstract class SpeechEngine {
+  bool get isSupported;
+
+  /// Stream of events for the current and future sessions (broadcast).
+  Stream<SpeechEvent> get events;
+
+  /// Picks the recogniser locale for the phone's languages, in order of
+  /// preference ("tr-TR" for a Turkish phone). Null when none is supported.
+  Future<String?> resolveLocale(List<Locale> preferred);
+
+  /// Asks for microphone + speech permission when needed (shows the system
+  /// prompts the first time) and checks that [localeId] can be recognised.
+  Future<SpeechAvailability> prepare(String localeId);
+
+  /// Starts capturing one utterance. [maxDuration] stays under Apple's
+  /// one-minute limit per recognition task.
+  Future<void> start(String localeId, {Duration maxDuration = const Duration(seconds: 55)});
+
+  /// Stops capturing and delivers [SpeechFinal] for what was heard.
+  Future<void> stop();
+
+  /// Stops capturing and discards the utterance (no [SpeechFinal]).
+  Future<void> cancel();
+
+  Future<void> dispose();
+}
+
+class UnsupportedSpeechEngine implements SpeechEngine {
+  @override
+  bool get isSupported => false;
+
+  @override
+  Stream<SpeechEvent> get events => const Stream.empty();
+
+  @override
+  Future<String?> resolveLocale(List<Locale> preferred) async => null;
+
+  @override
+  Future<SpeechAvailability> prepare(String localeId) async => SpeechAvailability.unsupportedPlatform;
+
+  @override
+  Future<void> start(String localeId, {Duration maxDuration = const Duration(seconds: 55)}) async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> cancel() async {}
+
+  @override
+  Future<void> dispose() async {}
+}

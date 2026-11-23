@@ -1,0 +1,29 @@
+--- /home/user/wt/main/lib/app.dart	2026-11-23 09:45:09.918584783 +0000
++++ proto/lib/app.dart	2026-11-23 10:14:48.623084505 +0000
+@@ -8,6 +8,9 @@
+ import 'theme/pamnot_theme.dart';
+ import 'ui/home_shell.dart';
+ 
++/// Bumped by every "open the voice sheet" trigger (URL, App Intent, mic button).
++final voiceRequests = ValueNotifier<int>(0);
++
+ class PamnotApp extends StatefulWidget {
+   const PamnotApp({super.key, required this.controller});
+ 
+@@ -42,6 +45,16 @@
+   @override
+   void didChangeLocales(List<Locale>? locales) => setState(() {});
+ 
++  /// Registered before MaterialApp's own observer, so pamnot:// links stop
++  /// here instead of becoming Navigator routes.
++  @override
++  Future<bool> didPushRouteInformation(RouteInformation info) async {
++    final uri = info.uri;
++    if (uri.scheme != 'pamnot') return false;
++    if (uri.host == 'ses') voiceRequests.value++;
++    return true;
++  }
++
+   @override
+   Widget build(BuildContext context) {
+     return AppScope(

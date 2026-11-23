@@ -1,0 +1,30 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
+/// Requests from iOS to open a screen, e.g. 'voice' for the listening sheet.
+/// HomeShell consumes it like `notificationTaps` (listener + post-frame check), then sets null.
+final launchActions = ValueNotifier<String?>(null);
+
+/// Mirrors ios/Runner/PamnotLaunchBridge.swift. Call once in main() before runApp.
+class LaunchActionsBridge {
+  static const _channel = MethodChannel('app.pamnot/launch');
+
+  static void start() {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
+    // Install the handler first, then pull: covers both "intent before engine" and
+    // "intent after Dart started".
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'actionAvailable') await _pull();
+    });
+    _pull();
+  }
+
+  static Future<void> _pull() async {
+    try {
+      final action = await _channel.invokeMethod<String>('takePendingAction');
+      if (action != null) launchActions.value = action;
+    } on MissingPluginException {
+      // Not registered (widget tests, other platforms).
+    }
+  }
+}

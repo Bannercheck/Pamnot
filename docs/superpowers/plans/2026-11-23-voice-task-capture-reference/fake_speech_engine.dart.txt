@@ -1,0 +1,87 @@
+import 'dart:async';
+import 'dart:ui' show Locale;
+
+import 'package:pamnot/services/speech_engine.dart';
+
+/// Scriptable engine for widget tests: the test decides what is "heard".
+class FakeSpeechEngine implements SpeechEngine {
+  FakeSpeechEngine({this.availability = SpeechAvailability.ready, this.supportedLocales = const ['tr-TR', 'en-US']});
+
+  SpeechAvailability availability;
+  final List<String> supportedLocales;
+  final _events = StreamController<SpeechEvent>.broadcast(sync: true);
+
+  final List<String> calls = [];
+  bool listening = false;
+  String _partial = '';
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  Stream<SpeechEvent> get events => _events.stream;
+
+  @override
+  Future<String?> resolveLocale(List<Locale> preferred) async {
+    for (final l in preferred) {
+      final tag = l.countryCode == null ? l.languageCode : '${l.languageCode}-${l.countryCode}';
+      for (final s in supportedLocales) {
+        if (s == tag || s.split('-').first == l.languageCode) return s;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<SpeechAvailability> prepare(String localeId) async {
+    calls.add('prepare:$localeId');
+    return availability;
+  }
+
+  @override
+  Future<void> start(String localeId, {Duration maxDuration = const Duration(seconds: 55)}) async {
+    calls.add('start:$localeId');
+    listening = true;
+    _partial = '';
+    _events.add(const SpeechStarted());
+  }
+
+  @override
+  Future<void> stop() async {
+    calls.add('stop');
+    if (!listening) return;
+    listening = false;
+    if (_partial.isNotEmpty) _events.add(SpeechFinal(_partial));
+    _events.add(const SpeechStopped());
+  }
+
+  @override
+  Future<void> cancel() async {
+    calls.add('cancel');
+    if (!listening) return;
+    listening = false;
+    _events.add(const SpeechStopped());
+  }
+
+  @override
+  Future<void> dispose() => _events.close();
+
+  // ---- test controls
+
+  /// Simulates the user saying [text] word by word.
+  void say(String text) {
+    final words = text.split(' ');
+    for (var i = 1; i <= words.length; i++) {
+      _partial = words.take(i).join(' ');
+      _events.add(SpeechPartial(_partial));
+    }
+  }
+
+  void level(double v) => _events.add(SpeechLevel(v));
+
+  void fail(SpeechErrorKind kind, {bool permanent = true}) {
+    listening = false;
+    _events.add(SpeechFailure(kind, permanent: permanent));
+    _events.add(const SpeechStopped());
+  }
+}

@@ -1,0 +1,406 @@
+// Throwaway reference implementation used only to validate the proposed
+// spoken-parse test vectors. Not production code.
+import 'core/dates.dart';
+import 'core/turkish_text.dart' as tt;
+
+class SpokenResult {
+  SpokenResult(this.title, this.due, this.hasTime, this.remind);
+  final String title;
+  final DateTime? due;
+  final bool hasTime;
+  final bool remind;
+}
+
+const _b = r'(?<![\p{L}\p{N}])';
+const _e = r'(?![\p{L}\p{N}])';
+RegExp _re(String body) => RegExp('$_b(?:$body)$_e', unicode: true);
+
+class _Doc {
+  _Doc(this.text, this.low);
+  String text, low;
+  void replace(int s, int e, String rep) {
+    text = text.replaceRange(s, e, rep);
+    low = low.replaceRange(s, e, rep);
+  }
+
+  void cut(Match m) => replace(m.start, m.end, ' ');
+}
+
+// ---------------------------------------------------------------- vocab
+const _unitsTr = {'bir': 1, 'iki': 2, 'üç': 3, 'dört': 4, 'dörd': 4, 'beş': 5, 'altı': 6, 'yedi': 7, 'sekiz': 8, 'dokuz': 9};
+const _tensTr = {'on': 10, 'yirmi': 20, 'otuz': 30, 'kırk': 40, 'elli': 50};
+const _wordsEn = {
+  'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+  'eleven': 11, 'twelve': 12, 'fifteen': 15, 'twenty': 20, 'thirty': 30, 'forty-five': 45, 'forty five': 45,
+};
+const _monthsTr = ['ocak', 'şubat', 'mart', 'nisan', 'mayıs', 'haziran', 'temmuz', 'ağustos', 'eylül', 'ekim', 'kasım', 'aralık'];
+const _monthsEn = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const _wdTr = ['pazartesi', 'salı', 'çarşamba', 'perşembe', 'cuma', 'cumartesi', 'pazar'];
+const _wdEn = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+// Part of day -> default hour.
+const _podDefault = {'sabah': 9, 'öğle': 12, 'öğlen': 12, 'öğleyin': 12, 'öğleden sonra': 15, 'akşam': 19, 'gece': 22,
+  'morning': 9, 'noon': 12, 'afternoon': 15, 'evening': 19, 'tonight': 19, 'night': 22};
+const _podAlt = r'öğleden sonra|öğleyin|öğlen|öğle|sabah|akşam|gece|morning|afternoon|evening|night';
+// Nouns that turn a part-of-day word into a compound ("akşam yemeği" = dinner).
+const _compound = r'yemeğ\p{L}*|yemek\p{L}*|kahvaltı\p{L}*|koşu\p{L}*|namaz\p{L}*|haber\p{L}*|kremi|lambası|vardiya\p{L}*|mesai\p{L}*|toplantısı|dersi|sporu|arası';
+String get _podTail => '(?:\\s+($_podAlt)(?!\\s+(?:$_compound)$_e))?';
+
+String _wdAlt(List<String> l) => l.join('|');
+
+// ---------------------------------------------------------------- main
+SpokenResult parseSpoken(String input, DateTime now, {String lang = 'tr'}) {
+  final tr = lang == 'tr';
+  var raw = input.replaceAll(RegExp('[’‘`´ʼ]'), "'").trim();
+  raw = raw.replaceAll(RegExp(r'[.!?…]+$'), '');
+  final low0 = tr ? tt.lower(raw) : raw.toLowerCase();
+  final d = _Doc(low0.length == raw.length ? raw : low0, low0);
+  d.text = ' ${d.text} ';
+  d.low = ' ${d.low} ';
+  var remind = false;
+  var addFiller = false;
+
+  // 1. filler and reminder phrases ------------------------------------
+  final fillers = <RegExp, String>{
+    RegExp(r'^\s*(?:bana\s+)?(?:bir\s+)?(?:yeni\s+)?(?:görev|yapılacak)\s+(?:ekle|oluştur)[\s:,]*', unicode: true): 'add',
+    RegExp(r'^\s*(?:yeni\s+)?görev\s*[:,]\s*', unicode: true): 'add',
+    RegExp(r'\s+(?:diye\s+)?(?:bana\s+)?(?:hatırlat|anımsat)\p{L}*\s*$', unicode: true): 'remind',
+    RegExp(r'^\s*(?:please\s+)?(?:add|create|new)\s+(?:a\s+)?(?:new\s+)?(?:task|todo|to-do)[\s:,]*(?:to\s+)?', unicode: true): 'add',
+    RegExp(r'^\s*remind\s+me\s+(?:to\s+)?', unicode: true): 'remind',
+    RegExp(r'\s+to\s+(?:my\s+)?(?:list|tasks|to-?do(?:\s+list)?)\s*$', unicode: true): 'add',
+  };
+  for (final e in fillers.entries) {
+    final m = e.key.firstMatch(d.low);
+    if (m != null) {
+      d.cut(m);
+      if (e.value == 'remind') remind = true; else addFiller = true;
+    }
+  }
+  if (remind && tr) {
+    final m = RegExp(r'^\s*bana\s+').firstMatch(d.low);
+    if (m != null) d.cut(m);
+  }
+
+  // 2. number words -> digits, only in time/date contexts ---------------
+  if (tr) _trNumberWords(d); else _enNumberWords(d);
+
+  // 3. Turkish clock phrases -> canonical "h.mm" --------------------------
+  if (tr) _trClockPhrases(d);
+
+  // 4. relative durations (absolute instant) -----------------------------
+  Duration? dur;
+  final durRes = <RegExp, Duration Function(Match)>{
+    _re(r'yarım\s+saat\s+sonra'): (_) => const Duration(minutes: 30),
+    _re(r'(\d{1,3})(\s+buçuk)?\s+(saat|dakika|dk)\s+sonra'): (m) {
+      final n = int.parse(m[1]!);
+      return m[3] == 'saat' ? Duration(minutes: n * 60 + (m[2] != null ? 30 : 0)) : Duration(minutes: n);
+    },
+    _re(r'in\s+half\s+an\s+hour'): (_) => const Duration(minutes: 30),
+    _re(r'in\s+(\d{1,3}|an?)\s+(hours?|minutes?|mins?)'): (m) {
+      final n = int.tryParse(m[1]!) ?? 1;
+      return m[2]!.startsWith('h') ? Duration(hours: n) : Duration(minutes: n);
+    },
+  };
+  for (final e in durRes.entries) {
+    final m = e.key.firstMatch(d.low);
+    if (m != null) {
+      dur = e.value(m);
+      d.cut(m);
+      break;
+    }
+  }
+  if (dur != null) {
+    return SpokenResult(_clean(d.text, tr, remind || addFiller, remind), now.add(dur), true, remind);
+  }
+
+  // 5. time of day --------------------------------------------------------
+  int? hour, minute;
+  String? pod;
+  var explicitAmPm = false;
+  var literal24 = false;
+  final timeRes = <RegExp>[
+    // EN with am/pm or o'clock
+    _re(r"(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|o'?clock)"),
+    _re(r'(?:at\s+)?(noon|midnight)'),
+    // TR: optional part of day, optional saat, hour, optional minutes, optional case suffix
+    _re("(?:($_podAlt)\\s+)?(saat\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?(?:('\\s?|\\s)?(de|da|te|ta|ye|ya|e|a)(?![\\p{L}]))?"),
+    _re(r'at\s+(\d{1,2})(?::(\d{2}))?'),
+  ];
+  for (var i = 0; i < timeRes.length && hour == null; i++) {
+    for (final m in timeRes[i].allMatches(d.low)) {
+      if (i == 0) {
+        var h = int.parse(m[1]!);
+        final mm = m[2] != null ? int.parse(m[2]!) : 0;
+        final suf = m[3]!;
+        if (suf.startsWith('p') && h < 12) h += 12;
+        if (suf.startsWith('a') && h == 12) h = 0;
+        explicitAmPm = !suf.startsWith('o');
+        hour = h; minute = mm;
+      } else if (i == 1) {
+        hour = m[1] == 'noon' ? 12 : 0; minute = 0; explicitAmPm = true;
+      } else if (i == 2) {
+        final hasPod = m[1] != null, hasSaat = m[2] != null, hasMin = m[4] != null;
+        final sep = m[5], suf = m[6];
+        final dative = suf != null && RegExp(r'^y?[ae]$').hasMatch(suf);
+        // dative needs an apostrophe ("9'a"); space-separated suffix needs saat or pod
+        final sufOk = suf != null && (dative ? (sep?.startsWith("'") ?? false) : (sep == null || sep.startsWith("'") || hasSaat || hasPod));
+        if (!(hasPod || hasSaat || hasMin || sufOk)) continue;
+        if (suf != null && !sufOk) continue;
+        // not a fraction: "3'te 1", "üçte bir"
+        if (RegExp(r'^\s+(?:bir|1)').hasMatch(d.low.substring(m.end))) continue;
+        final h = int.parse(m[3]!), mm = hasMin ? int.parse(m[4]!) : 0;
+        if (h > 24 || mm > 59) continue;
+        hour = h; minute = mm; pod = m[1];
+        literal24 = h == 0 || h > 12 || m[3]!.startsWith('0');
+      } else {
+        hour = int.parse(m[1]!); minute = m[2] != null ? int.parse(m[2]!) : 0;
+      }
+      d.cut(m);
+      break;
+    }
+  }
+
+  // 6. day ----------------------------------------------------------------
+  final today = dateOnly(now);
+  DateTime? day;
+  var explicitToday = false;
+  String? dayPod;
+  void take(Match m, DateTime v, {int podGroup = -1, bool isToday = false}) {
+    day = v;
+    explicitToday = isToday;
+    if (podGroup > 0 && podGroup <= m.groupCount && m[podGroup] != null) dayPod = m[podGroup];
+    d.cut(m);
+  }
+
+  int nextWeekday(int wd) { // next occurrence, same day -> +7
+    var delta = (wd - today.weekday) % 7;
+    if (delta == 0) delta = 7;
+    return delta;
+  }
+
+  DateTime nextCalWeek(int wd) => addDays(startOfWeek(today), 7 + wd - 1);
+  final wdAll = '${_wdAlt(_wdTr)}|${_wdAlt(_wdEn)}';
+  int wdIndex(String w) => (_wdTr.contains(w) ? _wdTr.indexOf(w) : _wdEn.indexOf(w)) + 1;
+  const kadar = r'(?:\s+(?:kadar|until))?';
+  final dayRes = <RegExp, void Function(Match)>{
+    // relative days
+    _re(r'(\d{1,3})\s+(gün|hafta|ay)\s+sonra'): (m) {
+      final n = int.parse(m[1]!);
+      take(m, m[2] == 'ay' ? DateTime(today.year, today.month + n, today.day) : addDays(today, m[2] == 'gün' ? n : 7 * n));
+    },
+    _re(r'in\s+(\d{1,3})\s+(days?|weeks?|months?)'): (m) {
+      final n = int.parse(m[1]!);
+      take(m, m[2]!.startsWith('m') ? DateTime(today.year, today.month + n, today.day) : addDays(today, m[2]!.startsWith('d') ? n : 7 * n));
+    },
+    // absolute day + month
+    _re("(?:on\\s+)?(\\d{1,2})\\s+(${_monthsTr.join('|')})(?:'?(?:ta|da|te|de|ya|ye|a|e))?$kadar"): (m) =>
+        take(m, _future(today, _monthsTr.indexOf(m[2]!) + 1, int.parse(m[1]!))),
+    _re("(?:on\\s+)?(${_monthsEn.join('|')})\\s+(\\d{1,2})(?:st|nd|rd|th)?"): (m) =>
+        take(m, _future(today, _monthsEn.indexOf(m[1]!) + 1, int.parse(m[2]!))),
+    _re("(?:on\\s+)?(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${_monthsEn.join('|')})"): (m) =>
+        take(m, _future(today, _monthsEn.indexOf(m[2]!) + 1, int.parse(m[1]!))),
+    // day of month
+    _re(r"(?:ayın\s+)?(\d{1,2})'?s?(?:ı|i|u|ü)n(?:da|de)"): (m) => take(m, _dayOfMonth(today, int.parse(m[1]!))),
+    _re(r"ayın\s+(\d{1,2})'?s?(?:ı|i|u|ü)"): (m) => take(m, _dayOfMonth(today, int.parse(m[1]!))),
+    _re(r'(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)'): (m) => take(m, _dayOfMonth(today, int.parse(m[1]!))),
+    // next week + weekday / weekend
+    _re("(?:haftaya|gelecek hafta|önümüzdeki hafta|next week)\\s+($wdAll)(?:\\s?(?:günü|ya|ye|a|e))?$kadar$_podTail"): (m) =>
+        take(m, nextCalWeek(wdIndex(m[1]!)), podGroup: 2),
+    _re("(?:next)\\s+($wdAll)$_podTail"): (m) => take(m, nextCalWeek(wdIndex(m[1]!)), podGroup: 2),
+    _re(r'(?:haftaya|gelecek hafta|önümüzdeki hafta)\s+hafta\s?sonu(?:na)?|next\s+weekend'): (m) => take(m, nextCalWeek(6)),
+    _re("(?:bu|this)\\s+($wdAll)$_podTail"): (m) {
+      final wd = wdIndex(m[1]!);
+      final delta = (wd - today.weekday) % 7;
+      take(m, addDays(today, delta), podGroup: 2);
+    },
+    // weekend, end of month
+    _re(r'(?:bu\s+)?hafta\s?sonu(?:na|nda)?(?:\s+kadar)?|(?:this\s+|the\s+|by\s+the\s+)?weekend'): (m) =>
+        take(m, today.weekday >= 6 ? today : addDays(today, 6 - today.weekday)),
+    _re(r'ay\s+sonu(?:na|nda)?(?:\s+kadar)?|ayın\s+sonunda|(?:by\s+the\s+|at\s+the\s+)?end\s+of\s+(?:the\s+)?month'): (m) =>
+        take(m, DateTime(today.year, today.month, daysInMonth(today.year, today.month))),
+    // day words
+    _re('(?:öbür gün|yarından sonra|day after tomorrow)$_podTail'): (m) => take(m, addDays(today, 2), podGroup: 1),
+    _re(r'bu\s+(sabah|öğlen|öğle|akşam|gece)|this\s+(morning|afternoon|evening)|(tonight)'): (m) {
+      take(m, today, isToday: true);
+      dayPod = m[1] ?? m[2] ?? m[3];
+    },
+    _re('(?:bugün|today)$_podTail'): (m) => take(m, today, podGroup: 1, isToday: true),
+    _re("(?:yarın(?:a\\s+kadar|ki)?|(?:by\\s+|for\\s+)?tomorrow)$_podTail"): (m) => take(m, addDays(today, 1), podGroup: 1),
+    _re(r'haftaya|gelecek hafta|önümüzdeki hafta|next week'): (m) => take(m, addDays(today, 7)),
+    // plain weekday; "pazar" + dative only with "kadar" (pazara git = go to the market)
+    _re("(?:on\\s+|by\\s+)?($wdAll)(?:\\s?(?:günü|ya|ye|a|e)(?=\\s+kadar))?(?:\\s?günü)?$kadar$_podTail"): (m) =>
+        take(m, addDays(today, nextWeekday(wdIndex(m[1]!))), podGroup: 2),
+    _re("($wdAll)(?:ya|ye|e)$kadar$_podTail"): (m) {
+      if (m[1] == 'pazar') return;
+      take(m, addDays(today, nextWeekday(wdIndex(m[1]!))), podGroup: 2);
+    },
+  };
+  for (final e in dayRes.entries) {
+    final m = e.key.firstMatch(d.low);
+    if (m != null) {
+      e.value(m);
+      if (day != null) break;
+    }
+  }
+
+  // 7. standalone part of day at start or end ("akşam annemi ara")
+  if (pod == null && dayPod == null) {
+    final m = RegExp('^\\s*($_podAlt|akşamleyin|sabahleyin)(?!\\s+(?:$_compound)$_e)$_e', unicode: true).firstMatch(d.low) ??
+        RegExp('$_b(öğleden sonra|akşamleyin|sabahleyin)$_e', unicode: true).firstMatch(d.low) ??
+        RegExp('$_b($_podAlt)\\s*\$', unicode: true).firstMatch(d.low);
+    if (m != null && (tr || m[1] == 'tonight')) {
+      dayPod = m[1]!.replaceAll('leyin', '');
+      d.cut(m);
+    }
+  }
+  pod ??= dayPod;
+
+  // 8. resolve ------------------------------------------------------------
+  if (hour == null && pod != null) {
+    hour = _podDefault[pod]!;
+    minute = 0;
+    explicitAmPm = true;
+  } else if (hour != null && pod != null && !explicitAmPm) {
+    hour = _applyPod(hour, pod);
+    explicitAmPm = true;
+  }
+  if (hour != null) {
+    final explicitDay = day != null;
+    day ??= today;
+    var h = hour, mi = minute ?? 0;
+    DateTime at(DateTime dd, int hh) => DateTime(dd.year, dd.month, dd.day, hh, mi);
+    DateTime result;
+    if (explicitAmPm || literal24 || h > 12) {
+      result = at(day!, h == 24 ? 0 : h);
+      if (h == 24 || (!result.isAfter(now) && !explicitDay)) result = addDays(result, 1);
+    } else {
+      final base = (h >= 1 && h <= 6) ? h + 12 : h; // 7-11 morning, 12 noon, 1-6 afternoon
+      result = at(day!, base);
+      if (!result.isAfter(now) && (!explicitDay || explicitToday)) {
+        final eve = at(day!, h + 12);
+        if (base < 12 && h + 12 <= 21 && eve.isAfter(now)) {
+          result = eve;
+        } else if (!explicitToday) {
+          result = addDays(result, 1);
+        }
+      }
+    }
+    return SpokenResult(_clean(d.text, tr, remind || addFiller, remind), result, true, remind);
+  }
+  return SpokenResult(_clean(d.text, tr, remind || addFiller, remind), day, false, remind);
+}
+
+int _applyPod(int h, String pod) {
+  switch (pod) {
+    case 'sabah':
+    case 'morning':
+      return h == 12 ? 0 : h;
+    case 'öğle':
+    case 'öğlen':
+    case 'öğleyin':
+    case 'noon':
+      return h <= 6 ? h + 12 : h;
+    case 'öğleden sonra':
+    case 'afternoon':
+    case 'akşam':
+    case 'evening':
+    case 'tonight':
+      return h < 12 ? h + 12 : h;
+    case 'gece':
+    case 'night':
+      if (h == 12) return 24; // midnight -> next day
+      return h <= 5 ? h + 24 : (h < 12 ? h + 12 : h); // 1-5 after midnight
+  }
+  return h;
+}
+
+DateTime _future(DateTime today, int month, int day) {
+  final d = DateTime(today.year, month, day);
+  return d.isBefore(today) ? DateTime(today.year + 1, month, day) : d;
+}
+
+DateTime _dayOfMonth(DateTime today, int dom) {
+  if (dom >= today.day) return DateTime(today.year, today.month, dom);
+  return DateTime(today.year, today.month + 1, dom);
+}
+
+void _trNumberWords(_Doc d) {
+  final re = RegExp(
+      "$_b(?:(on|yirmi|otuz|kırk|elli)(?:\\s?(bir|iki|üç|dörd|dört|beş|altı|yedi|sekiz|dokuz))?|(bir|iki|üç|dörd|dört|beş|altı|yedi|sekiz|dokuz))('?(?:[dt][ae]|y?[ae]|y?[ıiuü]))?$_e",
+      unicode: true);
+  const anchorsPrev = {'saat', 'sabah', 'öğle', 'öğlen', 'öğleyin', 'akşam', 'gece', 'bugün', 'yarın', 'günü', ..._wdTr};
+  const anchorsNext = {'buçuk', 'buçukta', 'çeyrek', 'geçe', 'kala'};
+  for (final m in re.allMatches(d.low).toList().reversed) {
+    final n = (m[1] != null ? _tensTr[m[1]]! + (m[2] != null ? _unitsTr[m[2]]! : 0) : _unitsTr[m[3]]!);
+    final suf = m[4]?.replaceAll("'", '');
+    final before = d.low.substring(0, m.start).trim().split(RegExp(r'\s+'));
+    final after = d.low.substring(m.end).trim().split(RegExp(r'\s+'));
+    final prev = before.isEmpty ? '' : before.last;
+    final prev2 = before.length >= 2 ? '${before[before.length - 2]} $prev' : '';
+    final next = after.isEmpty ? '' : after.first;
+    final next2 = after.length > 1 ? after[1] : '';
+    var ok = anchorsPrev.contains(prev) || prev2 == 'öğleden sonra' ||
+        anchorsNext.contains(next) || anchorsNext.contains(next2) ||
+        (suf == null && RegExp(r'^(gün|hafta|ay|saat|dakika|dk)$').hasMatch(next) && next2 == 'sonra') ||
+        (suf == null && _monthsTr.any((mo) => next.startsWith(mo)));
+    // standalone locative: 2-9, 11, 12 ("yedide"), never "birde"/"onda", never a fraction ("üçte bir")
+    if (!ok && suf != null && RegExp(r'^[dt][ae]$').hasMatch(suf) && n != 1 && n != 10 && n <= 12) ok = true;
+    if (suf != null && RegExp(r'^[dt][ae]$').hasMatch(suf) && next.startsWith('bir')) ok = false;
+    if (!ok) continue;
+    d.replace(m.start, m.end, suf == null ? '$n' : "$n'$suf");
+  }
+}
+
+void _enNumberWords(_Doc d) {
+  final alt = _wordsEn.keys.join('|');
+  final re = RegExp('$_b(at|past|to|in)\\s+($alt)$_e', unicode: true);
+  for (final m in re.allMatches(d.low).toList().reversed) {
+    final s = m.start + m[0]!.length - m[2]!.length;
+    d.replace(s, m.end, '${_wordsEn[m[2]]}');
+  }
+  // "quarter past three", "half past three", "quarter to ten"
+  final q = RegExp(r"(?:at\s+)?(half|quarter)\s+(past|to)\s+(\d{1,2})", unicode: true);
+  for (final m in q.allMatches(d.low).toList().reversed) {
+    var h = int.parse(m[3]!);
+    var mi = m[1] == 'half' ? 30 : 15;
+    if (m[2] == 'to') { h = h == 1 ? 12 : h - 1; mi = 60 - mi; }
+    d.replace(m.start, m.end, 'at $h:${mi.toString().padLeft(2, '0')}');
+  }
+}
+
+void _trClockPhrases(_Doc d) {
+  String hm(int h, int m) => '$h.${m.toString().padLeft(2, '0')}';
+  int mins(String s) => s == 'çeyrek' ? 15 : int.parse(s);
+  final gece_ = _re(r"(\d{1,2})'?\s?(?:[ıiuü]|y[ıiuü]|y?[ae])\s+(çeyrek|\d{1,2})\s+geçe");
+  for (final m in gece_.allMatches(d.low).toList().reversed) {
+    d.replace(m.start, m.end, hm(int.parse(m[1]!), mins(m[2]!)));
+  }
+  final kala = _re(r"(\d{1,2})'?\s?y?[ae]\s+(çeyrek|\d{1,2})\s+kala");
+  for (final m in kala.allMatches(d.low).toList().reversed) {
+    final h = int.parse(m[1]!) - 1;
+    d.replace(m.start, m.end, hm(h == 0 ? 12 : h, 60 - mins(m[2]!)));
+  }
+  final buc = _re(r"(\d{1,2})\s+buçuk('?[dt][ae])?(?!\s+(?:saat|dakika))");
+  for (final m in buc.allMatches(d.low).toList().reversed) {
+    d.replace(m.start, m.end, "${hm(int.parse(m[1]!), 30)}${m[2] == null ? '' : "'${m[2]!.replaceAll("'", '')}"}");
+  }
+  final yarim = _re(r"(?:saat\s+)?yarımda|saat\s+yarım(?!\s+saat)");
+  final ym = yarim.firstMatch(d.low);
+  if (ym != null) d.replace(ym.start, ym.end, '12.30');
+}
+
+String _clean(String s, bool tr, bool dropLeadingTo, bool remind) {
+  var t = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+  t = t.replaceAll(RegExp(r'\s+([,;:])'), r'$1').replaceAll(RegExp(r'([,;:])(?:\s*[,;:])+'), r'$1');
+  t = t.replaceAll(RegExp(r'^[\s,;:.\-]+|[\s,;:.\-]+$'), '');
+  if (!tr) {
+    t = t.replaceAll(RegExp(r'\s+(at|on|by|in|for|until)$'), '');
+    if (dropLeadingTo) t = t.replaceFirst(RegExp(r'^to\s+'), '');
+  }
+  if (tr && remind) {
+    // "annemi aramayı" -> "annemi ara", "ilaç içmemi" -> "ilaç iç"
+    t = t.replaceFirstMapped(RegExp(r'(\p{L}+?)m[ae](?:y[ıi]|m[ıi]|m[ıi]z[ıi]|k|sını|sini)$', unicode: true), (m) => m[1]!);
+  }
+  t = t.trim();
+  return t.isEmpty ? t : tt.capitalize(t, turkish: tr);
+}
