@@ -36,12 +36,14 @@ final class PamnotLaunchBridge: NSObject, FlutterPlugin, FlutterSceneLifeCycleDe
   }
 
   /// Only pamnot://ses and pamnot://voice; home_widget's `?homeWidget` links are left alone.
+  /// Any app or web page can open a link, so it asks for "voice-link": Dart opens the screen
+  /// paused, and listening needs a tap inside Pamnot ("voice", from VoiceTaskIntent, listens).
   /// Nothing in the URL is ever saved as a task.
   private func claim(_ url: URL) -> Bool {
     guard url.scheme?.lowercased() == "pamnot", let host = url.host?.lowercased(),
       host == "ses" || host == "voice"
     else { return false }
-    request("voice")
+    request("voice-link")
     return true
   }
 

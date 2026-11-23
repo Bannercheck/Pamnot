@@ -948,4 +948,77 @@ void main() {
     await c.close();
     await h.dispose(tester);
   });
+
+  // ------------------------------------------- R9: a link opens paused
+
+  testWidgets('R9: bağlantıyla açılış duraklatılmış başlar; dokunmadan motor çağrılmaz, dokununca dinler', (
+    tester,
+  ) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = VoiceCaptureController(app: h.app, engine: e, deviceLocales: () => const [Locale('tr', 'TR')]);
+    unawaited(c.open(autoListen: false));
+    expect(c.phase, VoicePhase.paused);
+    // Neither the permission check nor the microphone, however long it waits.
+    await tester.pump(VoiceTimings.startDelay * 2);
+    await tester.pump(const Duration(seconds: 30));
+    expect((c.phase, e.listening), (VoicePhase.paused, false));
+    expect(e.calls, isEmpty);
+    expect(h.app.tasks, isEmpty);
+    // A tap inside Pamnot: the opening steps, then listening.
+    c.toggleMic();
+    expect(c.phase, VoicePhase.preparing);
+    await tester.pump();
+    expect(e.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
+    expect((c.phase, e.listening), (VoicePhase.listening, true));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('R9: bağlantıyla açılan ekranda izin yoksa dokunuş izin kartını gösterir', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine(availability: SpeechAvailability.permissionDenied);
+    final c = VoiceCaptureController(app: h.app, engine: e, deviceLocales: () => const [Locale('tr', 'TR')]);
+    unawaited(c.open(autoListen: false));
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect(e.calls, isEmpty);
+    c.toggleMic();
+    await tester.pump();
+    expect(c.phase, VoicePhase.permissionDenied);
+    expect(e.calls, ['resolve', 'prepare:tr-TR']);
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('R9: bağlantıyla arka planda açılan ekran öne gelince de dinlemez', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = VoiceCaptureController(app: h.app, engine: e, deviceLocales: () => const [Locale('tr', 'TR')]);
+    unawaited(c.open(lifecycle: AppLifecycleState.hidden, autoListen: false));
+    expect(c.phase, VoicePhase.paused);
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump(VoiceTimings.startDelay * 2);
+    await tester.pump();
+    expect((c.phase, e.listening), (VoicePhase.paused, false));
+    expect(e.calls, isEmpty);
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('R9: bağlantıyla açık ekranda kestirme isteği hazırlanıp dinler', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = VoiceCaptureController(app: h.app, engine: e, deviceLocales: () => const [Locale('tr', 'TR')]);
+    unawaited(c.open(autoListen: false));
+    await tester.pump(VoiceTimings.startDelay);
+    expect(e.calls, isEmpty);
+    // The user's own shortcut (an App Intent), run while the screen waits.
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay);
+    await tester.pump();
+    expect(e.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
+    expect((c.phase, e.listening), (VoicePhase.listening, true));
+    await c.close();
+    await h.dispose(tester);
+  });
 }

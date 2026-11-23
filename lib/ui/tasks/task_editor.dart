@@ -353,7 +353,7 @@ class _QuickAddFieldState extends State<QuickAddField> {
                     IconButton(
                       icon: const Icon(Icons.mic_none_rounded),
                       tooltip: s.voiceMicTooltip,
-                      onPressed: () => voiceRequests.value = true,
+                      onPressed: () => voiceRequests.value = VoiceRequest.listen,
                     ),
                     const SizedBox(width: 8),
                   ],

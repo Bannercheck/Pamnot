@@ -50,13 +50,14 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
   /// pamnot:// links stop here. This observer is registered before
   /// MaterialApp's, so they never become Navigator routes (which would push
   /// a second HomeShell or fail to find a route). Only `ses` and `voice` ask
-  /// for the voice screen; nothing else in the link is read, so a link never
-  /// writes a task.
+  /// for the voice screen, which opens paused: any app or page can open a
+  /// link, so listening needs a tap inside Pamnot. Nothing else in the link
+  /// is read, so a link never writes a task.
   @override
   Future<bool> didPushRouteInformation(RouteInformation routeInformation) async {
     final uri = routeInformation.uri;
     if (uri.scheme != 'pamnot') return false;
-    if (uri.host == 'ses' || uri.host == 'voice') voiceRequests.value = true;
+    if (uri.host == 'ses' || uri.host == 'voice') voiceRequests.value = VoiceRequest.link;
     return true;
   }
 

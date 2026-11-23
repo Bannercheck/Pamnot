@@ -99,8 +99,9 @@ Not: `main`'e birleştirmeden önce bu liste cihazda geçilir.
       Komutu söyleyince ekran açılıp dinlemeli (Sesle Denetim mikrofonu kendisi de kullanır).
 - [ ] Siri'ye "Pamnot ile görev ekle" deyin: ekran açılmalı.
 - [ ] Bugün ekranındaki hızlı eklemede mikrofon düğmesine dokunun: ekran açılmalı.
-- [ ] Safari'nin adres çubuğuna `pamnot://ses` yazın: Pamnot Sesle ekle ekranıyla açılmalı. Ekran
-      kapanınca altta tek bir ana ekran kalmalı; ikinci bir ana ekran açılmamalı.
+- [ ] Safari'nin adres çubuğuna `pamnot://ses` yazın: Pamnot Sesle ekle ekranıyla duraklatılmış açılmalı
+      ("Devam etmek için dokun"); mikrofona dokunmadan dinlememeli. Ekran kapanınca altta tek bir ana
+      ekran kalmalı; ikinci bir ana ekran açılmamalı.
 - [ ] "yarın akşam yedide annemi ara" deyin: önizlemede **Yarın 19:00** ve zil simgesi (hatırlatma
       açık) görünmeli.
 - [ ] "saat üçte dişçi" deyin: önizlemede **15:00 ?** görünmeli (saat tahmini).

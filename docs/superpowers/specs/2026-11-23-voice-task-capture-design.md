@@ -163,7 +163,9 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
   mikrofonun dokunuş beklediği durumlarda (duraklatıldı, kaydedildi, hata) mikrofona dokunulmuş gibi
   dinlemeye başlar; hazırlanırken, dinlerken, önizlemede, düzeltmede ve bildirim izni sorulurken yok
   sayılır.
-- Bağlantı yalnızca ekranı açar; içinde metin olsa bile görev yazmaz.
+- Bağlantı yalnızca ekranı açar; içinde metin olsa bile görev yazmaz. Her uygulama ve sayfa bağlantı
+  açabildiği için ekran duraklatılmış açılır (köprüde `voice-link`, Dart'ta `VoiceRequest.link`):
+  dinlemek için Pamnot içinde dokunmak gerekir; ekran açıkken gelen bağlantı hiçbir şeyi değiştirmez.
 
 ### 6.3 Konuşma tanıma motoru
 

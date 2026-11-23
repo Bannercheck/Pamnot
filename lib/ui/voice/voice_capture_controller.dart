@@ -196,11 +196,16 @@ class VoiceCaptureController extends ChangeNotifier {
   /// Starts listening once the app is in the foreground ([lifecycle] null or
   /// resumed), after [VoiceTimings.startDelay]. Permissions are asked here,
   /// by the engine's prepare(), and nowhere else.
-  Future<void> open({AppLifecycleState? lifecycle}) async {
+  ///
+  /// [autoListen] false (opened by a pamnot:// link, which any app or web
+  /// page can open): the screen waits for a tap in [VoicePhase.paused], and
+  /// neither the permission check nor the microphone runs before it.
+  Future<void> open({AppLifecycleState? lifecycle, bool autoListen = true}) async {
     if (_closed || _events != null) return;
     _events = engine.events.listen(_onEvent);
     if (!engine.isSupported) return _setPhase(VoicePhase.unsupportedPlatform);
     _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
+    if (!autoListen) return _setPhase(VoicePhase.paused);
     if (_foreground) {
       _scheduleOpen();
     } else {
@@ -423,13 +428,14 @@ class VoiceCaptureController extends ChangeNotifier {
 
   /// While listening: stops and previews what was said; with nothing said
   /// the microphone stays off. After a save, a pause or an error: listens
-  /// again.
+  /// again. Not prepared yet (opened by a link, or preparing failed): the
+  /// opening steps run first.
   void toggleMic() {
     switch (_phase) {
       case VoicePhase.listening:
         _stopRequested = true;
         _stopListening();
-      case VoicePhase.error when !_prepared:
+      case VoicePhase.error || VoicePhase.paused when !_prepared:
         _setPhase(VoicePhase.preparing);
         unawaited(_prepareAndListen());
       case VoicePhase.saved || VoicePhase.paused || VoicePhase.error:

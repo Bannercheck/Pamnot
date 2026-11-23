@@ -18,9 +18,13 @@ import 'voice_capture_controller.dart';
 /// It only draws [VoiceCaptureController]; every timing lives there.
 class VoiceCapturePage extends StatefulWidget {
   /// [engine] null uses the app's engine (`AppController.speech`).
-  const VoiceCapturePage({super.key, this.engine});
+  const VoiceCapturePage({super.key, this.engine, this.autoListen = true});
 
   final SpeechEngine? engine;
+
+  /// False when a pamnot:// link opened the screen: it waits for a tap
+  /// before it listens (see [VoiceCaptureController.open]).
+  final bool autoListen;
 
   static bool _open = false;
 
@@ -37,8 +41,9 @@ class VoiceCapturePage extends StatefulWidget {
 
   /// Opens the screen full screen on the root navigator; does nothing while
   /// one is already open. When it closes having saved something, a summary
-  /// snack bar is shown where it was opened from.
-  static Future<void> open(BuildContext context) async {
+  /// snack bar is shown where it was opened from. [autoListen] false (a
+  /// pamnot:// link) opens it paused, waiting for a tap.
+  static Future<void> open(BuildContext context, {bool autoListen = true}) async {
     if (_open) return;
     _open = true;
     try {
@@ -49,7 +54,9 @@ class VoiceCapturePage extends StatefulWidget {
       final saved = await Navigator.of(
         context,
         rootNavigator: true,
-      ).push<int>(MaterialPageRoute(fullscreenDialog: true, builder: (_) => const VoiceCapturePage()));
+      ).push<int>(
+        MaterialPageRoute(fullscreenDialog: true, builder: (_) => VoiceCapturePage(autoListen: autoListen)),
+      );
       if (saved != null && saved > 0) {
         messenger
           ?..hideCurrentSnackBar()
@@ -122,7 +129,7 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
     );
     _countdown = AnimationController(vsync: this, duration: VoiceTimings.previewHold);
     _lifecycle = AppLifecycleListener(onStateChange: _c.onLifecycle);
-    unawaited(_c.open(lifecycle: WidgetsBinding.instance.lifecycleState));
+    unawaited(_c.open(lifecycle: WidgetsBinding.instance.lifecycleState, autoListen: widget.autoListen));
     // After open(): it can change the phase at once (unsupported platform),
     // and the first build shows that anyway.
     _phase = _c.phase;

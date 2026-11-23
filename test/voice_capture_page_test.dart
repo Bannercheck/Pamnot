@@ -18,7 +18,8 @@ import 'support/fake_speech_engine.dart';
 import 'support/voice_harness.dart';
 
 /// Shows the voice screen as the app's home with a Turkish phone, and waits
-/// until the first listen has started.
+/// until the first listen has started ([autoListen] false: opened by a
+/// pamnot:// link, it waits for a tap instead).
 Future<FakeSpeechEngine> pumpPage(
   WidgetTester tester,
   VoiceHarness h, {
@@ -27,6 +28,7 @@ Future<FakeSpeechEngine> pumpPage(
   double textScale = 1,
   ThemeData? theme,
   bool accessibleNavigation = false,
+  bool autoListen = true,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -48,7 +50,7 @@ Future<FakeSpeechEngine> pumpPage(
               .copyWith(textScaler: TextScaler.linear(textScale), accessibleNavigation: accessibleNavigation),
           child: child!,
         ),
-        home: VoiceCapturePage(engine: e),
+        home: VoiceCapturePage(engine: e, autoListen: autoListen),
       ),
     ),
   );
@@ -843,4 +845,45 @@ void main() {
       await shutdown(tester, h);
     });
   }
+
+  // ------------------------------------------- R9: a link opens paused
+
+  testWidgets('R9: bağlantıyla açılan ekran "Duraklatıldı · Devam etmek için dokun" gösterir; mikrofon dokunuşla açılır', (
+    tester,
+  ) async {
+    final h = await VoiceHarness.create(tester);
+    final e = await pumpPage(tester, h, autoListen: false);
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+    expect(find.text('Devam etmek için dokun'), findsOneWidget);
+    expect(find.text('Dinliyorum…'), findsNothing);
+    expect(find.byTooltip('Dinlemeyi başlat'), findsOneWidget);
+    expect(e.calls, isEmpty);
+    expect(e.listening, isFalse);
+    expect(h.app.tasks, isEmpty);
+
+    await tester.tap(find.byKey(const Key('voice-mic')));
+    await tester.pump();
+    expect(e.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
+    expect(e.listening, isTrue);
+    expect(find.text('Dinliyorum…'), findsOneWidget);
+    await shutdown(tester, h);
+  });
+
+  testWidgets('R9: open(autoListen: false) ekranı açar ama dinlemez', (tester) async {
+    final e = FakeSpeechEngine();
+    final h = await VoiceHarness.create(tester, speech: e);
+    await pumpLauncher(tester, h);
+    unawaited(VoiceCapturePage.open(tester.element(find.text('Aç')), autoListen: false));
+    await settleRoute(tester);
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(VoiceCapturePage), findsOneWidget);
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+    expect(e.calls, isEmpty);
+    expect(e.listening, isFalse);
+    await tester.tap(find.byKey(const Key('voice-close')));
+    await settleRoute(tester);
+    expect(VoiceCapturePage.isOpen, isFalse);
+    await shutdown(tester, h);
+  });
 }

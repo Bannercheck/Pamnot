@@ -27,12 +27,12 @@ void main() {
   late FakeSpeechEngine engine;
 
   setUp(() {
-    voiceRequests.value = false;
+    voiceRequests.value = null;
     notificationTaps.value = null;
   });
 
   tearDown(() {
-    voiceRequests.value = false;
+    voiceRequests.value = null;
     notificationTaps.value = null;
   });
 
@@ -83,14 +83,25 @@ void main() {
 
   Finder inQuickAdd(Finder f) => find.descendant(of: find.byType(QuickAddField), matching: f);
 
-  testWidgets('pamnot://ses ekranı açar; ikinci HomeShell eklenmez', (tester) async {
+  testWidgets('pamnot://ses ekranı duraklatılmış açar; ikinci HomeShell eklenmez', (tester) async {
     await boot(tester);
     await push(tester, 'pamnot://ses');
     expect(find.byType(VoiceCapturePage), findsOneWidget);
     expect(find.byType(HomeShell, skipOffstage: false), findsOneWidget);
-    expect(voiceRequests.value, isFalse);
-    // The screen is the one opened from HomeShell, and it listens.
+    expect(voiceRequests.value, isNull);
+    // The screen is the one opened from HomeShell. Any app or page can open
+    // a link (R9): it waits for a tap inside Pamnot, without asking for
+    // permissions or turning the microphone on.
     expect(VoiceCapturePage.isOpen, isTrue);
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+    expect(find.text('Devam etmek için dokun'), findsOneWidget);
+    expect(engine.calls, isEmpty);
+    expect(engine.listening, isFalse);
+    // The tap starts it.
+    await tester.tap(find.byKey(const Key('voice-mic')));
+    await tester.pump();
+    expect(engine.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
     expect(engine.listening, isTrue);
     await shutdown(tester);
   });
@@ -102,7 +113,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(VoiceCapturePage), findsNothing);
     expect(find.byType(HomeShell, skipOffstage: false), findsOneWidget);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
     // Still on the Today tab, with nothing pushed over it.
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
     expect(find.byType(QuickAddField), findsOneWidget);
@@ -110,7 +121,7 @@ void main() {
     await push(tester, 'pamnot://voice');
     expect(find.byType(VoiceCapturePage), findsOneWidget);
     expect(find.byType(HomeShell, skipOffstage: false), findsOneWidget);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
     await shutdown(tester);
   });
 
@@ -129,12 +140,16 @@ void main() {
 
   testWidgets('RF4: ekran açıkken gelen ikinci istek yok sayılır', (tester) async {
     await boot(tester);
+    // The shortcut opens the screen and it listens.
+    voiceRequests.value = VoiceRequest.listen;
+    await tester.pumpAndSettle();
+    expect(engine.listening, isTrue);
     await push(tester, 'pamnot://ses');
     await push(tester, 'pamnot://ses');
-    voiceRequests.value = true;
+    voiceRequests.value = VoiceRequest.listen;
     await tester.pump();
     expect(find.byType(VoiceCapturePage), findsOneWidget);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
     // The open screen was not restarted: one permission check, one listen.
     await tester.pump(const Duration(seconds: 1));
     expect(engine.calls.where((call) => call.startsWith('prepare:')), hasLength(1));
@@ -144,7 +159,8 @@ void main() {
 
   testWidgets('F6: ekran açık ve duraklatılmışken gelen istek yeniden dinletir', (tester) async {
     await boot(tester);
-    await push(tester, 'pamnot://ses');
+    voiceRequests.value = VoiceRequest.listen;
+    await tester.pumpAndSettle();
     expect(engine.listening, isTrue);
     // Stopped with nothing said: the screen waits for a tap.
     await tester.tap(find.byKey(const Key('voice-mic')));
@@ -152,17 +168,17 @@ void main() {
     expect(find.text('Duraklatıldı'), findsOneWidget);
     expect(engine.listening, isFalse);
     // The shortcut again: it listens, as a tap on the microphone would.
-    voiceRequests.value = true;
+    voiceRequests.value = VoiceRequest.listen;
     await tester.pump();
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
     await tester.pump(VoiceTimings.startDelay);
     expect(engine.listening, isTrue);
     expect(find.text('Dinliyorum…'), findsOneWidget);
     expect(find.byType(VoiceCapturePage), findsOneWidget);
     // While listening, a request still changes nothing.
-    voiceRequests.value = true;
+    voiceRequests.value = VoiceRequest.listen;
     await tester.pump(const Duration(seconds: 1));
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
     expect(engine.calls.where((call) => call.startsWith('start:')), hasLength(2));
     expect(engine.calls.where((call) => call.startsWith('prepare:')), hasLength(1));
     expect(engine.listening, isTrue);
@@ -173,11 +189,56 @@ void main() {
 
   testWidgets('HomeShell kurulmadan önce gelen istek ilk kareden sonra açılır', (tester) async {
     // The shortcut was run before the app started.
-    voiceRequests.value = true;
+    voiceRequests.value = VoiceRequest.listen;
     await boot(tester);
     expect(find.byType(VoiceCapturePage), findsOneWidget);
     expect(find.byType(HomeShell, skipOffstage: false), findsOneWidget);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
+    expect(engine.listening, isTrue);
+    await shutdown(tester);
+  });
+
+  testWidgets('R9: uygulamayı açan bağlantı ilk kareden sonra ekranı duraklatılmış açar', (tester) async {
+    // A pamnot://ses link launched the app (iOS: the bridge's "voice-link").
+    voiceRequests.value = VoiceRequest.link;
+    await boot(tester);
+    expect(find.byType(VoiceCapturePage), findsOneWidget);
+    expect(voiceRequests.value, isNull);
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+    expect(engine.calls, isEmpty);
+    expect(engine.listening, isFalse);
+    await shutdown(tester);
+  });
+
+  testWidgets('R9: ekran açıkken gelen bağlantı dinletmez; kestirme dinletir', (tester) async {
+    await boot(tester);
+    await push(tester, 'pamnot://ses');
+    // Another link while the link-opened screen waits for a tap.
+    await push(tester, 'pamnot://voice');
+    voiceRequests.value = VoiceRequest.link;
+    await tester.pump(const Duration(seconds: 1));
+    expect(voiceRequests.value, isNull);
+    expect(find.byType(VoiceCapturePage), findsOneWidget);
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+    expect(engine.calls, isEmpty);
+    expect(engine.listening, isFalse);
+
+    // The user's own shortcut does listen.
+    voiceRequests.value = VoiceRequest.listen;
+    await tester.pump();
+    await tester.pump(VoiceTimings.startDelay);
+    expect(engine.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
+    expect(engine.listening, isTrue);
+
+    // Stopped with nothing said: paused after a listen, a link still
+    // changes nothing.
+    await tester.tap(find.byKey(const Key('voice-mic')));
+    await tester.pump();
+    expect((find.text('Duraklatıldı').evaluate().length, engine.listening), (1, false));
+    await push(tester, 'pamnot://ses');
+    await tester.pump(VoiceTimings.startDelay * 2);
+    expect(engine.listening, isFalse);
+    expect(engine.calls.where((call) => call.startsWith('start:')), hasLength(1));
     await shutdown(tester);
   });
 
@@ -201,7 +262,9 @@ void main() {
     await tester.tap(mic);
     await tester.pumpAndSettle();
     expect(find.byType(VoiceCapturePage), findsOneWidget);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
+    // A tap inside Pamnot: the screen listens.
+    expect(engine.listening, isTrue);
     // Nothing was typed, so nothing was added.
     expect(find.byType(SnackBar), findsNothing);
     await shutdown(tester);
@@ -264,7 +327,7 @@ void main() {
     expect(find.byType(RemindersPage), findsOneWidget);
     expect(notificationTaps.value, isNull);
     expect(find.byType(VoiceCapturePage), findsNothing);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
     await shutdown(tester);
   });
 }

@@ -3,10 +3,22 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-/// A request to open the "Add by voice" screen (the shortcut, a pamnot://ses
-/// link, the microphone button). HomeShell consumes it and sets it back to
-/// false, the way it consumes `notificationTaps`.
-final voiceRequests = ValueNotifier<bool>(false);
+/// Where a request to open the "Add by voice" screen came from.
+enum VoiceRequest {
+  /// The user's own action: the App Intent (Shortcuts, the Action button,
+  /// Back Tap, Siri) or the microphone button in the app. The screen opens
+  /// and listens.
+  listen,
+
+  /// A pamnot://ses or pamnot://voice link, which any app or web page can
+  /// open. The screen opens paused: listening needs a tap inside Pamnot, and
+  /// a link while the screen is open changes nothing.
+  link,
+}
+
+/// A request to open the "Add by voice" screen. HomeShell consumes it and
+/// sets it back to null, the way it consumes `notificationTaps`.
+final voiceRequests = ValueNotifier<VoiceRequest?>(null);
 
 /// The Dart side of ios/Runner/PamnotLaunchBridge.swift. The native side
 /// holds one pending action; Dart takes it with `takePendingAction`, and is
@@ -29,13 +41,20 @@ abstract final class LaunchActionsBridge {
     unawaited(pull());
   }
 
-  /// Takes the pending action, if any; 'voice' becomes a [voiceRequests]
-  /// request, other actions are ignored. Does nothing outside iOS.
+  /// Takes the pending action, if any: 'voice' (the App Intent) becomes a
+  /// [VoiceRequest.listen] request, 'voice-link' (a pamnot://ses or
+  /// pamnot://voice link) a [VoiceRequest.link] one; other actions are
+  /// ignored. Does nothing outside iOS.
   static Future<void> pull() async {
     if (!_available) return;
     try {
       final action = await _channel.invokeMethod<String>('takePendingAction');
-      if (action == 'voice') voiceRequests.value = true;
+      final request = switch (action) {
+        'voice' => VoiceRequest.listen,
+        'voice-link' => VoiceRequest.link,
+        _ => null,
+      };
+      if (request != null) voiceRequests.value = request;
     } on MissingPluginException {
       // The bridge is not registered (widget tests).
     }

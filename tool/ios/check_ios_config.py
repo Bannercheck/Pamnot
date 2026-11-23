@@ -2,7 +2,8 @@
 """Checks the iOS configuration of the voice-capture feature without a Mac.
 
 Covers Info.plist, the privacy manifest, the en/tr .strings tables, the App Shortcut
-phrases in VoiceTaskIntent.swift and the launch-bridge registration in AppDelegate.swift.
+phrases in VoiceTaskIntent.swift, the launch-bridge registration in AppDelegate.swift and
+the bridge's two actions ("voice" from the App Intent only, "voice-link" for pamnot:// links).
 Standard library only. Prints every failure and exits 1; prints `ios config ok` on success.
 
 Usage: python3 tool/ios/check_ios_config.py
@@ -259,6 +260,8 @@ def check_intent(tables):
     if raw is None:
         return
     source = strip_swift_comments(raw)
+    if 'PamnotLaunchBridge.shared.request("voice")' not in source:
+        fail('VoiceTaskIntent.swift: perform() must call PamnotLaunchBridge.shared.request("voice")')
     for word in ("shortTitle", "systemImageName", "#available"):
         if word in source:
             fail(f"VoiceTaskIntent.swift: {word} must not be used (iOS 16 AppShortcut initializer)")
@@ -352,6 +355,12 @@ def check_bridge():
                    "static let shared", '"ses"', '"voice"'):
         if needle not in source:
             fail(f"PamnotLaunchBridge.swift: {needle} not found")
+    # A pamnot:// link can come from any app or page: it asks for "voice-link", which
+    # Dart opens paused (no listening without a tap). Only the App Intent asks for "voice".
+    if 'request("voice-link")' not in source:
+        fail('PamnotLaunchBridge.swift: a claimed link must call request("voice-link")')
+    if 'request("voice")' in source:
+        fail('PamnotLaunchBridge.swift: request("voice") (listen at once) is for the App Intent only')
 
 
 def main():

@@ -38,7 +38,7 @@ void main() {
   setUp(() {
     calls = [];
     pending = null;
-    voiceRequests.value = false;
+    voiceRequests.value = null;
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
   });
 
@@ -47,18 +47,35 @@ void main() {
     // start() installs a handler for calls from the native side.
     channel.setMethodCallHandler(null);
     debugDefaultTargetPlatformOverride = null;
-    voiceRequests.value = false;
+    voiceRequests.value = null;
   });
 
-  test('iOS: start bekleyen "voice" eylemini çeker', () async {
+  test('iOS: start bekleyen "voice" eylemini çeker (kestirme: açar ve dinler)', () async {
     mockNative();
     pending = 'voice';
     LaunchActionsBridge.start();
     await pumpEventQueue();
-    expect(voiceRequests.value, isTrue);
+    expect(voiceRequests.value, VoiceRequest.listen);
     expect(calls, ['takePendingAction']);
     // The native side gives an action out once.
     expect(pending, isNull);
+  });
+
+  test('R9: "voice-link" (pamnot://ses|voice) ekranı dinlemeden açma isteği olur', () async {
+    mockNative();
+    pending = 'voice-link';
+    LaunchActionsBridge.start();
+    await pumpEventQueue();
+    expect(voiceRequests.value, VoiceRequest.link);
+    expect(calls, ['takePendingAction']);
+    expect(pending, isNull);
+
+    // The shortcut while the app is open still asks to listen.
+    voiceRequests.value = null;
+    pending = 'voice';
+    await nativeSendsActionAvailable();
+    await pumpEventQueue();
+    expect(voiceRequests.value, VoiceRequest.listen);
   });
 
   test('bekleyen eylem yoksa istek oluşmaz', () async {
@@ -66,7 +83,7 @@ void main() {
     LaunchActionsBridge.start();
     await pumpEventQueue();
     expect(calls, ['takePendingAction']);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
   });
 
   test('bilinmeyen eylem yok sayılır', () async {
@@ -75,20 +92,20 @@ void main() {
     LaunchActionsBridge.start();
     await pumpEventQueue();
     expect(calls, ['takePendingAction']);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
   });
 
   test('actionAvailable gelince yeniden çeker', () async {
     mockNative();
     LaunchActionsBridge.start();
     await pumpEventQueue();
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
 
     // A shortcut runs while the app is open.
     pending = 'voice';
     await nativeSendsActionAvailable();
     await pumpEventQueue();
-    expect(voiceRequests.value, isTrue);
+    expect(voiceRequests.value, VoiceRequest.listen);
     expect(calls, ['takePendingAction', 'takePendingAction']);
   });
 
@@ -96,13 +113,13 @@ void main() {
     mockNative();
     pending = 'voice';
     await LaunchActionsBridge.pull();
-    expect(voiceRequests.value, isTrue);
+    expect(voiceRequests.value, VoiceRequest.listen);
     expect(calls, ['takePendingAction']);
 
     // Nothing waiting on the next resume: an earlier request stays as it is.
-    voiceRequests.value = false;
+    voiceRequests.value = null;
     await LaunchActionsBridge.pull();
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
     expect(calls, ['takePendingAction', 'takePendingAction']);
   });
 
@@ -111,7 +128,7 @@ void main() {
     LaunchActionsBridge.start();
     await pumpEventQueue();
     await expectLater(LaunchActionsBridge.pull(), completes);
-    expect(voiceRequests.value, isFalse);
+    expect(voiceRequests.value, isNull);
   });
 
   test('iOS dışında kanal hiç çağrılmaz', () async {
@@ -123,7 +140,7 @@ void main() {
       await LaunchActionsBridge.pull();
       await pumpEventQueue();
       expect(calls, isEmpty, reason: '$platform');
-      expect(voiceRequests.value, isFalse, reason: '$platform');
+      expect(voiceRequests.value, isNull, reason: '$platform');
     }
     // start() listened to nothing either: a message from the native side
     // finds no handler and gets no reply.
