@@ -51,7 +51,7 @@ void main() {
 
     await tester.tap(find.text('Notlar').last);
     await tester.pumpAndSettle();
-    expect(find.text('Alışveriş listesi'), findsOneWidget);
+    expect(find.textContaining('hoş geldin'), findsOneWidget);
 
     await tester.tap(find.text('Yeni not'));
     await tester.pumpAndSettle();

@@ -35,7 +35,7 @@ void main() {
     final store = MemoryStore();
     final c = await fresh(store);
     expect(c.notes, isNotEmpty);
-    expect(c.tasks, isNotEmpty);
+    expect(c.tasks, isEmpty);
     expect(c.settings.seeded, isTrue);
     await c.flush();
     expect(store.data.keys, containsAll(['notes', 'tasks', 'reminders', 'habits', 'settings']));
@@ -95,6 +95,9 @@ void main() {
 
   test('agenda orders timed entries before all-day ones', () async {
     final c = await fresh(MemoryStore());
+    // All-day first, so the sort has to move the timed entry ahead of it.
+    c.addQuickTask('bugün annemi ara');
+    c.addQuickTask('bugün 10:00 sunum');
     final day = DateTime(2026, 10, 27);
     final entries = c.agenda(day);
     expect(entries, isNotEmpty);
