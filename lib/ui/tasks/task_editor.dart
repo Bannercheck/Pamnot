@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/dates.dart';
 import '../../l10n/strings.dart';
 import '../../models/task.dart';
+import '../../services/launch_actions.dart';
 import '../../state/app_controller.dart';
 import '../common/format.dart';
 import '../common/prediction_bar.dart';
@@ -342,7 +343,22 @@ class _QuickAddFieldState extends State<QuickAddField> {
             decoration: InputDecoration(
               hintText: widget.hint ?? s.quickCaptureHint,
               prefixIcon: const Icon(Icons.add_task_rounded),
-              suffixIcon: IconButton(icon: const Icon(Icons.arrow_upward_rounded), onPressed: _submit),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Showing it asks for no permission and does not touch the
+                  // speech plugin; the voice screen does that when it opens.
+                  if (widget.app.speech.isSupported) ...[
+                    IconButton(
+                      icon: const Icon(Icons.mic_none_rounded),
+                      tooltip: s.voiceMicTooltip,
+                      onPressed: () => voiceRequests.value = true,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  IconButton(icon: const Icon(Icons.arrow_upward_rounded), tooltip: s.add, onPressed: _submit),
+                ],
+              ),
             ),
           ),
         ),

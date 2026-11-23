@@ -8,13 +8,17 @@ import 'app.dart';
 import 'data/store.dart';
 import 'prediction/word_predictor.dart';
 import 'services/handwriting.dart';
+import 'services/launch_actions.dart';
 import 'services/reminder_scheduler.dart';
+import 'services/speech/stt_speech_engine.dart';
 import 'services/widget_sync.dart';
 import 'state/app_controller.dart';
 import 'ui/home_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before runApp: a shortcut that launched the app is waiting on the iOS side.
+  LaunchActionsBridge.start();
   await initializeDateFormatting();
 
   final scheduler = LocalNotificationScheduler(onTap: (payload) => notificationTaps.value = payload);
@@ -24,6 +28,8 @@ Future<void> main() async {
     scheduler: scheduler,
     widgetSync: widgets,
     handwriting: HandwritingRecognizer.platformDefault(),
+    // Building the engine asks for no permission and does not call the plugin.
+    speech: createSpeechEngine(),
   );
   await controller.load();
   runApp(PamnotApp(controller: controller));

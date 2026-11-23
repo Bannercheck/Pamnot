@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/strings.dart';
+import '../services/launch_actions.dart';
 import '../state/app_scope.dart';
 import 'notes/note_editor_page.dart';
 import 'notes/notes_page.dart';
@@ -10,6 +13,7 @@ import 'planner/planner_page.dart';
 import 'reminders/reminders_page.dart';
 import 'tasks/track_page.dart';
 import 'today/today_page.dart';
+import 'voice/voice_capture_page.dart';
 
 /// Payloads of tapped notifications (`r:<id>` or `t:<id>`) and home-screen
 /// widgets (`w:today`).
@@ -34,13 +38,19 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     notificationTaps.addListener(_onNotification);
-    // A tap that launched the app may have arrived before this shell existed.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _onNotification());
+    voiceRequests.addListener(_onVoiceRequest);
+    // A tap or a voice request that launched the app may have arrived before
+    // this shell existed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _onNotification();
+      _onVoiceRequest();
+    });
   }
 
   @override
   void dispose() {
     notificationTaps.removeListener(_onNotification);
+    voiceRequests.removeListener(_onVoiceRequest);
     super.dispose();
   }
 
@@ -49,6 +59,15 @@ class _HomeShellState extends State<HomeShell> {
     if (p == null) return;
     _go(p.startsWith('w:') ? 0 : (p.startsWith('t:') ? 2 : 4));
     notificationTaps.value = null;
+  }
+
+  /// Opens the voice screen for a request from the shortcut, a link or the
+  /// microphone button. A request while the screen is showing is dropped.
+  void _onVoiceRequest() {
+    if (!voiceRequests.value || !mounted) return;
+    voiceRequests.value = false;
+    if (VoiceCapturePage.isOpen) return;
+    unawaited(VoiceCapturePage.open(context));
   }
 
   void _go(int i) => setState(() {
