@@ -352,7 +352,7 @@ struct PamnotColors {
     let dark = scheme == .dark
     background = Color(hex: dark ? 0x24212B : 0xFBF7F2)
     text = Color(hex: dark ? 0xECE8F4 : 0x3E3A4A)
-    secondary = Color(hex: dark ? 0xA39DB2 : 0x8C8698)
+    secondary = Color(hex: dark ? 0xA39DB2 : 0x6A6478)
     accentText = Color(hex: dark ? 0xB9ACEB : 0x7A68C2)
     track = Color(hex: dark ? 0x363140 : 0xEFE8F6)
     pill = PamnotPalette.lavender.opacity(dark ? 0.2 : 0.14)

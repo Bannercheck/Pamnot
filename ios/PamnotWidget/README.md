@@ -10,6 +10,7 @@ Swift sources for the "Pamnot · Today" widget: home screen `systemSmall` / `sys
 | `Info.plist` | Extension Info.plist (`com.apple.widgetkit-extension`) |
 | `PamnotWidget.entitlements` | App Group `group.app.pamnot.shared` |
 | `PamnotWidget.xcconfig` | Base config: version numbers from `flutter build` |
+| `PrivacyInfo.xcprivacy` | Privacy manifest: App Group user defaults only (`1C8F.1`), no tracking, no collected data |
 
 Contract with the Flutter side (keep in sync):
 
@@ -41,12 +42,15 @@ error-prone, so let Xcode create the target, then swap in these sources.
 3. Delete the Swift files and `Info.plist` that Xcode generated in the `PamnotWidget` group (Move to
    Trash). Keep `Assets.xcassets`. Then put our files back:
    `cp /tmp/PamnotWidget-src/* ios/PamnotWidget/`
-   - In older Xcode (plain groups), add `PamnotWidgetBundle.swift` and `PamnotTodayWidget.swift` to
-     the group, with target membership **PamnotWidgetExtension** only.
+   - In older Xcode (plain groups), add `PamnotWidgetBundle.swift`, `PamnotTodayWidget.swift` and
+     `PrivacyInfo.xcprivacy` to the group, with target membership **PamnotWidgetExtension** only.
    - In Xcode 16+ (synchronized folder), the files are picked up automatically. Open the folder's
      File inspector and remove `Info.plist`, `README.md`, `PamnotWidget.xcconfig` and
-     `PamnotWidget.entitlements` from target membership. Only the two `.swift` files and
-     `Assets.xcassets` should be members.
+     `PamnotWidget.entitlements` from target membership. Only the two `.swift` files,
+     `PrivacyInfo.xcprivacy` and `Assets.xcassets` should be members.
+   - `PrivacyInfo.xcprivacy` must be a member of **PamnotWidgetExtension** too, so that it is copied
+     into the `.appex` (Build Phases → Copy Bundle Resources). Every extension bundle needs its own
+     privacy manifest; the widget reads the App Group user defaults (reason `1C8F.1`).
 4. **PamnotWidgetExtension → General → Minimum Deployments:** iOS **16.0**.
 5. **PamnotWidgetExtension → Build Settings** (All configurations):
    - Generate Info.plist File = **No**; Info.plist File = `PamnotWidget/Info.plist`
