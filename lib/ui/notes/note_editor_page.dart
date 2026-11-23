@@ -149,9 +149,14 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     final strokes = _ink.strokes;
     final lines = segmentLines(strokes);
     if (lines.isEmpty) return;
+    // The model is about 20 MB and may come over mobile data: say so and
+    // ask first. Nothing is downloaded or recognised unless the user agrees.
+    final ready = await rec.isModelReady(model);
+    if (!ready && (!mounted || !await _confirmModelDownload())) return;
+    if (!mounted) return;
     setState(() => _converting = true);
     try {
-      if (!await rec.isModelReady(model)) {
+      if (!ready) {
         messenger.showSnackBar(SnackBar(content: Text(s.downloadingModel)));
         if (!await rec.prepare(model)) {
           messenger.showSnackBar(SnackBar(content: Text(s.recognitionFailed)));
@@ -182,6 +187,22 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     } finally {
       if (mounted) setState(() => _converting = false);
     }
+  }
+
+  Future<bool> _confirmModelDownload() async {
+    final s = S.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(s.handwritingDownloadTitle),
+        content: Text(s.handwritingDownloadBody),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s.cancel)),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text(s.download)),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   Future<(String, bool)?> _pickRecognition(List<String> options) {
@@ -455,8 +476,9 @@ class _ModeToggle extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           onTap: () => onChanged(value),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            duration: motion(context, const Duration(milliseconds: 160)),
+            // 20 pt icon + 24 = a 44 pt target.
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: sel ? c.surfaceContainerLowest : Colors.transparent,
               borderRadius: BorderRadius.circular(14),

@@ -120,6 +120,42 @@ class PamnotTheme {
         inversePrimary: Color(0xFF8A78CF),
       ));
 
+  /// [t] with every text style one step heavier, for iOS Bold Text:
+  /// regular (400 or unset) → 600, 500 and 600 → 700, 700 → 800; 800 and
+  /// above stay as they are.
+  static ThemeData bolder(ThemeData t) => t.copyWith(
+        textTheme: _bolderText(t.textTheme),
+        primaryTextTheme: _bolderText(t.primaryTextTheme),
+      );
+
+  static TextTheme _bolderText(TextTheme t) {
+    TextStyle? b(TextStyle? s) => s?.copyWith(fontWeight: _bolderWeight(s.fontWeight));
+    return t.copyWith(
+      displayLarge: b(t.displayLarge),
+      displayMedium: b(t.displayMedium),
+      displaySmall: b(t.displaySmall),
+      headlineLarge: b(t.headlineLarge),
+      headlineMedium: b(t.headlineMedium),
+      headlineSmall: b(t.headlineSmall),
+      titleLarge: b(t.titleLarge),
+      titleMedium: b(t.titleMedium),
+      titleSmall: b(t.titleSmall),
+      bodyLarge: b(t.bodyLarge),
+      bodyMedium: b(t.bodyMedium),
+      bodySmall: b(t.bodySmall),
+      labelLarge: b(t.labelLarge),
+      labelMedium: b(t.labelMedium),
+      labelSmall: b(t.labelSmall),
+    );
+  }
+
+  static FontWeight _bolderWeight(FontWeight? w) => switch (w?.value ?? 400) {
+        <= 400 => FontWeight.w600,
+        <= 600 => FontWeight.w700,
+        <= 700 => FontWeight.w800,
+        _ => w!,
+      };
+
   static ThemeData _build(ColorScheme c) {
     final base = ThemeData(
       useMaterial3: true,

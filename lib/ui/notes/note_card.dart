@@ -69,9 +69,12 @@ class NoteCard extends StatelessWidget {
                 Icon(Icons.draw_rounded, size: 14, color: p.accent),
                 const SizedBox(width: 4),
               ],
-              Text(
-                formatWhen(s, note.updatedAt, now: now),
-                style: t.textTheme.labelSmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
+              // Wraps rather than overflows at large text sizes.
+              Flexible(
+                child: Text(
+                  formatWhen(s, note.updatedAt, now: now),
+                  style: t.textTheme.labelSmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
+                ),
               ),
             ],
           ),

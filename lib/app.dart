@@ -75,6 +75,10 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
           locale: Locale(app.isTurkish ? 'tr' : 'en'),
           supportedLocales: const [Locale('tr'), Locale('en')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          // iOS Bold Text does not reach a bundled font on its own.
+          builder: (context, child) => MediaQuery.boldTextOf(context)
+              ? Theme(data: PamnotTheme.bolder(Theme.of(context)), child: child!)
+              : child!,
           home: const HomeShell(),
         );
       }),

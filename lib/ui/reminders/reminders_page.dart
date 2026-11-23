@@ -145,7 +145,13 @@ class ReminderTile extends StatelessWidget {
                 ],
               ),
             ),
-            Switch(value: reminder.enabled, onChanged: (_) => app.toggleReminder(reminder.id)),
+            // Read as the reminder it turns on or off.
+            MergeSemantics(
+              child: Semantics(
+                label: reminder.title,
+                child: Switch(value: reminder.enabled, onChanged: (_) => app.toggleReminder(reminder.id)),
+              ),
+            ),
           ],
         ),
       ),
