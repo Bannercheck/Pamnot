@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/dates.dart';
 import '../core/quick_parse.dart';
+import '../core/spoken/spoken_task.dart';
 import '../data/store.dart';
 import '../l10n/strings.dart';
 import '../models/habit.dart';
@@ -16,6 +17,7 @@ import '../models/note.dart';
 import '../models/reminder.dart';
 import '../models/settings.dart';
 import '../models/task.dart';
+import '../models/voice_log.dart';
 import '../prediction/word_predictor.dart';
 import '../services/handwriting.dart';
 import '../services/reminder_scheduler.dart';
@@ -29,6 +31,10 @@ import 'sample_data.dart';
 enum Slice { notes, tasks, reminders, habits, settings }
 
 enum AgendaKind { task, reminder }
+
+/// Where the notification permission stands: never asked by the app, asked
+/// and refused (only the system Settings can change it now), or allowed.
+enum NotificationAccess { notAsked, denied, granted }
 
 class AgendaEntry {
   const AgendaEntry({
@@ -83,6 +89,7 @@ class AppController extends ChangeNotifier {
   List<Reminder> _reminders = [];
   List<Habit> _habits = [];
   AppSettings _settings = const AppSettings();
+  List<VoiceLogEntry> _voiceLog = [];
   WordPredictor? _predictor;
   bool _loaded = false;
 
@@ -91,6 +98,10 @@ class AppController extends ChangeNotifier {
   UnmodifiableListView<Reminder> get reminders => UnmodifiableListView(_reminders);
   UnmodifiableListView<Habit> get habits => UnmodifiableListView(_habits);
   AppSettings get settings => _settings;
+
+  /// Recently recognised sentences, newest first (at most [voiceLogLimit]).
+  /// Empty unless [AppSettings.keepVoiceLog] is on.
+  UnmodifiableListView<VoiceLogEntry> get voiceLog => UnmodifiableListView(_voiceLog);
   WordPredictor? get predictor => _predictor;
   bool get loaded => _loaded;
 
@@ -130,8 +141,13 @@ class AppController extends ChangeNotifier {
   Timer? _saveTimer;
   Future<void>? _saving;
 
+  /// The voice log has to be written (or, when empty, deleted).
+  bool _voiceLogDirty = false;
+  static const _voiceLogKey = 'voice_log';
+  static const voiceLogLimit = 20;
+
   Future<void> load() async {
-    final keys = ['settings', 'notes', 'tasks', 'reminders', 'habits'];
+    final keys = ['settings', 'notes', 'tasks', 'reminders', 'habits', _voiceLogKey];
     final raw = await Future.wait(keys.map(store.read));
     List<Map<String, Object?>> items(String? doc) {
       if (doc == null) return const [];
@@ -165,6 +181,13 @@ class AppController extends ChangeNotifier {
     _reminders = [for (final j in items(raw[3])) ?tryParse(j, Reminder.fromJson)];
     _habits = [for (final j in items(raw[4])) ?tryParse(j, Habit.fromJson)];
     _inkPending.addAll([for (final j in noteJson) if (j['hasInk'] == true) j['id']! as String]);
+    if (_settings.keepVoiceLog) {
+      _voiceLog = [for (final j in items(raw[5])) ?tryParse(j, VoiceLogEntry.fromJson)].take(voiceLogLimit).toList();
+    } else if (raw[5] != null) {
+      // Left behind when the switch was turned off; it must not come back.
+      _voiceLogDirty = true;
+      _scheduleSave();
+    }
     _loaded = true;
 
     if (!_settings.seeded) {
@@ -235,14 +258,23 @@ class AppController extends ChangeNotifier {
     while (_saving != null) {
       await _saving;
     }
-    if (_dirty.isEmpty && _dirtyInk.isEmpty) return;
+    if (_dirty.isEmpty && _dirtyInk.isEmpty && !_voiceLogDirty) return;
     final dirty = {..._dirty};
     final inkIds = {..._dirtyInk};
+    final voiceLog = _voiceLogDirty;
     _dirty.clear();
     _dirtyInk.clear();
+    _voiceLogDirty = false;
     final done = Completer<void>();
     _saving = done.future;
     try {
+      if (voiceLog) {
+        if (_voiceLog.isEmpty) {
+          await store.delete(_voiceLogKey);
+        } else {
+          await store.write(_voiceLogKey, jsonEncode([for (final e in _voiceLog) e.toJson()]));
+        }
+      }
       for (final s in dirty) {
         await store.write(s.name, _encode(s));
       }
@@ -260,6 +292,7 @@ class AppController extends ChangeNotifier {
       debugPrint('Save failed, will retry: $e');
       _dirty.addAll(dirty);
       _dirtyInk.addAll(inkIds);
+      _voiceLogDirty |= voiceLog;
       _saveTimer = Timer(const Duration(seconds: 3), () => unawaited(flush()));
     } finally {
       _saving = null;
@@ -448,6 +481,32 @@ class AppController extends ChangeNotifier {
     return t;
   }
 
+  /// Creates a task from a spoken sentence. Returns null for an empty title
+  /// or when the sentence asked for a note (see [addSpokenNote]).
+  ///
+  /// A spoken time is also a reminder; "remind me" with a day but no time
+  /// reminds at 09:00 that day. Reminders in the past are not set.
+  TaskItem? addSpokenTask(SpokenTask s) {
+    final title = s.title.trim();
+    if (s.isNote || title.isEmpty) return null;
+    final due = s.due;
+    final hasTime = s.hasTime && due != null;
+    final at = due == null
+        ? null
+        : hasTime
+            ? due
+            : s.remind
+                ? DateTime(due.year, due.month, due.day, 9)
+                : null;
+    final remindAt = at != null && at.isAfter(now()) ? at : null;
+    final t = draftTask(due: due, hasTime: hasTime).copyWith(title: title, remindAt: () => remindAt);
+    upsertTask(t);
+    // Schedule now rather than after the usual pause: the phone may be locked
+    // right after speaking.
+    if (remindAt != null) unawaited(syncAlerts());
+    return t;
+  }
+
   void toggleTask(String id) {
     final i = _tasks.indexWhere((x) => x.id == id);
     if (i < 0) return;
@@ -495,6 +554,73 @@ class AppController extends ChangeNotifier {
   (int, int) progressOn(DateTime day) {
     final list = tasksDueOn(day);
     return (list.where((t) => t.done).length, list.length);
+  }
+
+  // ------------------------------------------------------------ voice capture
+
+  /// Creates a note whose body is [text]. Returns null when [text] is blank.
+  Note? addSpokenNote(String text) {
+    final body = text.trim();
+    if (body.isEmpty) return null;
+    final n = draftNote().copyWith(body: body);
+    upsertNote(n);
+    return n;
+  }
+
+  /// Adds a recognised sentence to [voiceLog] when the user keeps one.
+  void logRecognized(String transcript, SpokenTask parsed, {required String localeId}) {
+    if (!_settings.keepVoiceLog) return;
+    _voiceLog.insert(
+      0,
+      VoiceLogEntry(
+        at: now(),
+        localeId: localeId,
+        transcript: transcript,
+        title: parsed.title,
+        due: parsed.due,
+        hasTime: parsed.hasTime,
+        remind: parsed.remind,
+        isNote: parsed.isNote,
+      ),
+    );
+    if (_voiceLog.length > voiceLogLimit) _voiceLog.removeRange(voiceLogLimit, _voiceLog.length);
+    _voiceLogChanged();
+  }
+
+  void clearVoiceLog() {
+    _voiceLog.clear();
+    _voiceLogChanged();
+  }
+
+  void _voiceLogChanged() {
+    _voiceLogDirty = true;
+    _scheduleSave();
+    // Settings shows the log.
+    _changed({Slice.settings}, persist: false);
+  }
+
+  // ----------------------------------------------------------- notifications
+
+  Future<NotificationAccess> notificationAccess() async {
+    if (await scheduler.isGranted()) return NotificationAccess.granted;
+    return _settings.notificationsAsked ? NotificationAccess.denied : NotificationAccess.notAsked;
+  }
+
+  /// Asks the OS for notification permission (it prompts only the first
+  /// time) and remembers that the app has asked.
+  Future<bool> requestNotifications() {
+    if (!_settings.notificationsAsked) updateSettings(_settings.copyWith(notificationsAsked: true));
+    return scheduler.requestPermission();
+  }
+
+  /// Asks for notifications only if the app has never asked and they are
+  /// not already allowed.
+  Future<void> ensureNotificationPermission() async {
+    if (_settings.notificationsAsked) return;
+    final access = await notificationAccess();
+    // A second caller may have asked while this one waited.
+    if (access != NotificationAccess.notAsked || _settings.notificationsAsked) return;
+    await requestNotifications();
   }
 
   // -------------------------------------------------------------- reminders
@@ -575,7 +701,12 @@ class AppController extends ChangeNotifier {
   // --------------------------------------------------------------- settings
 
   void updateSettings(AppSettings s) {
+    final dropVoiceLog = _settings.keepVoiceLog && !s.keepVoiceLog;
     _settings = s;
+    if (dropVoiceLog) {
+      _voiceLog.clear();
+      _voiceLogDirty = true; // the next save deletes the stored log
+    }
     _changed({Slice.settings});
   }
 

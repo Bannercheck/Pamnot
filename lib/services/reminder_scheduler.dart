@@ -43,6 +43,10 @@ abstract class ReminderScheduler {
   Future<void> init();
   Future<bool> requestPermission();
 
+  /// Whether the OS currently lets the app post notifications. Never shows
+  /// a prompt.
+  Future<bool> isGranted();
+
   /// Whether the OS delivers notifications while the app is closed.
   bool get schedulesInBackground;
 
@@ -54,11 +58,28 @@ abstract class ReminderScheduler {
 class NoopScheduler implements ReminderScheduler {
   final List<List<Alert>> synced = [];
 
+  /// What [isGranted] answers; [requestPermission] grants.
+  bool granted = false;
+
+  /// How many times [requestPermission] was called.
+  int permissionRequests = 0;
+
+  /// Called at the start of [requestPermission], before it answers.
+  void Function()? onRequest;
+
   @override
   Future<void> init() async {}
 
   @override
-  Future<bool> requestPermission() async => true;
+  Future<bool> requestPermission() async {
+    onRequest?.call();
+    permissionRequests++;
+    granted = true;
+    return true;
+  }
+
+  @override
+  Future<bool> isGranted() async => granted;
 
   @override
   bool get schedulesInBackground => false;
@@ -165,21 +186,53 @@ class LocalNotificationScheduler implements ReminderScheduler {
                   .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
                   ?.requestNotificationsPermission() ??
               false;
+        // No badge: the app never sets one.
         case TargetPlatform.iOS:
           return await _plugin
                   .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-                  ?.requestPermissions(alert: true, badge: true, sound: true) ??
+                  ?.requestPermissions(alert: true, badge: false, sound: true) ??
               false;
         case TargetPlatform.macOS:
           return await _plugin
                   .resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>()
-                  ?.requestPermissions(alert: true, badge: true, sound: true) ??
+                  ?.requestPermissions(alert: true, badge: false, sound: true) ??
               false;
         default:
           return true;
       }
     } catch (e) {
       debugPrint('Permission request failed: $e');
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> isGranted() async {
+    await init();
+    if (!_ready) return false;
+    try {
+      if (kIsWeb) return true;
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          return await _plugin
+                  .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+                  ?.areNotificationsEnabled() ??
+              false;
+        case TargetPlatform.iOS:
+          final options = await _plugin
+              .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+              ?.checkPermissions();
+          return options?.isEnabled ?? false;
+        case TargetPlatform.macOS:
+          final options = await _plugin
+              .resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>()
+              ?.checkPermissions();
+          return options?.isEnabled ?? false;
+        default:
+          return true;
+      }
+    } catch (e) {
+      debugPrint('Permission check failed: $e');
       return false;
     }
   }
