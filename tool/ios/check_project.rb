@@ -9,7 +9,7 @@
 require 'xcodeproj'
 
 SOURCES = %w[PamnotLaunchBridge.swift VoiceTaskIntent.swift PamnotAccessibilityBridge.swift
-             PamnotAlarmPlugin.swift].freeze
+             PamnotAlarmPlugin.swift PamnotPipPlugin.swift].freeze
 PLAIN_RESOURCES = %w[PrivacyInfo.xcprivacy].freeze
 STRINGS_TABLES = %w[AppShortcuts.strings Localizable.strings InfoPlist.strings].freeze
 LANGS = %w[en tr].freeze

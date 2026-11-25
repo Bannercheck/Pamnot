@@ -33,5 +33,8 @@ import flutter_local_notifications
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PamnotAlarmPlugin") {
       PamnotAlarmPlugin.register(with: registrar)
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PamnotPipPlugin") {
+      PamnotPipPlugin.register(with: registrar)
+    }
   }
 }

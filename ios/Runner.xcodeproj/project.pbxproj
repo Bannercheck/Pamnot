@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		066C0285F984AA1175F4FC76 /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = 0EA08E4318BD6606D5C91285 /* AppShortcuts.strings */; };
+		1009291154E7DB7D6F1DDEA3 /* PamnotPipPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023998B89B955266760868CF /* PamnotPipPlugin.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		259C5F27BE889259F01F8774 /* PamnotListWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F423697DDF4EF6022B9EC678 /* PamnotListWidget.swift */; };
 		27258CEC1CBFD53F27B5799A /* PamnotAccessibilityBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B230511A0786B1D856C6467 /* PamnotAccessibilityBridge.swift */; };
@@ -75,6 +76,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		023998B89B955266760868CF /* PamnotPipPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotPipPlugin.swift; sourceTree = "<group>"; };
 		0BC7DD6740F464068506D269 /* PamnotTodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotTodayWidget.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
@@ -215,6 +217,7 @@
 				417BB44BE817CE6E88A64D97 /* InfoPlist.strings */,
 				1B230511A0786B1D856C6467 /* PamnotAccessibilityBridge.swift */,
 				75A659B485E31C1D72B5E60E /* PamnotAlarmPlugin.swift */,
+				023998B89B955266760868CF /* PamnotPipPlugin.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -424,6 +427,7 @@
 				DE9A8D7B490C4E03995261C8 /* VoiceTaskIntent.swift in Sources */,
 				27258CEC1CBFD53F27B5799A /* PamnotAccessibilityBridge.swift in Sources */,
 				7F2E78039A911FCC59F06675 /* PamnotAlarmPlugin.swift in Sources */,
+				1009291154E7DB7D6F1DDEA3 /* PamnotPipPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
