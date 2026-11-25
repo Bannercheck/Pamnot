@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/dates.dart';
+import '../core/motivation.dart';
 import '../core/quick_parse.dart';
 import '../core/spoken/spoken_task.dart';
 import '../data/store.dart';
@@ -153,8 +154,12 @@ class AppController extends ChangeNotifier {
   static const _voiceLogKey = 'voice_log';
   static const voiceLogLimit = 20;
 
+  /// The daily motivation picks (dayKey → quote index) have to be written.
+  bool _motivationDirty = false;
+  static const _motivationKey = 'motivation';
+
   Future<void> load() async {
-    final keys = ['settings', 'notes', 'tasks', 'reminders', 'habits', _voiceLogKey, 'lists'];
+    final keys = ['settings', 'notes', 'tasks', 'reminders', 'habits', _voiceLogKey, 'lists', _motivationKey];
     final raw = await Future.wait(keys.map(store.read));
     List<Map<String, Object?>> items(String? doc) {
       if (doc == null) return const [];
@@ -206,6 +211,16 @@ class AppController extends ChangeNotifier {
       if (!listIds.contains(_tasks[i].listId)) {
         _tasks[i] = _tasks[i].copyWith(listId: _lists.first.id);
         repaired.add(Slice.tasks);
+      }
+    }
+    if (raw[7] != null) {
+      try {
+        _motivationPicks = {
+          for (final e in (jsonDecode(raw[7]!) as Map).entries)
+            if (e.key is String && e.value is int) e.key as String: e.value as int,
+        };
+      } catch (e) {
+        debugPrint('Unreadable motivation picks: $e');
       }
     }
     _inkPending.addAll([for (final j in noteJson) if (j['hasInk'] == true) j['id']! as String]);
@@ -290,13 +305,15 @@ class AppController extends ChangeNotifier {
     while (_saving != null) {
       await _saving;
     }
-    if (_dirty.isEmpty && _dirtyInk.isEmpty && !_voiceLogDirty) return;
+    if (_dirty.isEmpty && _dirtyInk.isEmpty && !_voiceLogDirty && !_motivationDirty) return;
     final dirty = {..._dirty};
     final inkIds = {..._dirtyInk};
     final voiceLog = _voiceLogDirty;
+    final motivation = _motivationDirty;
     _dirty.clear();
     _dirtyInk.clear();
     _voiceLogDirty = false;
+    _motivationDirty = false;
     final done = Completer<void>();
     _saving = done.future;
     try {
@@ -307,6 +324,7 @@ class AppController extends ChangeNotifier {
           await store.write(_voiceLogKey, jsonEncode([for (final e in _voiceLog) e.toJson()]));
         }
       }
+      if (motivation) await store.write(_motivationKey, jsonEncode(_motivationPicks));
       for (final s in dirty) {
         await store.write(s.name, _encode(s));
       }
@@ -325,6 +343,7 @@ class AppController extends ChangeNotifier {
       _dirty.addAll(dirty);
       _dirtyInk.addAll(inkIds);
       _voiceLogDirty |= voiceLog;
+      _motivationDirty |= motivation;
       _saveTimer = Timer(const Duration(seconds: 3), () => unawaited(flush()));
     } finally {
       _saving = null;
@@ -401,6 +420,58 @@ class AppController extends ChangeNotifier {
       for (final t in _tasks)
         if (!t.done && t.remindAt != null)
           Alert(key: 't:${t.id}', title: t.title, body: t.notes.isEmpty ? s.task : t.notes, at: t.remindAt!),
+      ...motivationAlerts(),
+    ];
+  }
+
+  // ------------------------------------------------------------- motivation
+
+  List<String> _quotesTr = const [], _quotesEn = const [];
+
+  /// dayKey → quote index; the same index is the same line in both files.
+  Map<String, int> _motivationPicks = {};
+
+  /// How many days ahead are scheduled, and how long a pick is remembered.
+  static const motivationDays = 7;
+  static const motivationKeepDays = 60;
+
+  /// Hands over the quote files' lines (read after the first frame). The
+  /// caller syncs the alerts afterwards.
+  void attachQuotes({required List<String> tr, required List<String> en}) {
+    _quotesTr = List.unmodifiable(tr);
+    _quotesEn = List.unmodifiable(en);
+  }
+
+  /// One gentle line a day at [AppSettings.motivationMinutes], for the next
+  /// [motivationDays] days; today only while its time is still ahead. Empty
+  /// when the setting is off or the lines are not loaded. Never asks for
+  /// notification permission: without it the system simply shows nothing.
+  /// New picks are remembered (and those older than [motivationKeepDays]
+  /// dropped) so a day keeps its line; the change is saved like any other.
+  List<Alert> motivationAlerts() {
+    final quotes = isTurkish ? _quotesTr : _quotesEn;
+    if (!_settings.dailyMotivation || quotes.isEmpty) return const [];
+    final t = now();
+    final today = dateOnly(t);
+    final minutes = _settings.motivationMinutes;
+    DateTime at(DateTime day) => DateTime(day.year, day.month, day.day, minutes ~/ 60, minutes % 60);
+    final first = at(today).isAfter(t) ? today : addDays(today, 1);
+    final plan = planQuotes(first, motivationDays, _motivationPicks, quotes.length);
+
+    final oldest = dayKey(addDays(today, -motivationKeepDays));
+    final picks = {
+      for (final e in _motivationPicks.entries)
+        if (e.key.compareTo(oldest) >= 0) e.key: e.value,
+      ...plan,
+    };
+    if (!mapEquals(picks, _motivationPicks)) {
+      _motivationPicks = picks;
+      _motivationDirty = true;
+      _scheduleSave();
+    }
+    return [
+      for (final e in plan.entries)
+        Alert(key: 'm:${e.key}', title: 'Pamnot', body: quotes[e.value], at: at(parseDayKey(e.key))),
     ];
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/dates.dart';
 import '../../l10n/strings.dart';
 import '../../models/settings.dart';
 import '../../services/handwriting.dart';
@@ -274,6 +275,9 @@ class _NotificationTilesState extends State<_NotificationTiles> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final app = widget.app;
+    final st = app.settings;
+    final motivationAt = DateTime(2000, 1, 1, st.motivationMinutes ~/ 60, st.motivationMinutes % 60);
     return Column(
       children: [
         switch (_access) {
@@ -304,6 +308,28 @@ class _NotificationTilesState extends State<_NotificationTiles> {
             await widget.app.scheduler.showNow('Pamnot', s.testNotificationBody);
           },
         ),
+        // Daily motivation: turning it on asks for nothing; without
+        // notification permission the system simply shows nothing.
+        // Dense and without an icon, like the page's other switches, so the
+        // pair stays compact under the two notification rows.
+        SwitchListTile(
+          title: Text(s.dailyMotivation),
+          subtitle: Text(s.dailyMotivationSub),
+          dense: true,
+          value: st.dailyMotivation,
+          onChanged: (v) => app.updateSettings(st.copyWith(dailyMotivation: v)),
+        ),
+        if (st.dailyMotivation)
+          ListTile(
+            leading: const Icon(Icons.schedule_rounded),
+            title: Text(s.motivationTime),
+            trailing: Text(hhmm(motivationAt), style: Theme.of(context).textTheme.titleMedium),
+            onTap: () async {
+              final picked = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(motivationAt));
+              if (picked == null) return;
+              app.updateSettings(app.settings.copyWith(motivationMinutes: picked.hour * 60 + picked.minute));
+            },
+          ),
       ],
     );
   }

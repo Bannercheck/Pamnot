@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
+import 'core/motivation.dart';
 import 'data/store.dart';
 import 'prediction/word_predictor.dart';
 import 'services/alarm_scheduler.dart';
@@ -41,7 +42,22 @@ Future<void> main() async {
   runApp(PamnotApp(controller: controller));
 
   // Everything below is off the critical path to the first frame.
-  unawaited(scheduler.init().then((_) => controller.syncAlerts()));
+  // The motivation lines join the first sync, once the first frame is out.
+  unawaited(Future.wait([scheduler.init(), _loadQuotes(controller)]).then((_) => controller.syncAlerts()));
   unawaited(WordPredictor.load(rootBundle).then(controller.attachPredictor));
   controller.startInAppTicker();
+}
+
+Future<void> _loadQuotes(AppController controller) async {
+  await WidgetsBinding.instance.endOfFrame;
+  try {
+    final files = await Future.wait([
+      rootBundle.loadString('assets/quotes/tr.txt'),
+      rootBundle.loadString('assets/quotes/en.txt'),
+    ]);
+    controller.attachQuotes(tr: parseQuotes(files[0]), en: parseQuotes(files[1]));
+  } catch (e) {
+    // Without the lines there is simply no motivation notification.
+    debugPrint('Quotes unreadable: $e');
+  }
 }
