@@ -291,4 +291,11 @@ class S {
   // Final fix wave
   /// Undo label of a note saved by voice ([text] is the note's beginning).
   String voiceUndoNote(String text) => _('Notu geri al: $text', 'Undo note: $text');
+
+  // v2 · K1
+  String get unpinned => _('Sabitleme kaldırıldı', 'Unpinned');
+  /// Plan's section picker: the other section is the existing [reminders].
+  String get planAgendaTab => _('Takvim', 'Calendar');
+  /// The middle navigation button on platforms without a microphone.
+  String get navAddTask => _('Yeni görev ekle', 'Add a task');
 }

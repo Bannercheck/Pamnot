@@ -11,6 +11,7 @@ import 'services/handwriting.dart';
 import 'services/launch_actions.dart';
 import 'services/reminder_scheduler.dart';
 import 'services/speech/stt_speech_engine.dart';
+import 'services/system_accessibility.dart';
 import 'services/widget_sync.dart';
 import 'state/app_controller.dart';
 import 'ui/home_shell.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Before runApp: a shortcut that launched the app is waiting on the iOS side.
   LaunchActionsBridge.start();
+  SystemAccessibility.start();
   await initializeDateFormatting();
 
   final scheduler = LocalNotificationScheduler(onTap: (payload) => notificationTaps.value = payload);
