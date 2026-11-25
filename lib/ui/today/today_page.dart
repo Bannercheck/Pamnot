@@ -11,6 +11,7 @@ import '../common/page_header.dart';
 import '../common/soft.dart';
 import '../notes/note_card.dart';
 import '../notes/note_editor_page.dart';
+import '../notes/notes_page.dart';
 import '../planner/planner_page.dart';
 import '../reminders/reminder_editor.dart';
 import '../tasks/habits_view.dart';
@@ -100,6 +101,7 @@ class TodayPage extends StatelessWidget {
                   now: now,
                   compact: true,
                   onTap: () => NoteEditorPage.open(context, recent[i]),
+                  onLongPress: () => showNoteActions(context, app, recent[i]),
                 ),
               ),
             ),
