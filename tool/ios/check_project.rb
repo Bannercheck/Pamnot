@@ -6,7 +6,8 @@
 # Prints every failure and exits 1; prints `project ok` on success.
 require 'xcodeproj'
 
-SOURCES = %w[PamnotLaunchBridge.swift VoiceTaskIntent.swift PamnotAccessibilityBridge.swift].freeze
+SOURCES = %w[PamnotLaunchBridge.swift VoiceTaskIntent.swift PamnotAccessibilityBridge.swift
+             PamnotAlarmPlugin.swift].freeze
 PLAIN_RESOURCES = %w[PrivacyInfo.xcprivacy].freeze
 STRINGS_TABLES = %w[AppShortcuts.strings Localizable.strings InfoPlist.strings].freeze
 LANGS = %w[en tr].freeze

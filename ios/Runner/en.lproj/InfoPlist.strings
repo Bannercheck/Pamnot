@@ -1,2 +1,3 @@
 "NSMicrophoneUsageDescription" = "Pamnot uses the microphone to hear what you say when you add a task by voice. No audio is saved.";
 "NSSpeechRecognitionUsageDescription" = "Pamnot uses speech recognition to turn the task you say into text. Your voice may be sent to Apple for this.";
+"NSAlarmKitUsageDescription" = "Pamnot rings an alarm at the time you set for a task or reminder.";

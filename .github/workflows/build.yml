@@ -131,6 +131,22 @@ jobs:
       # Installing on a device needs signing in Xcode; this proves the app
       # compiles for iOS.
       - run: flutter build ios --release --no-codesign
+      # Alarm köprüsü sessizce derleme dışı kalmasın: PamnotAlarmPlugin.swift AlarmKit'i
+      # `#if canImport(AlarmKit)` içinde kullanır; Xcode'da iOS 26 SDK'sı yoksa uygulama
+      # derlenir ama alarm hep "unsupported" der. Bu adım o durumda düşer.
+      - name: AlarmKit bağlandı mı
+        run: |
+          xcodebuild -version
+          if ! otool -L build/ios/iphoneos/Runner.app/Runner | grep -q AlarmKit; then
+            echo "::error::AlarmKit bağlanmadı: CI Xcode'u iOS 26 SDK'sı içermiyor"
+            exit 1
+          fi
+          # En düşük sürüm 16.0: AlarmKit zayıf bağlanmalı, yoksa uygulama iOS 26 altında açılmaz.
+          if ! otool -l build/ios/iphoneos/Runner.app/Runner | grep -B2 'AlarmKit.framework' | grep -q LC_LOAD_WEAK_DYLIB; then
+            echo "::error::AlarmKit zayıf bağlanmamış: uygulama iOS 26 altında açılmaz"
+            otool -l build/ios/iphoneos/Runner.app/Runner | grep -B2 'AlarmKit.framework' || true
+            exit 1
+          fi
       # Kestirme sessizce kaybolmasın: App Intents meta verisi çıkarılmış olmalı,
       # ve kestirme uygulamayı öne açmalı (openAppWhenRun, iOS 26 SDK'da
       # kullanımdan kalkmış bir uzantıda; çıkarılmadıysa kestirme arka planda
