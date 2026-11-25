@@ -679,6 +679,8 @@ class VoiceCaptureController extends ChangeNotifier {
       );
     }
     app.logRecognized(_heard, parseSpokenTask(_heard, app.now(), _lang), localeId: locale);
+    // The first save by voice brings the one-time guide card to Today.
+    if (!app.settings.voiceUsed) app.updateSettings(app.settings.copyWith(voiceUsed: true));
     // Saved out of sight: the notification prompt waits for the foreground.
     if (inBackground && item.reminder) _askOnResume = true;
     _saved.insert(0, item);

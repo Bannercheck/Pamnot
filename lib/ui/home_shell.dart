@@ -46,11 +46,13 @@ class _HomeShellState extends State<HomeShell> {
     planSection.value = PlanSection.agenda;
     notificationTaps.addListener(_onNotification);
     voiceRequests.addListener(_onVoiceRequest);
+    shortcutRuns.addListener(_onShortcutRun);
     // A tap or a voice request that launched the app may have arrived before
     // this shell existed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _onNotification();
       _onVoiceRequest();
+      _onShortcutRun();
     });
   }
 
@@ -58,6 +60,7 @@ class _HomeShellState extends State<HomeShell> {
   void dispose() {
     notificationTaps.removeListener(_onNotification);
     voiceRequests.removeListener(_onVoiceRequest);
+    shortcutRuns.removeListener(_onShortcutRun);
     super.dispose();
   }
 
@@ -95,6 +98,13 @@ class _HomeShellState extends State<HomeShell> {
       return;
     }
     unawaited(VoiceCapturePage.open(context, autoListen: listen));
+  }
+
+  /// The shortcut opened Pamnot (also before this shell existed): the
+  /// guide's shortcut step is done.
+  void _onShortcutRun() {
+    if (shortcutRuns.value == 0 || !mounted) return;
+    AppScope.of(context).markGuideStep('shortcut');
   }
 
   /// The middle button: voice entry where speech is supported, otherwise a

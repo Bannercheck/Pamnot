@@ -5,14 +5,13 @@ import '../../models/voice_log.dart';
 import '../../state/app_controller.dart';
 import '../common/format.dart';
 import '../common/soft.dart';
+import '../guide/shortcut_guide_page.dart';
 
-/// Settings > "Add by voice": where the shortcut can be found, how to put it
-/// on Back Tap and Voice Control, the opt-in log of recognised text and the
-/// privacy note. Only shown when [AppController.speech] is supported; it never
-/// calls the recogniser, so it asks for no permission.
-///
-/// There are deliberately no Action button steps: the system's own Action
-/// button settings already list the shortcut (HIG Action button).
+/// Settings > "Add by voice": where the shortcut can be found, the way into
+/// the "Shortcuts & Siri" guide (the shortcut, the Action button, Back Tap,
+/// Outlook and, at its end, Voice Control), the opt-in log of recognised text
+/// and the privacy note. Only shown when [AppController.speech] is supported;
+/// it never calls the recogniser, so it asks for no permission.
 class VoiceSettingsGroup extends StatelessWidget {
   const VoiceSettingsGroup({super.key, required this.app});
 
@@ -23,18 +22,6 @@ class VoiceSettingsGroup extends StatelessWidget {
     final s = S.of(context);
     final t = Theme.of(context);
     final st = app.settings;
-
-    Widget guide(IconData icon, String title, String steps) => ExpansionTile(
-          leading: Icon(icon),
-          title: Text(title),
-          // No divider lines inside the card.
-          shape: const Border(),
-          collapsedShape: const Border(),
-          expandedAlignment: Alignment.centerLeft,
-          expandedCrossAxisAlignment: CrossAxisAlignment.start,
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          children: [Text(steps, style: t.textTheme.bodyMedium)],
-        );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -49,8 +36,12 @@ class VoiceSettingsGroup extends StatelessWidget {
               children: [
                 ListTile(leading: const Icon(Icons.bolt_outlined), title: Text(s.voiceSetupReady)),
                 ListTile(leading: const Icon(Icons.record_voice_over_outlined), title: Text(s.voiceSiriHint)),
-                guide(Icons.touch_app_outlined, s.voiceBackTapTitle, s.voiceBackTapSteps),
-                guide(Icons.settings_voice_outlined, s.voiceVoiceControlTitle, s.voiceVoiceControlSteps),
+                ListTile(
+                  leading: const Icon(Icons.touch_app_outlined),
+                  title: Text(s.guideTitle),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => ShortcutGuidePage.open(context),
+                ),
                 SwitchListTile(
                   secondary: const Icon(Icons.timer_outlined),
                   title: Text(s.voiceAutoSaveTitle),
