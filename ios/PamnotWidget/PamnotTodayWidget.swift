@@ -16,6 +16,13 @@ enum PamnotShared {
   static let launchURL = URL(string: "pamnot://today?homeWidget")!
   static let refreshInterval: TimeInterval = 30 * 60
   static let maxItems = 6
+  /// Key written by HomeWidget.saveWidgetData<String>('pamnot_lists', json) (WidgetSync.listsKey).
+  static let listsKey = "pamnot_lists"
+  /// JSON array text of task ids ticked on the list widget; the app finishes them and resets it
+  /// to "[]" (WidgetSync.pendingDoneKey).
+  static let pendingDoneKey = "pamnot_pending_done"
+  /// Must match HomeWidget.updateWidget(iOSName: 'PamnotListWidget') (WidgetSync.iOSListName).
+  static let listWidgetKind = "PamnotListWidget"
 }
 
 // MARK: - Model (mirrors the `pamnot_today` JSON written by the Flutter app)

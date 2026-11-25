@@ -1,0 +1,17 @@
+/* PamnotListWidget and its App Intents. Keys are the English texts used in the Swift sources. */
+"Pamnot · List" = "Pamnot · Liste";
+"Open tasks of a list by box. Tap a task to finish it." = "Bir listenin açık görevleri, kutu kutu. Bitirmek için göreve dokunun.";
+"Choose List" = "Liste seç";
+"Choose the list and box the widget shows." = "Widget'ın göstereceği listeyi ve kutuyu seçin.";
+"List" = "Liste";
+"Box" = "Kutu";
+"All" = "Tümü";
+"Important · Urgent" = "Önemli · Acil";
+"Important · Planned" = "Önemli · Planlı";
+"Urgent · Less important" = "Acil · Önemsiz";
+"Later · Maybe" = "Sonra · Belki";
+"Complete Task" = "Görevi bitir";
+"Task" = "Görev";
+"Marks the task as done" = "Görevi bitti yapar";
+"No tasks" = "Görev yok";
+"Open Pamnot" = "Pamnot'u aç";

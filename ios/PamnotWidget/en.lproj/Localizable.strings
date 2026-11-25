@@ -1,0 +1,17 @@
+/* PamnotListWidget and its App Intents. Keys are the English texts used in the Swift sources. */
+"Pamnot · List" = "Pamnot · List";
+"Open tasks of a list by box. Tap a task to finish it." = "Open tasks of a list by box. Tap a task to finish it.";
+"Choose List" = "Choose List";
+"Choose the list and box the widget shows." = "Choose the list and box the widget shows.";
+"List" = "List";
+"Box" = "Box";
+"All" = "All";
+"Important · Urgent" = "Important · Urgent";
+"Important · Planned" = "Important · Planned";
+"Urgent · Less important" = "Urgent · Less important";
+"Later · Maybe" = "Later · Maybe";
+"Complete Task" = "Complete Task";
+"Task" = "Task";
+"Marks the task as done" = "Marks the task as done";
+"No tasks" = "No tasks";
+"Open Pamnot" = "Open Pamnot";

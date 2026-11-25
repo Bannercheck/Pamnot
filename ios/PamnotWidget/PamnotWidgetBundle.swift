@@ -6,5 +6,6 @@ import WidgetKit
 struct PamnotWidgetBundle: WidgetBundle {
   var body: some Widget {
     PamnotTodayWidget()
+    PamnotListWidget()
   }
 }
