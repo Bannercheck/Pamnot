@@ -394,6 +394,9 @@ struct PamnotAllLargeView: View {
 }
 
 /// One box: small 3 tasks, medium 6 in two columns, large 6; the title is the box name.
+/// Small has no room for the list-name line and a "+N" line under three rows (a small
+/// widget on a 375 pt phone leaves about 116 pt), so small puts "+N" in the header row
+/// and drops the list name: header (~17) + 4 + 3 rows × 24 = ~93 pt.
 struct PamnotSingleBoxView: View {
   let payload: PamnotListsPayload
   let list: PamnotListSummary
@@ -403,14 +406,18 @@ struct PamnotSingleBoxView: View {
 
   var body: some View {
     let summary = list.box(box)
-    let limit = family == .systemSmall ? 3 : 6
-    let shown = Array(summary.items.prefix(limit))
+    let isSmall = family == .systemSmall
+    let shown = Array(summary.items.prefix(isSmall ? 3 : 6))
     VStack(alignment: .leading, spacing: 4) {
-      PamnotListHeader(title: payload.title(of: box), count: summary.count, size: metrics.titleSize)
-      Text(list.name)
-        .font(.system(size: metrics.headerSize, design: .rounded))
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
+      if isSmall {
+        PamnotListHeader(title: payload.title(of: box), more: summary.count - shown.count, size: metrics.titleSize)
+      } else {
+        PamnotListHeader(title: payload.title(of: box), count: summary.count, size: metrics.titleSize)
+        Text(list.name)
+          .font(.system(size: metrics.headerSize, design: .rounded))
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
       if family == .systemMedium && shown.count > 3 {
         HStack(alignment: .top, spacing: 12) {
           PamnotTaskRows(items: Array(shown.prefix(3)), emptyText: payload.emptyText, metrics: metrics)
@@ -418,9 +425,6 @@ struct PamnotSingleBoxView: View {
         }
       } else {
         PamnotTaskRows(items: shown, emptyText: payload.emptyText, metrics: metrics)
-      }
-      if family == .systemSmall {
-        PamnotMoreText(count: summary.count - shown.count, size: metrics.headerSize)
       }
       Spacer(minLength: 0)
     }
@@ -461,8 +465,21 @@ struct PamnotBoxColumn: View {
 
 struct PamnotListHeader: View {
   let title: String
-  let count: Int?
+  /// Right-aligned text: the open-task count, or "+N" for tasks not shown; nil hides it.
+  let trailing: String?
   let size: CGFloat
+
+  init(title: String, count: Int?, size: CGFloat) {
+    self.title = title
+    self.trailing = count.flatMap { $0 > 0 ? "\($0)" : nil }
+    self.size = size
+  }
+
+  init(title: String, more: Int, size: CGFloat) {
+    self.title = title
+    self.trailing = more > 0 ? "+\(more)" : nil
+    self.size = size
+  }
 
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -472,8 +489,8 @@ struct PamnotListHeader: View {
         .lineLimit(1)
         .widgetAccentable()
       Spacer(minLength: 2)
-      if let count, count > 0 {
-        Text(verbatim: "\(count)")
+      if let trailing {
+        Text(verbatim: trailing)
           .font(.system(size: size - 2, weight: .semibold, design: .rounded))
           .monospacedDigit()
           .foregroundStyle(.secondary)
