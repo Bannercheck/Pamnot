@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,9 +9,12 @@ import 'package:pamnot/models/reminder.dart';
 import 'package:pamnot/models/settings.dart';
 import 'package:pamnot/models/task.dart';
 import 'package:pamnot/services/alarm_scheduler.dart';
+import 'package:pamnot/services/calendar/calendar_source.dart';
 import 'package:pamnot/state/app_controller.dart';
 import 'package:pamnot/data/store.dart';
 import 'package:pamnot/services/system_accessibility.dart';
+
+import 'support/fake_calendar_source.dart';
 
 void main() {
   test('K1 metinleri TR ve EN', () {
@@ -38,9 +42,10 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  test('pubspec derleme numarası 5 ve cümle varlıkları kayıtlı', () {
+  test('pubspec derleme numarası 6, takvim paketi ve cümle varlıkları kayıtlı', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
-    expect(pubspec, contains('version: 1.0.0+5'));
+    expect(pubspec, contains('version: 1.0.0+6'));
+    expect(pubspec, contains('  device_calendar_plus: ^0.12.0'));
     expect(pubspec, contains('    - assets/quotes/'));
     for (final lang in ['tr', 'en']) {
       final lines = File('assets/quotes/$lang.txt').readAsLinesSync().where((l) => l.trim().isNotEmpty);
@@ -129,5 +134,59 @@ void main() {
     expect(AppController(store: MemoryStore()).alarms, isA<NoopAlarmScheduler>());
     final n = NoopAlarmScheduler();
     expect(AppController(store: MemoryStore(), alarms: n).alarms, same(n));
+  });
+  test('K4 metinleri TR ve EN', () {
+    expect((S.tr.showCalendar, S.en.showCalendar), ('Takvimi göster', 'Show calendar'));
+    expect((S.tr.calendarSection, S.en.calendarSection), ('Takvim', 'Calendar'));
+    expect((S.tr.calendarEvents, S.en.calendarEvents), ('Takvim etkinlikleri', 'Calendar events'));
+    expect((S.tr.calendarEventsSub, S.en.calendarEventsSub), (
+      'iPhone takvimindeki etkinlikler Plan’da salt okunur görünür.',
+      'Events from your iPhone calendar appear read-only in Plan.',
+    ));
+    expect((S.tr.calendarsToShow, S.en.calendarsToShow), ('Görünecek takvimler', 'Calendars to show'));
+    expect((S.tr.calendarDenied, S.en.calendarDenied),
+        ('Takvim erişimi kapalı — Ayarlar’ı aç', 'Calendar access is off — open Settings'));
+    expect((S.tr.calendarEventLabel, S.en.calendarEventLabel), ('Takvim etkinliği', 'Calendar event'));
+    expect((S.tr.calendarOutlookHint, S.en.calendarOutlookHint), (
+      'Outlook etkinlikleri için hesabını iPhone Ayarlar > Takvim > Hesaplar’a ekle.',
+      'For Outlook events, add your account in iPhone Settings > Calendar > Accounts.',
+    ));
+    expect((S.tr.untitledEvent, S.en.untitledEvent), ('Adsız etkinlik', 'Untitled event'));
+  });
+
+  test('ayarlar: takvim kapalı, gizli takvim yok; gidiş-dönüş ve eski JSON', () {
+    const d = AppSettings();
+    expect(d.showCalendar, isFalse);
+    expect(d.hiddenCalendarIds, isEmpty);
+    final old = AppSettings.fromJson(const {});
+    expect(old.showCalendar, isFalse);
+    expect(old.hiddenCalendarIds, isEmpty);
+    final s = d.copyWith(showCalendar: true, hiddenCalendarIds: ['a', 'b']);
+    final back = AppSettings.fromJson(jsonDecode(jsonEncode(s.toJson())) as Map<String, Object?>);
+    expect(back.showCalendar, isTrue);
+    expect(back.hiddenCalendarIds, ['a', 'b']);
+    expect(back.copyWith(language: AppLanguage.en).hiddenCalendarIds, ['a', 'b']);
+    final bad = AppSettings.fromJson(const {'showCalendar': 'yes', 'hiddenCalendarIds': 'x'});
+    expect(bad.showCalendar, isFalse);
+    expect(bad.hiddenCalendarIds, isEmpty);
+    final mixed = AppSettings.fromJson(const {'hiddenCalendarIds': ['a', 3, null, 'b']});
+    expect(mixed.hiddenCalendarIds, ['a', 'b']);
+  });
+
+  test('AppController.calendar: verilmezse NoCalendarSource; verilen kullanılır', () {
+    expect(AppController(store: MemoryStore()).calendar, isA<NoCalendarSource>());
+    final f = FakeCalendarSource();
+    expect(AppController(store: MemoryStore(), calendar: f).calendar, same(f));
+  });
+
+  test('Slice.calendar diske yazılmaz (ilk açılış örnek verisi dahil)', () async {
+    final store = MemoryStore();
+    final app = AppController(store: store, saveDelay: Duration.zero);
+    await app.load();
+    expect(app.revisions[Slice.calendar], greaterThan(0));
+    await app.flush();
+    expect(await store.read('calendar'), isNull);
+    expect(await store.read('settings'), isNotNull);
+    app.dispose();
   });
 }

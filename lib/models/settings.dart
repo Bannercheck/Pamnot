@@ -20,6 +20,8 @@ class AppSettings {
     this.voiceAutoSave = true,
     this.dailyMotivation = true,
     int motivationMinutes = defaultMotivationMinutes,
+    this.showCalendar = false,
+    this.hiddenCalendarIds = const [],
   }) : motivationMinutes = motivationMinutes < 0 ? 0 : (motivationMinutes > 1439 ? 1439 : motivationMinutes);
 
   /// 09:00.
@@ -60,6 +62,12 @@ class AppSettings {
   /// When [dailyMotivation] arrives, in minutes after midnight (0..1439).
   final int motivationMinutes;
 
+  /// Device calendar events appear read-only in Plan (iOS only).
+  final bool showCalendar;
+
+  /// Calendars the user turned off in Settings; every other one is shown.
+  final List<String> hiddenCalendarIds;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -75,6 +83,8 @@ class AppSettings {
     bool? voiceAutoSave,
     bool? dailyMotivation,
     int? motivationMinutes,
+    bool? showCalendar,
+    List<String>? hiddenCalendarIds,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -91,6 +101,8 @@ class AppSettings {
         voiceAutoSave: voiceAutoSave ?? this.voiceAutoSave,
         dailyMotivation: dailyMotivation ?? this.dailyMotivation,
         motivationMinutes: motivationMinutes ?? this.motivationMinutes,
+        showCalendar: showCalendar ?? this.showCalendar,
+        hiddenCalendarIds: hiddenCalendarIds ?? this.hiddenCalendarIds,
       );
 
   Map<String, Object?> toJson() => {
@@ -108,6 +120,8 @@ class AppSettings {
         'voiceAutoSave': voiceAutoSave,
         'dailyMotivation': dailyMotivation,
         'motivationMinutes': motivationMinutes,
+        'showCalendar': showCalendar,
+        'hiddenCalendarIds': hiddenCalendarIds,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -129,5 +143,10 @@ class AppSettings {
         voiceAutoSave: j['voiceAutoSave'] != false,
         dailyMotivation: j['dailyMotivation'] != false,
         motivationMinutes: (j['motivationMinutes'] as num?)?.toInt() ?? defaultMotivationMinutes,
+        showCalendar: j['showCalendar'] == true,
+        hiddenCalendarIds: switch (j['hiddenCalendarIds']) {
+          final List<Object?> ids => List.unmodifiable(ids.whereType<String>()),
+          _ => const [],
+        },
       );
 }

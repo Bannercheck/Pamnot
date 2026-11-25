@@ -22,6 +22,7 @@ import '../models/task_list.dart';
 import '../models/voice_log.dart';
 import '../prediction/word_predictor.dart';
 import '../services/alarm_scheduler.dart';
+import '../services/calendar/calendar_source.dart';
 import '../services/handwriting.dart';
 import '../services/reminder_scheduler.dart';
 import '../services/speech/speech_engine.dart';
@@ -32,7 +33,9 @@ import 'sample_data.dart';
 /// Parts of the state a screen can subscribe to; a change to one slice only
 /// rebuilds the widgets that asked for it. A slice's name is also the key
 /// its document is stored under.
-enum Slice { notes, tasks, reminders, habits, settings, lists }
+/// [calendar] is never saved; it only tells screens that the device
+/// calendar's events changed.
+enum Slice { notes, tasks, reminders, habits, settings, lists, calendar }
 
 enum AgendaKind { task, reminder }
 
@@ -70,6 +73,7 @@ class AppController extends ChangeNotifier {
     HandwritingRecognizer? handwriting,
     SpeechEngine? speech,
     AlarmScheduler? alarms,
+    CalendarSource? calendar,
     DateTime Function()? clock,
     this.saveDelay = const Duration(milliseconds: 400),
   })  : scheduler = scheduler ?? NoopScheduler(),
@@ -77,6 +81,7 @@ class AppController extends ChangeNotifier {
         handwriting = handwriting ?? UnsupportedRecognizer(),
         speech = speech ?? UnsupportedSpeechEngine(),
         alarms = alarms ?? NoopAlarmScheduler(),
+        calendar = calendar ?? NoCalendarSource(),
         now = clock ?? DateTime.now;
 
   final KeyValueStore store;
@@ -85,6 +90,7 @@ class AppController extends ChangeNotifier {
   final HandwritingRecognizer handwriting;
   final SpeechEngine speech;
   final AlarmScheduler alarms;
+  final CalendarSource calendar;
   final DateTime Function() now;
   final Duration saveDelay;
   static const _uuid = Uuid();
@@ -359,7 +365,7 @@ class AppController extends ChangeNotifier {
       Slice.reminders => [for (final r in _reminders) r.toJson()],
       Slice.habits => [for (final h in _habits) h.toJson()],
       Slice.lists => [for (final l in _lists) l.toJson()],
-      Slice.settings => const [],
+      Slice.settings || Slice.calendar => const [],
     };
     if (s == Slice.settings) return jsonEncode(_settings.toJson());
     return jsonEncode({'v': 1, 'items': list});
@@ -375,7 +381,7 @@ class AppController extends ChangeNotifier {
       _revs[s] = _revs[s]! + 1;
     }
     if (persist) {
-      _dirty.addAll(slices);
+      _dirty.addAll(slices.where((s) => s != Slice.calendar));
       _scheduleSave();
     }
     if (slices.contains(Slice.tasks) || slices.contains(Slice.reminders) || slices.contains(Slice.settings)) {

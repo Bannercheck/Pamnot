@@ -391,4 +391,18 @@ class S {
       _('Sessiz modda da çalar; Ertele ve Kapat düğmeleriyle.', 'Rings even in silent mode, with Snooze and Stop.');
   String get alarmDenied =>
       _('Alarm izni kapalı; bildirim olarak hatırlatılacak.', 'Alarms are off; you’ll get a notification instead.');
+
+  // v2 · K4
+  String get showCalendar => _('Takvimi göster', 'Show calendar');
+  String get calendarSection => _('Takvim', 'Calendar');
+  String get calendarEvents => _('Takvim etkinlikleri', 'Calendar events');
+  String get calendarEventsSub => _('iPhone takvimindeki etkinlikler Plan’da salt okunur görünür.',
+      'Events from your iPhone calendar appear read-only in Plan.');
+  String get calendarsToShow => _('Görünecek takvimler', 'Calendars to show');
+  String get calendarDenied => _('Takvim erişimi kapalı — Ayarlar’ı aç', 'Calendar access is off — open Settings');
+  String get calendarEventLabel => _('Takvim etkinliği', 'Calendar event');
+  String get calendarOutlookHint => _(
+      'Outlook etkinlikleri için hesabını iPhone Ayarlar > Takvim > Hesaplar’a ekle.',
+      'For Outlook events, add your account in iPhone Settings > Calendar > Accounts.');
+  String get untitledEvent => _('Adsız etkinlik', 'Untitled event');
 }
