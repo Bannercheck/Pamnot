@@ -1,12 +1,12 @@
 # Usage: ruby tool/ios/check_project.rb ios/Runner.xcodeproj
-# Local check (not a CI step) that tool/ios/add_voice_files.rb wired the voice-capture files into
-# the Runner target: build phases, en/tr variant groups, knownRegions, objectVersion 54, and the
-# nine files it adds exist on disk. Generated files the project also references
+# Local check (not a CI step) that tool/ios/add_voice_files.rb and tool/ios/add_v2_files.rb wired
+# their files into the Runner target: build phases, en/tr variant groups, knownRegions,
+# objectVersion 54, and every file they add exists on disk. Generated files the project also references
 # (Generated.xcconfig, GeneratedPluginRegistrant.*, Runner.app) are not checked.
 # Prints every failure and exits 1; prints `project ok` on success.
 require 'xcodeproj'
 
-SOURCES = %w[PamnotLaunchBridge.swift VoiceTaskIntent.swift].freeze
+SOURCES = %w[PamnotLaunchBridge.swift VoiceTaskIntent.swift PamnotAccessibilityBridge.swift].freeze
 PLAIN_RESOURCES = %w[PrivacyInfo.xcprivacy].freeze
 STRINGS_TABLES = %w[AppShortcuts.strings Localizable.strings InfoPlist.strings].freeze
 LANGS = %w[en tr].freeze
@@ -58,7 +58,7 @@ on_disk.each do |ref|
   failures << "#{ref.display_name}: #{path} is referenced but missing on disk" unless File.file?(path)
 end
 expected_files = SOURCES.size + PLAIN_RESOURCES.size + STRINGS_TABLES.size * LANGS.size
-failures << "expected #{expected_files} voice files, found #{on_disk.size}" unless on_disk.size == expected_files
+failures << "expected #{expected_files} files, found #{on_disk.size}" unless on_disk.size == expected_files
 
 if failures.empty?
   puts 'project ok'

@@ -27,5 +27,8 @@ import flutter_local_notifications
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PamnotLaunchBridge") {
       PamnotLaunchBridge.register(with: registrar)
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PamnotAccessibilityBridge") {
+      PamnotAccessibilityBridge.register(with: registrar)
+    }
   }
 }
