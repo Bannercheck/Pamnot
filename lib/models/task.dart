@@ -1,3 +1,5 @@
+import 'task_list.dart';
+
 enum Priority { low, normal, high }
 
 class SubTask {
@@ -33,6 +35,9 @@ class TaskItem {
     this.subtasks = const [],
     this.colorIndex = 3,
     required this.createdAt,
+    this.listId = TaskList.personalId,
+    this.quadrant = Quadrant.plan,
+    this.order = 0,
   });
 
   final String id;
@@ -53,6 +58,15 @@ class TaskItem {
   final int colorIndex;
   final DateTime createdAt;
 
+  /// The [TaskList] this task belongs to.
+  final String listId;
+
+  /// The matrix box this task sits in.
+  final Quadrant quadrant;
+
+  /// Position inside its box.
+  final int order;
+
   int get subtasksDone => subtasks.where((s) => s.done).length;
 
   TaskItem copyWith({
@@ -66,6 +80,9 @@ class TaskItem {
     DateTime? Function()? remindAt,
     List<SubTask>? subtasks,
     int? colorIndex,
+    String? listId,
+    Quadrant? quadrant,
+    int? order,
   }) =>
       TaskItem(
         id: id,
@@ -80,6 +97,9 @@ class TaskItem {
         subtasks: subtasks ?? this.subtasks,
         colorIndex: colorIndex ?? this.colorIndex,
         createdAt: createdAt,
+        listId: listId ?? this.listId,
+        quadrant: quadrant ?? this.quadrant,
+        order: order ?? this.order,
       );
 
   Map<String, Object?> toJson() => {
@@ -95,16 +115,21 @@ class TaskItem {
         if (subtasks.isNotEmpty) 'subtasks': subtasks.map((s) => s.toJson()).toList(),
         'color': colorIndex,
         'createdAt': createdAt.toIso8601String(),
+        'list': listId,
+        'quadrant': quadrant.name,
+        'order': order,
       };
 
-  factory TaskItem.fromJson(Map<String, Object?> j) => TaskItem(
+  factory TaskItem.fromJson(Map<String, Object?> j) {
+    final priority =
+        Priority.values.firstWhere((p) => p.name == j['priority'], orElse: () => Priority.normal);
+    return TaskItem(
         id: j['id']! as String,
         title: (j['title'] as String?) ?? '',
         notes: (j['notes'] as String?) ?? '',
         done: j['done'] == true,
         completedAt: _date(j['completedAt']),
-        priority: Priority.values.firstWhere((p) => p.name == j['priority'],
-            orElse: () => Priority.normal),
+        priority: priority,
         due: _date(j['due']),
         hasTime: j['hasTime'] == true,
         remindAt: _date(j['remindAt']),
@@ -113,7 +138,14 @@ class TaskItem {
             .toList(),
         colorIndex: (j['color'] as num?)?.toInt() ?? 3,
         createdAt: DateTime.parse(j['createdAt']! as String),
+        // Tasks saved before lists existed go to Personal; high priority ones
+        // to the "do now" box, everything else to "plan".
+        listId: (j['list'] as String?) ?? TaskList.personalId,
+        quadrant: Quadrant.values.firstWhere((q) => q.name == j['quadrant'],
+            orElse: () => priority == Priority.high ? Quadrant.doNow : Quadrant.plan),
+        order: (j['order'] as num?)?.toInt() ?? 0,
       );
+  }
 }
 
 DateTime? _date(Object? v) => v is String ? DateTime.tryParse(v) : null;

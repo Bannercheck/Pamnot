@@ -16,6 +16,8 @@ class AppSettings {
     this.seeded = false,
     this.keepVoiceLog = false,
     this.notificationsAsked = false,
+    this.lastListId = '',
+    this.voiceAutoSave = true,
   });
 
   final AppLanguage language;
@@ -41,6 +43,12 @@ class AppSettings {
   /// The notification permission prompt has been shown once already.
   final bool notificationsAsked;
 
+  /// The list used last; '' means the first list.
+  final String lastListId;
+
+  /// A voice task with no list picked saves by itself after 8 seconds.
+  final bool voiceAutoSave;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -52,6 +60,8 @@ class AppSettings {
     bool? seeded,
     bool? keepVoiceLog,
     bool? notificationsAsked,
+    String? lastListId,
+    bool? voiceAutoSave,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -64,6 +74,8 @@ class AppSettings {
         seeded: seeded ?? this.seeded,
         keepVoiceLog: keepVoiceLog ?? this.keepVoiceLog,
         notificationsAsked: notificationsAsked ?? this.notificationsAsked,
+        lastListId: lastListId ?? this.lastListId,
+        voiceAutoSave: voiceAutoSave ?? this.voiceAutoSave,
       );
 
   Map<String, Object?> toJson() => {
@@ -77,6 +89,8 @@ class AppSettings {
         'seeded': seeded,
         'keepVoiceLog': keepVoiceLog,
         'notificationsAsked': notificationsAsked,
+        'lastListId': lastListId,
+        'voiceAutoSave': voiceAutoSave,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -94,5 +108,7 @@ class AppSettings {
         seeded: j['seeded'] == true,
         keepVoiceLog: j['keepVoiceLog'] == true,
         notificationsAsked: j['notificationsAsked'] == true,
+        lastListId: (j['lastListId'] as String?) ?? '',
+        voiceAutoSave: j['voiceAutoSave'] != false,
       );
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../models/task_list.dart';
+
 /// UI strings in Turkish and English. Kept as plain getters so a missing
 /// translation is a compile error rather than a blank label.
 class S {
@@ -298,4 +300,54 @@ class S {
   String get planAgendaTab => _('Takvim', 'Calendar');
   /// The middle navigation button on platforms without a microphone.
   String get navAddTask => _('Yeni görev ekle', 'Add a task');
+
+  // v2 · K2
+  String get matrix => _('Matris', 'Matrix');
+  /// Box titles describe the box; no imperative mood.
+  String quadrantTitle(Quadrant q) => switch (q) {
+        Quadrant.doNow => _('Önemli · Acil', 'Important · Urgent'),
+        Quadrant.plan => _('Önemli · Planlı', 'Important · Planned'),
+        Quadrant.delegate => _('Acil · Önemsiz', 'Urgent · Less important'),
+        Quadrant.later => _('Sonra · Belki', 'Later · Maybe'),
+      };
+  String quadrantHint(Quadrant q) => switch (q) {
+        Quadrant.doNow => _('Bugün ilgilen', 'Deal with it today'),
+        Quadrant.plan => _('Zamanını belirle', 'Give it a time'),
+        Quadrant.delegate => _('Kısa tut ya da paylaş', 'Keep it short or share it'),
+        Quadrant.later => _('Gerekirse dön', 'Come back if needed'),
+      };
+  /// Name of a ready-made list; an unknown [id] is returned as is.
+  String defaultListName(String id) => switch (id) {
+        TaskList.personalId => _('Kişisel', 'Personal'),
+        'work' => _('İş', 'Work'),
+        'school' => _('Okul', 'School'),
+        'shopping' => _('Alışveriş', 'Shopping'),
+        'home' => _('Ev', 'Home'),
+        _ => id,
+      };
+  String get list => _('Liste', 'List');
+  String get box => _('Kutu', 'Box');
+  String get newList => _('Yeni liste', 'New list');
+  String get listNameHint => _('Liste adı', 'List name');
+  String get renameList => _('Listeyi düzenle', 'Edit list');
+  String get deleteList => _('Listeyi sil', 'Delete list');
+  String deleteListBody(String name, int n, String target) => _(
+      '“$name” silinecek. İçindeki $n görev “$target” listesine taşınır.',
+      '“$name” will be deleted. Its $n tasks move to “$target”.');
+  String get lastListNote => _('En az bir liste kalmalı.', 'At least one list must stay.');
+  String get listDeleted => _('Liste silindi', 'List deleted');
+  String get moveToList => _('Başka listeye taşı…', 'Move to another list…');
+  String moveToBox(String box) => _('$box kutusuna taşı', 'Move to $box');
+  String get markDone => _('Bitti', 'Done');
+  String finishedCount(int n) => _('Biten ($n)', 'Finished ($n)');
+  String get addToBox => _('Ekle', 'Add');
+  String get boxEmpty => _('Boş', 'Empty');
+  String movedTo(String where) => _('$where içine taşındı', 'Moved to $where');
+  String get icon => _('Simge', 'Icon');
+  String voiceSavedTo(String list) => _('$list listesine eklendi', 'Added to $list');
+  String get voiceAutoSaveTitle =>
+      _('8 saniye sonra kendiliğinden kaydet', 'Save by itself after 8 seconds');
+  String get voiceAutoSaveSub => _(
+      'Liste seçmezsen son kullandığın listeye kaydeder. Eller serbest kullanım için.',
+      'If you don’t pick a list, it saves to the one you used last. For hands-free use.');
 }
