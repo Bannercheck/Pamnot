@@ -658,7 +658,7 @@ void main() {
     final before = starts(e);
     e.say('hatırlat');
     await tester.pump(VoiceTimings.utteranceGap);
-    await tester.pump(VoiceTimings.previewHold);
+    await tester.pump(const Duration(seconds: 2));
     expect(h.app.tasks, hasLength(1));
     expect(c.saved, hasLength(1));
     expect(c.phase, isNot(VoicePhase.error));

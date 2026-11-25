@@ -52,6 +52,13 @@ class VoiceSettingsGroup extends StatelessWidget {
                 guide(Icons.touch_app_outlined, s.voiceBackTapTitle, s.voiceBackTapSteps),
                 guide(Icons.settings_voice_outlined, s.voiceVoiceControlTitle, s.voiceVoiceControlSteps),
                 SwitchListTile(
+                  secondary: const Icon(Icons.timer_outlined),
+                  title: Text(s.voiceAutoSaveTitle),
+                  subtitle: Text(s.voiceAutoSaveSub),
+                  value: st.voiceAutoSave,
+                  onChanged: (v) => app.updateSettings(st.copyWith(voiceAutoSave: v)),
+                ),
+                SwitchListTile(
                   secondary: const Icon(Icons.history_rounded),
                   title: Text(s.voiceKeepLog),
                   subtitle: Text(s.voiceKeepLogSub),

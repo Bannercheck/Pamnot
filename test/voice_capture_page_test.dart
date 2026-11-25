@@ -152,13 +152,13 @@ void main() {
     expect(find.byKey(const Key('voice-countdown')), findsNothing);
     await tester.pump(VoiceTimings.utteranceGap);
     expect(find.byKey(const Key('voice-countdown')), findsOneWidget);
-    expect(find.text('2 sn'), findsOneWidget);
+    expect(find.text('8 sn'), findsOneWidget);
     expect(find.text('Düzelt'), findsOneWidget);
     expect(find.text('Dinliyorum…'), findsNothing); // mikrofon kapalıyken yazı kalmaz
     expect(find.byTooltip('Dinlemeyi başlat'), findsOneWidget);
     expect(e.listening, isFalse);
     await tester.pump(const Duration(milliseconds: 1100));
-    expect(find.text('1 sn'), findsOneWidget);
+    expect(find.text('7 sn'), findsOneWidget);
     expect(h.app.tasks, isEmpty);
     expect(haptics, isEmpty);
     await tester.pump(VoiceTimings.previewHold - const Duration(milliseconds: 1100));
@@ -650,7 +650,7 @@ void main() {
     await tester.pump(VoiceTimings.utteranceGap);
     final node = tester.getSemantics(find.byKey(const Key('voice-countdown')));
     // The countdown's own node: the seconds as text, no value.
-    expect(node.label, '2 sn');
+    expect(node.label, '8 sn');
     expect(node.value, isEmpty);
     expect(node, isSemantics(isLiveRegion: false));
     await tester.pump(const Duration(milliseconds: 1100));
@@ -753,7 +753,7 @@ void main() {
     await tester.pump(VoiceTimings.utteranceGap);
     expect(tester.takeException(), isNull);
     // The close button stays on screen even scrolled to the end.
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -2000));
+    await tester.drag(find.byType(SingleChildScrollView).first, const Offset(0, -2000));
     await tester.pump();
     expect(tester.takeException(), isNull);
     final close = find.byKey(const Key('voice-close'));
