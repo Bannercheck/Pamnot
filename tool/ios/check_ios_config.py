@@ -3,7 +3,8 @@
 
 Covers Info.plist, the privacy manifest, the en/tr .strings tables, the App Shortcut
 phrases in VoiceTaskIntent.swift, the launch-bridge registration in AppDelegate.swift and
-the bridge's two actions ("voice" from the App Intent only, "voice-link" for pamnot:// links).
+the bridge's two actions ("voice" from the App Intent only, "voice-link" for pamnot:// links),
+and the Reduce Transparency bridge (channel 'app.pamnot/a11y') and its registration.
 Standard library only. Prints every failure and exits 1; prints `ios config ok` on success.
 
 Usage: python3 tool/ios/check_ios_config.py
@@ -320,28 +321,34 @@ def check_intent(tables):
 
 # 5. AppDelegate.swift -----------------------------------------------------------------------
 
+# Bridges AppDelegate registers on the UI engine only, after the background-engine callback.
+UI_ENGINE_BRIDGES = ("PamnotLaunchBridge", "PamnotAccessibilityBridge")
+
+
 def check_app_delegate():
     raw = read_text(RUNNER / "AppDelegate.swift")
     if raw is None:
         return
     source = strip_swift_comments(raw)
-    registration = source.find('registrar(forPlugin: "PamnotLaunchBridge")')
-    if registration == -1:
-        fail('AppDelegate.swift: no `registrar(forPlugin: "PamnotLaunchBridge")` call')
-        return
     method = source.find("func didInitializeImplicitFlutterEngine")
     _, method_end = bracketed(source, method, "{", "}") if method != -1 else (None, -1)
-    if method == -1 or method_end == -1 or not method < registration < method_end:
-        fail("AppDelegate.swift: PamnotLaunchBridge must be registered inside "
-             "didInitializeImplicitFlutterEngine")
     callback = source.find("setPluginRegistrantCallback {")
     if callback == -1:
         fail("AppDelegate.swift: setPluginRegistrantCallback { ... } block not found")
-        return
-    _, callback_end = bracketed(source, callback, "{", "}")
-    if callback_end == -1 or registration < callback_end:
-        fail("AppDelegate.swift: PamnotLaunchBridge must be registered after the "
-             "setPluginRegistrantCallback block closes (never on the background engine)")
+    _, callback_end = bracketed(source, callback, "{", "}") if callback != -1 else (None, -1)
+    for bridge in UI_ENGINE_BRIDGES:
+        registration = source.find(f'registrar(forPlugin: "{bridge}")')
+        if registration == -1:
+            fail(f'AppDelegate.swift: no `registrar(forPlugin: "{bridge}")` call')
+            continue
+        if f"{bridge}.register(with:" not in source[registration:]:
+            fail(f"AppDelegate.swift: no `{bridge}.register(with:` call after its registrar lookup")
+        if method == -1 or method_end == -1 or not method < registration < method_end:
+            fail(f"AppDelegate.swift: {bridge} must be registered inside "
+                 "didInitializeImplicitFlutterEngine")
+        if callback != -1 and (callback_end == -1 or registration < callback_end):
+            fail(f"AppDelegate.swift: {bridge} must be registered after the "
+                 "setPluginRegistrantCallback block closes (never on the background engine)")
 
 
 # 6. PamnotLaunchBridge.swift ----------------------------------------------------------------
@@ -363,6 +370,21 @@ def check_bridge():
         fail('PamnotLaunchBridge.swift: request("voice") (listen at once) is for the App Intent only')
 
 
+# 7. PamnotAccessibilityBridge.swift ---------------------------------------------------------
+
+def check_accessibility_bridge():
+    raw = read_text(RUNNER / "PamnotAccessibilityBridge.swift")
+    if raw is None:
+        return
+    source = strip_swift_comments(raw)
+    # The channel contract of lib/services/system_accessibility.dart.
+    for needle in ('"app.pamnot/a11y"', '"reduceTransparency"', '"changed"', "static let shared",
+                   "UIAccessibility.isReduceTransparencyEnabled",
+                   "UIAccessibility.reduceTransparencyStatusDidChangeNotification"):
+        if needle not in source:
+            fail(f"PamnotAccessibilityBridge.swift: {needle} not found")
+
+
 def main():
     check_info_plist()
     check_privacy_manifest()
@@ -370,6 +392,7 @@ def main():
     check_intent(tables)
     check_app_delegate()
     check_bridge()
+    check_accessibility_bridge()
     if failures:
         for message in failures:
             print(f"FAIL {message}")
