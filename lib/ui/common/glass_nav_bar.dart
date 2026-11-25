@@ -2,6 +2,15 @@ import 'package:flutter/material.dart';
 
 import 'glass.dart';
 
+/// Height of the empty space at the end of a shell page's scroll view.
+///
+/// The shell's body runs under the floating [GlassNavBar], whose height
+/// (with the home indicator) arrives as `MediaQuery.padding.bottom`; scroll
+/// views do not consume it. The spacer therefore grows with the bar, so the
+/// last row clears the page's floating action button (which floats above
+/// the bar) as it did before the bar floated.
+double scrollEndSpace(BuildContext context) => 120 + MediaQuery.paddingOf(context).bottom;
+
 /// One tab of [GlassNavBar]: outlined [icon], filled [selectedIcon], [label].
 class GlassNavItem {
   const GlassNavItem(this.icon, this.selectedIcon, this.label);

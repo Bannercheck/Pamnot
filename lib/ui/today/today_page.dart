@@ -7,6 +7,7 @@ import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
 import '../../theme/pamnot_theme.dart';
 import '../common/format.dart';
+import '../common/glass_nav_bar.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';
 import '../notes/note_card.dart';
@@ -117,7 +118,7 @@ class TodayPage extends StatelessWidget {
             subtitle: toBeginningOfSentenceCase(longDate(s, now), s.locale),
           ),
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(pad, 8, pad, 120),
+            padding: EdgeInsets.fromLTRB(pad, 8, pad, scrollEndSpace(context)),
             sliver: SliverToBoxAdapter(
               child: ContentWidth(
                 maxWidth: twoColumns ? 1180 : 820,

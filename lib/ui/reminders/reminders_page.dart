@@ -7,6 +7,7 @@ import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
 import '../../theme/pamnot_theme.dart';
 import '../common/format.dart';
+import '../common/glass_nav_bar.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';
 import 'reminder_editor.dart';
@@ -31,7 +32,7 @@ class RemindersPage extends StatelessWidget {
         slivers: [
           PageHeader(title: s.reminders),
           RemindersList(app: app),
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          SliverToBoxAdapter(child: SizedBox(height: scrollEndSpace(context))),
         ],
       ),
     );

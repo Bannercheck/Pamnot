@@ -5,6 +5,7 @@ import '../../l10n/strings.dart';
 import '../../models/note.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
+import '../common/glass_nav_bar.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';
 import 'note_card.dart';
@@ -71,7 +72,7 @@ class _NotesPageState extends State<NotesPage> {
               )
             else
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(pad, 0, pad, 120),
+                padding: EdgeInsets.fromLTRB(pad, 0, pad, scrollEndSpace(context)),
                 sliver: SliverMasonryGrid.count(
                   crossAxisCount: columns,
                   mainAxisSpacing: 14,

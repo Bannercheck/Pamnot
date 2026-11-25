@@ -5,6 +5,7 @@ import '../../l10n/strings.dart';
 import '../../models/task.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
+import '../common/glass_nav_bar.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';
 import 'habits_view.dart';
@@ -90,7 +91,7 @@ class _TrackPageState extends State<TrackPage> {
             ),
             ..._taskSlivers(context, app, pad),
           ],
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          SliverToBoxAdapter(child: SizedBox(height: scrollEndSpace(context))),
         ],
       ),
     );

@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:pamnot/app.dart';
 import 'package:pamnot/data/store.dart';
+import 'package:pamnot/models/note.dart';
 import 'package:pamnot/models/reminder.dart';
 import 'package:pamnot/models/settings.dart';
+import 'package:pamnot/models/task.dart';
 import 'package:pamnot/services/launch_actions.dart';
 import 'package:pamnot/services/speech/speech_engine.dart';
 import 'package:pamnot/state/app_controller.dart';
@@ -195,4 +197,60 @@ void main() {
     expect(engine.listening, isTrue);
     await shutdown(tester);
   });
+
+  // The body runs under the floating bar, so every page's end spacer must
+  // grow with the bar: at the end of a long list the last row and its
+  // control stay clear of the page's button, the centre button and the bar,
+  // with and without the home indicator.
+  for (final inset in [0.0, 34.0]) {
+    testWidgets('uzun listenin sonunda son satır FAB ve menünün altında kalmaz (alt boşluk $inset)', (tester) async {
+      await boot(tester);
+      tester.view.padding = FakeViewPadding(bottom: inset);
+      tester.view.viewPadding = FakeViewPadding(bottom: inset);
+      for (var i = 0; i < 14; i++) {
+        final n = i.toString().padLeft(2, '0');
+        c.upsertReminder(Reminder(id: 'rx$i', title: 'Hatırlat $n', at: DateTime(2026, 10, 28 + i, 10), createdAt: now));
+        c.upsertTask(TaskItem(id: 'tx$i', title: 'Görev $n', due: now, createdAt: now));
+        c.upsertNote(Note(id: 'nx$i', title: 'Not $n', body: 'Satır $n', createdAt: now, updatedAt: now.add(Duration(minutes: i))));
+      }
+      await tester.pumpAndSettle();
+
+      Future<void> checkEnd(String what, List<Finder> rows) async {
+        final scroll = find.byType(Scrollable).hitTestable().first;
+        await tester.drag(scroll, const Offset(0, -20000));
+        await tester.pumpAndSettle();
+        final height = tester.view.physicalSize.height;
+        final visible = [
+          for (final f in rows)
+            for (final e in f.evaluate())
+              if (tester.getRect(find.byWidget(e.widget).first).top < height) tester.getRect(find.byWidget(e.widget).first),
+        ];
+        expect(visible, isNotEmpty, reason: what);
+        final last = visible.reduce((a, b) => a.bottom >= b.bottom ? a : b);
+        final obstacles = [
+          for (final e in find.byType(FloatingActionButton).evaluate()) tester.getRect(find.byWidget(e.widget)),
+          tester.getRect(find.byType(GlassNavBar)),
+        ];
+        for (final o in obstacles) {
+          expect(last.overlaps(o), isFalse, reason: '$what: last row $last overlaps $o');
+          // Not only side by side: the end of the list rises above them.
+          expect(last.bottom, lessThanOrEqualTo(o.top), reason: '$what: last row $last reaches under $o');
+        }
+      }
+
+      await checkEnd('Bugün', [find.textContaining('Görev ')]);
+      await tester.tap(find.byKey(const Key('nav-1')));
+      await tester.pumpAndSettle();
+      await checkEnd('Notlar', [find.textContaining('Not ')]);
+      await tester.tap(find.byKey(const Key('nav-2')));
+      await tester.pumpAndSettle();
+      await checkEnd('Takip', [find.textContaining('Görev '), find.byType(Checkbox)]);
+      await tester.tap(find.byKey(const Key('nav-3')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Anımsatıcılar'));
+      await tester.pumpAndSettle();
+      await checkEnd('Plan > Anımsatıcılar', [find.textContaining('Hatırlat '), find.byType(Switch)]);
+      await shutdown(tester);
+    });
+  }
 }
