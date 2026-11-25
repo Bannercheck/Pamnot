@@ -440,7 +440,9 @@ class S {
 
   /// The numbered lines of a guide step. Without a share link ([hasShareLink]
   /// false, the default while `voiceShortcutShareUrl` is empty) the shortcut
-  /// step's first line explains the manual setup.
+  /// step's first line explains the manual setup and the next one tells the
+  /// user to name it [voiceShortcutName], the name Run shortcut opens. The
+  /// steps that pick the shortcut name it the same way in both languages.
   List<String> guideStepLines(String step, {bool hasShareLink = voiceShortcutShareUrl != ''}) => switch (step) {
         'shortcut' => [
             hasShareLink
@@ -448,19 +450,21 @@ class S {
                     'Tap Add shortcut, then choose ‘Add Shortcut’ in Shortcuts.')
                 : _('Kestirmeler’de + ile yeni kestirme oluştur ve Pamnot > Sesle Görev Ekle eylemini ekle.',
                     'In Shortcuts, tap + to create a new shortcut and add the Pamnot > Add Voice Task action.'),
+            if (!hasShareLink)
+              _('Kestirmeye ‘$voiceShortcutName’ adını ver.', 'Name the shortcut ‘$voiceShortcutName’.'),
             _('Kısayolu çalıştır’a dokun; Pamnot dinlemeye başlar.', 'Tap Run shortcut; Pamnot starts listening.'),
             _('İstersen Siri’ye ‘Pamnot ile görev ekle’ de.', 'You can also say ‘Add a task in Pamnot’ to Siri.'),
           ],
         'actionButton' => [
             _('Ayarlar > Eylem Düğmesi’ni aç.', 'Open Settings > Action Button.'),
             _('Kestirme’ye kaydır ve ‘Kestirme Seç’e dokun.', 'Swipe to Shortcut and tap ‘Choose a Shortcut’.'),
-            _('Sesle Görev Ekle’yi seç.', 'Pick Add Voice Task.'),
+            _('$voiceShortcutName’yi seç.', 'Pick $voiceShortcutName.'),
           ],
         'backTap' => [
             _('Ayarlar > Erişilebilirlik > Dokunma > Arkaya Dokunma’yı aç.',
                 'Open Settings > Accessibility > Touch > Back Tap.'),
             _('İki ya da Üç Dokunuş’u seç.', 'Choose Double Tap or Triple Tap.'),
-            _('Listeden Sesle Görev Ekle kestirmesini seç.', 'Pick the Add Voice Task shortcut from the list.'),
+            _('Listeden $voiceShortcutName kestirmesini seç.', 'Pick the $voiceShortcutName shortcut from the list.'),
           ],
         'outlook' => [
             _('Ayarlar > Uygulamalar > Takvim > Takvim Hesapları’nı aç.',

@@ -251,8 +251,22 @@ void main() {
     ]);
     expect(S.tr.guideStepLines('shortcut', hasShareLink: false).first,
         'Kestirmeler’de + ile yeni kestirme oluştur ve Pamnot > Sesle Görev Ekle eylemini ekle.');
-    expect(S.tr.guideStepLines('shortcut', hasShareLink: false).skip(1),
+    // Run shortcut opens the shortcut by its fixed name, so the manual setup
+    // tells the user to give it exactly that name, in both languages.
+    expect(S.tr.guideStepLines('shortcut', hasShareLink: false)[1], 'Kestirmeye ‘Sesle Görev Ekle’ adını ver.');
+    expect(S.en.guideStepLines('shortcut', hasShareLink: false)[1], 'Name the shortcut ‘Sesle Görev Ekle’.');
+    expect(S.tr.guideStepLines('shortcut', hasShareLink: false).skip(2),
         S.tr.guideStepLines('shortcut', hasShareLink: true).skip(1));
+    expect(S.en.guideStepLines('shortcut', hasShareLink: false).skip(2),
+        S.en.guideStepLines('shortcut', hasShareLink: true).skip(1));
+    // The English steps that pick the shortcut name it as it is saved.
+    expect(S.en.guideStepLines('actionButton').last, 'Pick Sesle Görev Ekle.');
+    expect(S.en.guideStepLines('backTap').last, 'Pick the Sesle Görev Ekle shortcut from the list.');
+    for (final s in [S.tr, S.en]) {
+      for (final step in ['actionButton', 'backTap']) {
+        expect(s.guideStepLines(step).last, contains(voiceShortcutName), reason: '${s.locale} $step');
+      }
+    }
     // The link is still empty, so the default tells the manual setup.
     expect(S.tr.guideStepLines('shortcut'), S.tr.guideStepLines('shortcut', hasShareLink: false));
     expect(S.en.guideStepLines('shortcut', hasShareLink: true).length, 3);
