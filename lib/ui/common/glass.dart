@@ -53,18 +53,22 @@ class GlassPanel extends StatelessWidget {
   static const double sigma = 20;
 
   /// Fill over the blurred backdrop. The design asked for white 62 % /
-  /// 0x28252F 58 %; raised to 84 % / 85 % so onSurfaceVariant keeps 4.5:1
-  /// over the worst backdrop (primary, secondary) without the blur's help.
+  /// 0x28252F 58 %; raised to 84 % / 90 % so onSurface and onSurfaceVariant
+  /// keep 4.5:1 over the worst backdrop (primary, secondary) without the
+  /// blur's help, measured on the painted surface: fill plus the full-strength
+  /// [highlight] at the top edge (worst: light 4.86, dark 4.58).
   static Color fill(Brightness b) =>
-      b == Brightness.dark ? const Color(0xD928252F) : const Color(0xD6FFFFFF);
+      b == Brightness.dark ? const Color(0xE628252F) : const Color(0xD6FFFFFF);
 
   /// 1 px edge: white 55 % (light), white 14 % (dark).
   static Color border(Brightness b) =>
       b == Brightness.dark ? const Color(0x24FFFFFF) : const Color(0x8CFFFFFF);
 
-  /// Top light: white 28 % (light), white 8 % (dark); transparent at 40 %.
+  /// Top light: white 28 % (light), white 4 % (dark); transparent at 40 %.
+  /// The design asked for 8 % in dark; halved because white over the dark
+  /// fill lowers the text contrast (8 % needs a 95 % fill to keep 4.5:1).
   static Color highlight(Brightness b) =>
-      b == Brightness.dark ? const Color(0x14FFFFFF) : const Color(0x47FFFFFF);
+      b == Brightness.dark ? const Color(0x0AFFFFFF) : const Color(0x47FFFFFF);
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(

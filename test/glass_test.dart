@@ -121,13 +121,13 @@ void main() {
     expect(tester.renderObject<RenderBackdropFilter>(find.byType(BackdropFilter)).backdropKey, isNull);
   });
 
-  test('cam renkleri tasarımdaki değerler (dolgu kontrast için yükseltildi)', () {
+  test('cam renkleri tasarımdaki değerler (dolgu ve koyu ışık kontrast için ayarlandı)', () {
     expect(GlassPanel.fill(Brightness.light), const Color(0xD6FFFFFF));
-    expect(GlassPanel.fill(Brightness.dark), const Color(0xD928252F));
+    expect(GlassPanel.fill(Brightness.dark), const Color(0xE628252F));
     expect(GlassPanel.border(Brightness.light), const Color(0x8CFFFFFF));
     expect(GlassPanel.border(Brightness.dark), const Color(0x24FFFFFF));
     expect(GlassPanel.highlight(Brightness.light), const Color(0x47FFFFFF));
-    expect(GlassPanel.highlight(Brightness.dark), const Color(0x14FFFFFF));
+    expect(GlassPanel.highlight(Brightness.dark), const Color(0x0AFFFFFF));
     // Alt sınır: açık %62, koyu %58.
     expect(GlassPanel.fill(Brightness.light).a, greaterThanOrEqualTo(0.62));
     expect(GlassPanel.fill(Brightness.dark).a, greaterThanOrEqualTo(0.58));
@@ -139,9 +139,14 @@ void main() {
       final b = s.brightness;
       final backgrounds = [s.surface, s.primary, s.secondary, for (final p in pastels) p.paper(b)];
       for (final bg in backgrounds) {
-        final glass = Color.alphaBlend(GlassPanel.fill(b), bg);
-        for (final fg in [s.onSurface, s.onSurfaceVariant]) {
-          expect(contrast(fg, glass), greaterThanOrEqualTo(4.5), reason: '$b $fg on $bg');
+        // Boyanan yüzey: arka plan, üstüne dolgu, en üstte ışığın tam
+        // güçte olduğu üst kenar (metnin gerçekten durduğu en kötü yer).
+        final fillOnly = Color.alphaBlend(GlassPanel.fill(b), bg);
+        final top = Color.alphaBlend(GlassPanel.highlight(b), fillOnly);
+        for (final glass in [fillOnly, top]) {
+          for (final fg in [s.onSurface, s.onSurfaceVariant]) {
+            expect(contrast(fg, glass), greaterThanOrEqualTo(4.5), reason: '$b $fg on $bg -> $glass');
+          }
         }
       }
     }
