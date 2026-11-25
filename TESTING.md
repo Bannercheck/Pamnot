@@ -148,6 +148,8 @@ Uygulama silinip kurulursa Eylem düğmesine ve Arkaya Dokunma'ya atanan kestirm
 - [ ] Eski **Pamnot · Bugün** widget'ı hâlâ eklenebilmeli ve güncellenmeli.
 
 **Kestirme kılavuzu ve PiP (iPhone ve iPad)**
+- [ ] Kılavuz açıkken, **Ayarlar'ı aç**'a dokunmadan önce ekranın sol üst köşesinde küçük bir video
+      kutusu görünmemeli.
 - [ ] Ayarlar > **Kestirmeler ve Siri**'de Eylem düğmesi adımında **Ayarlar'ı aç**'a dokunun: kılavuz
       videosu sağ altta Resim içinde Resim (PiP) olarak oynamalı ve Ayarlar açılmalı.
 - [ ] Ayarlar'da sayfalar arasında gezinin: video oynamayı sürdürmeli.

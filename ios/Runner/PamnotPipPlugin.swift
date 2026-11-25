@@ -90,8 +90,10 @@ final class PamnotPipPlugin: NSObject, FlutterPlugin, AVPictureInPictureControll
     player.isMuted = true
     let looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: URL(fileURLWithPath: path)))
 
-    // Picture in Picture needs the layer in the view hierarchy, neither hidden nor transparent;
-    // at index 0 it sits behind the Flutter view.
+    // Picture in Picture needs the layer in the view hierarchy, neither hidden nor transparent.
+    // The root view is the FlutterView itself: index 0 puts the host below the root view's other
+    // subviews, but it may still draw over Flutter's own render layer (a small box at the top-left).
+    // TESTING.md lists the device check for this.
     let host = UIView(frame: CGRect(origin: .zero, size: Self.videoSize))
     host.isUserInteractionEnabled = false
     let playerLayer = AVPlayerLayer(player: player)
