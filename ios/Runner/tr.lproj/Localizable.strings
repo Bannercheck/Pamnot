@@ -1,2 +1,4 @@
 "Add Voice Task" = "Sesle Görev Ekle";
 "Opens Pamnot and listens so you can add a task by voice." = "Pamnot'u açar ve görevi sesle eklemen için dinler.";
+"alarm.stop" = "Kapat";
+"alarm.snooze" = "Ertele";

@@ -4,7 +4,8 @@
 Covers Info.plist, the privacy manifest, the en/tr .strings tables, the App Shortcut
 phrases in VoiceTaskIntent.swift, the launch-bridge registration in AppDelegate.swift and
 the bridge's two actions ("voice" from the App Intent only, "voice-link" for pamnot:// links),
-and the Reduce Transparency bridge (channel 'app.pamnot/a11y') and its registration.
+the Reduce Transparency bridge (channel 'app.pamnot/a11y') and its registration, and the
+AlarmKit bridge (channel 'app.pamnot/alarm'), its permission text, button titles and registration.
 Standard library only. Prints every failure and exits 1; prints `ios config ok` on success.
 
 Usage: python3 tool/ios/check_ios_config.py
@@ -22,18 +23,22 @@ TABLES = ("InfoPlist", "AppShortcuts", "Localizable")
 
 MIC_KEY = "NSMicrophoneUsageDescription"
 SPEECH_KEY = "NSSpeechRecognitionUsageDescription"
+ALARM_KEY = "NSAlarmKitUsageDescription"
+INFO_KEYS = (MIC_KEY, SPEECH_KEY, ALARM_KEY)
 PERMISSION_TEXT = {
     "en": {
         MIC_KEY: "Pamnot uses the microphone to hear what you say when you add a task by voice. "
         "No audio is saved.",
         SPEECH_KEY: "Pamnot uses speech recognition to turn the task you say into text. "
         "Your voice may be sent to Apple for this.",
+        ALARM_KEY: "Pamnot rings an alarm at the time you set for a task or reminder.",
     },
     "tr": {
         MIC_KEY: "Pamnot, sesle görev eklerken söylediklerini duymak için mikrofonu kullanır. "
         "Ses kaydı saklanmaz.",
         SPEECH_KEY: "Pamnot, söylediğin görevi yazıya çevirmek için konuşma tanımayı kullanır. "
         "Sesin bunun için Apple'a gönderilebilir.",
+        ALARM_KEY: "Pamnot, bir görev ya da hatırlatıcı için seçtiğin saatte alarm çalar.",
     },
 }
 
@@ -58,6 +63,11 @@ APP_NAME_SWIFT = r"\(.applicationName)"
 APP_NAME_STRINGS = "${applicationName}"
 EXPECTED_TITLE = "Add Voice Task"
 EXPECTED_PHRASE_COUNT = 4
+# The alarm's button titles (PamnotAlarmPlugin.swift passes the keys to AlarmButton).
+ALARM_BUTTONS = {
+    "en": {"alarm.stop": "Stop", "alarm.snooze": "Snooze"},
+    "tr": {"alarm.stop": "Kapat", "alarm.snooze": "Ertele"},
+}
 
 STRINGS_LINE = re.compile(r'^"((?:[^"\\]|\\.)*)" = "((?:[^"\\]|\\.)*)";$')
 SWIFT_STRING = re.compile(r'"((?:[^"\\]|\\.)*)"')
@@ -111,7 +121,7 @@ def check_info_plist():
              "a second HomeShell)")
     if info.get("ITSAppUsesNonExemptEncryption") is not False:
         fail("Info.plist: ITSAppUsesNonExemptEncryption must be false")
-    for key in (MIC_KEY, SPEECH_KEY):
+    for key in INFO_KEYS:
         if info.get(key) != PERMISSION_TEXT["en"][key]:
             fail(f"Info.plist: {key} must be the English permission text, found {info.get(key)!r}")
     for key in FORBIDDEN_INFO_KEYS:
@@ -198,13 +208,21 @@ def check_strings_tables():
         info = tables["InfoPlist"][lang]
         if info is None:
             continue
-        if set(info) != {MIC_KEY, SPEECH_KEY}:
-            fail(f"{lang}.lproj/InfoPlist.strings: keys must be exactly {MIC_KEY} and {SPEECH_KEY}, "
+        if set(info) != set(INFO_KEYS):
+            fail(f"{lang}.lproj/InfoPlist.strings: keys must be exactly {', '.join(INFO_KEYS)}, "
                  f"found {sorted(info)}")
-        for key in (MIC_KEY, SPEECH_KEY):
+        for key in INFO_KEYS:
             if key in info and info[key] != PERMISSION_TEXT[lang][key]:
                 fail(f"{lang}.lproj/InfoPlist.strings: {key} must be "
                      f"{PERMISSION_TEXT[lang][key]!r}, found {info[key]!r}")
+    for lang in LANGS:
+        localizable = tables["Localizable"][lang]
+        if localizable is None:
+            continue
+        for key, value in ALARM_BUTTONS[lang].items():
+            if localizable.get(key) != value:
+                fail(f"{lang}.lproj/Localizable.strings: {key} must be {value!r}, "
+                     f"found {localizable.get(key)!r}")
     return tables
 
 
@@ -322,7 +340,7 @@ def check_intent(tables):
 # 5. AppDelegate.swift -----------------------------------------------------------------------
 
 # Bridges AppDelegate registers on the UI engine only, after the background-engine callback.
-UI_ENGINE_BRIDGES = ("PamnotLaunchBridge", "PamnotAccessibilityBridge")
+UI_ENGINE_BRIDGES = ("PamnotLaunchBridge", "PamnotAccessibilityBridge", "PamnotAlarmPlugin")
 
 
 def check_app_delegate():
@@ -385,6 +403,39 @@ def check_accessibility_bridge():
             fail(f"PamnotAccessibilityBridge.swift: {needle} not found")
 
 
+# 8. PamnotAlarmPlugin.swift -----------------------------------------------------------------
+
+def check_alarm_plugin():
+    raw = read_text(RUNNER / "PamnotAlarmPlugin.swift")
+    if raw is None:
+        return
+    source = strip_swift_comments(raw)
+    # The channel contract of lib/services/alarm_scheduler.dart.
+    for needle in ('"app.pamnot/alarm"', '"access"', '"requestAccess"', '"sync"',
+                   '"unsupported"', '"notDetermined"', '"denied"', '"authorized"',
+                   "class PamnotAlarmPlugin: NSObject, FlutterPlugin",
+                   "#if canImport(AlarmKit)", "#available(iOS 26.0, *)",
+                   '"pamnot_alarm_ids"', '"alarm.stop"', '"alarm.snooze"',
+                   "PamnotSnoozeIntent", "LiveActivityIntent", "PamnotAlarmMetadata"):
+        if needle not in source:
+            fail(f"PamnotAlarmPlugin.swift: {needle} not found")
+    # AlarmKit is only in the iOS 26 SDK: importing it outside `#if canImport(AlarmKit)`
+    # breaks the build on an older Xcode instead of answering "unsupported".
+    guard = source.find("#if canImport(AlarmKit)")
+    imported = source.find("import AlarmKit")
+    if imported == -1:
+        fail("PamnotAlarmPlugin.swift: import AlarmKit not found")
+    elif guard == -1 or imported < guard:
+        fail("PamnotAlarmPlugin.swift: import AlarmKit must be inside #if canImport(AlarmKit)")
+    # `sync` cancels the stored ids, awaits each schedule and then stores the new ids: two
+    # overlapping calls would orphan alarms no later sync cancels. Each call waits for the
+    # previous one (`syncTail`), and the tail is swapped synchronously on the main thread.
+    for needle in ("static var syncTail: Task<Void, Never>?", "let previous = syncTail",
+                   "await previous?.value", "syncTail = Task", "MainActor.assumeIsolated"):
+        if needle not in source:
+            fail(f"PamnotAlarmPlugin.swift: sync must be serialized ({needle} not found)")
+
+
 def main():
     check_info_plist()
     check_privacy_manifest()
@@ -393,6 +444,7 @@ def main():
     check_app_delegate()
     check_bridge()
     check_accessibility_bridge()
+    check_alarm_plugin()
     if failures:
         for message in failures:
             print(f"FAIL {message}")
