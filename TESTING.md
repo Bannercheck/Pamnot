@@ -1,21 +1,10 @@
 # Pamnot'u test etmek
 
-Her push'ta GitHub Actions uygulamayı analiz eder, testleri çalıştırır ve test sürümlerini
-derler (bkz. `.github/workflows/build.yml`). Derlenen dosyalar çalıştırmanın sayfasında,
-**Artifacts** bölümündedir: GitHub'da **Actions → Build → son çalıştırma**.
+GitHub Actions kullanılmıyor: `.github/workflows/build.yml` yalnız elle başlatılır
+(**Run workflow**) ve push'larda çalışmaz. Analiz ve testler yerelde çalıştırılır
+(`flutter analyze`, `flutter test`); iOS sürümü Mac'te Xcode ile derlenir.
 
-| Artifact | İçinde |
-|---|---|
-| `pamnot-android` | Android APK'ları. Telefonların çoğu için `app-arm64-v8a-release.apk`. |
-| `pamnot-macos` | `Pamnot-macos.zip` (imzasız Mac uygulaması) |
-| `pamnot-windows` | Windows uygulaması: klasördeki `pamnot.exe` |
-| `pamnot-web` | Web sürümü (herhangi bir statik sunucuyla açılır) |
-
-macOS, iOS ve Windows işleri daha pahalı Actions dakikası kullandığı için yalnızca `main`
-dalında, etiketlerde, elle başlatıldığında (**Run workflow**) ya da commit mesajında
-`[full-build]` geçtiğinde çalışır. Android ve web her push'ta derlenir.
-
-> **Not:** Şu an GitHub Actions kullanılmıyor. iOS derlemesini ve AlarmKit bağlantısını hiçbir
+> **Not:** iOS derlemesini ve AlarmKit bağlantısını hiçbir
 > otomatik iş denetlemiyor; yayından önce aşağıdaki
 > [iOS derleme denetimi (Mac'te, elle)](#ios-derleme-denetimi-macte-elle) adımları bunun yerini alır.
 

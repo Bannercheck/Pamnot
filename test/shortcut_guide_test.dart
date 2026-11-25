@@ -345,6 +345,25 @@ void main() {
     await shutdown(tester, c);
   });
 
+  testWidgets('Ayarlar düğmesi kendi kartının videosunu oynatır; dönüşten sonra yeniden yükler', (tester) async {
+    final c = await boot(tester, pip: _FakePip(log));
+    await openGuide(tester);
+    await expand(tester, 'actionButton');
+    await expand(tester, 'outlook');
+    // outlook loaded last; the actionButton card's button loads its own video first.
+    log.clear();
+    await tapKey(tester, 'guide-open-settings-actionButton');
+    expect(log, ['prepare assets/guide/action_button.mp4', 'start', 'open app-settings:']);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    // After the return the player is gone; a second tap loads the video again.
+    log.clear();
+    await tapKey(tester, 'guide-open-settings-actionButton');
+    expect(log, ['prepare assets/guide/action_button.mp4', 'start', 'open app-settings:']);
+    await shutdown(tester, c);
+  });
+
   testWidgets('kılavuzdan çıkınca pip.stop', (tester) async {
     final c = await boot(tester, pip: _FakePip(log));
     await openGuide(tester);

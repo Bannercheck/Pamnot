@@ -84,6 +84,9 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _pipStarted) {
       _pipStarted = false;
+      // The player is torn down; the next tap prepares the video again.
+      _preparedStep = null;
+      _preparing = null;
       unawaited(widget.app.pip.stop());
     }
   }
@@ -118,8 +121,10 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
     unawaited(widget.app.pip.stop());
   }
 
-  Future<void> _openSettings() async {
+  Future<void> _openSettings(String step) async {
     if (await _pipSupported) {
+      // One player exists: load this card's video when another card's (or none) is loaded.
+      if (_preparedStep != step) _prepare(step);
       // A fast tap right after opening the card waits (briefly) for the video to load.
       final load = _preparing;
       if (load != null) await load.timeout(_prepareWait, onTimeout: () {});
@@ -160,7 +165,7 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
       return [
         wide(FilledButton.tonalIcon(
           key: Key('guide-open-settings-$step'),
-          onPressed: _openSettings,
+          onPressed: () => _openSettings(step),
           icon: const Icon(Icons.settings_outlined),
           label: Text(s.guideOpenSettings),
         )),
