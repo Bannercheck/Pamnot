@@ -20,6 +20,11 @@ enum VoiceRequest {
 /// sets it back to null, the way it consumes `notificationTaps`.
 final voiceRequests = ValueNotifier<VoiceRequest?>(null);
 
+/// Goes up by one each time the App Intent (the 'voice' action) arrives: the
+/// shortcut opened Pamnot. The microphone button and links leave it alone.
+/// HomeShell marks the guide's shortcut step done from it.
+final shortcutRuns = ValueNotifier<int>(0);
+
 /// The Dart side of ios/Runner/PamnotLaunchBridge.swift. The native side
 /// holds one pending action; Dart takes it with `takePendingAction`, and is
 /// told with `actionAvailable` when one arrives while Dart is running. So a
@@ -54,6 +59,7 @@ abstract final class LaunchActionsBridge {
         'voice-link' => VoiceRequest.link,
         _ => null,
       };
+      if (action == 'voice') shortcutRuns.value++;
       if (request != null) voiceRequests.value = request;
     } on MissingPluginException {
       // The bridge is not registered (widget tests).

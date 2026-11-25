@@ -16,6 +16,7 @@ import 'package:pamnot/services/speech/speech_engine.dart';
 import 'package:pamnot/state/app_controller.dart';
 import 'package:pamnot/state/app_scope.dart';
 import 'package:pamnot/theme/pamnot_theme.dart';
+import 'package:pamnot/ui/guide/shortcut_guide_page.dart';
 import 'package:pamnot/ui/settings/settings_page.dart';
 
 import 'support/fake_speech_engine.dart';
@@ -154,23 +155,22 @@ void main() {
     expect(find.text(tr.voiceSiriHint), findsOneWidget);
     expect(find.textContaining('Yan tuş'), findsNothing);
     expect(find.textContaining('Ayarlar > Eylem'), findsNothing);
+    // Back Tap and Voice Control moved into the "Shortcuts & Siri" guide page.
     expect(find.text(tr.voiceBackTapSteps), findsNothing);
     expect(find.text(tr.voiceVoiceControlSteps), findsNothing);
+    expect(find.byType(ExpansionTile), findsNothing);
+    expect(find.descendant(of: tileWith(tr.guideTitle), matching: find.byIcon(Icons.chevron_right_rounded)),
+        findsOneWidget);
 
-    await tapText(tester, 'Arkaya Dokunma');
-    expect(find.text(tr.voiceBackTapSteps), findsOneWidget);
-    await tapText(tester, 'Sesle Denetim');
-    expect(find.text(tr.voiceVoiceControlSteps), findsOneWidget);
-    // Still none once every step is on screen.
-    expect(find.textContaining('Yan tuş'), findsNothing);
-    expect(find.textContaining('Ayarlar > Eylem'), findsNothing);
-
-    // Order: ready line, Siri hint, Back Tap, Voice Control, log switch.
+    // Order: ready line, Siri hint, the guide link, log switch.
     double y(String text) => tester.getTopLeft(find.text(text)).dy;
     expect(y(tr.voiceSetupReady), lessThan(y(tr.voiceSiriHint)));
-    expect(y(tr.voiceSiriHint), lessThan(y(tr.voiceBackTapTitle)));
-    expect(y(tr.voiceBackTapTitle), lessThan(y(tr.voiceVoiceControlTitle)));
-    expect(y(tr.voiceVoiceControlTitle), lessThan(y(tr.voiceKeepLog)));
+    expect(y(tr.voiceSiriHint), lessThan(y(tr.guideTitle)));
+    expect(y(tr.guideTitle), lessThan(y(tr.voiceKeepLog)));
+
+    await tapText(tester, tr.guideTitle);
+    expect(find.byType(ShortcutGuidePage), findsOneWidget);
+    expect(find.text(tr.voiceVoiceControlSteps), findsOneWidget);
     await shutdown(tester, c);
   });
 
@@ -376,8 +376,8 @@ void main() {
 
   // ------------------------------------------------------ Erişilebilirlik
 
-  /// Everything the page can show at once: voice group with entries and both
-  /// guides open, handwriting models, the "denied" notification row.
+  /// Everything the page can show at once: voice group with entries,
+  /// handwriting models, the "denied" notification row.
   Future<AppController> pumpEverything(WidgetTester tester, {required Size size, ThemeData? theme}) async {
     final c = await pumpPage(
       tester,
@@ -392,8 +392,6 @@ void main() {
         localeId: 'tr-TR');
     c.logRecognized('not al süt bitti', const SpokenTask(title: 'Süt bitti', isNote: true), localeId: 'tr-TR');
     await tester.pumpAndSettle();
-    await tapText(tester, tr.voiceBackTapTitle);
-    await tapText(tester, tr.voiceVoiceControlTitle);
     return c;
   }
 

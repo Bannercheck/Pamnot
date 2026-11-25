@@ -10,6 +10,7 @@ import '../common/format.dart';
 import '../common/glass_nav_bar.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';
+import '../guide/shortcut_guide_page.dart';
 import '../notes/note_card.dart';
 import '../notes/note_editor_page.dart';
 import '../notes/notes_page.dart';
@@ -46,6 +47,11 @@ class TodayPage extends StatelessWidget {
         const SizedBox(height: 14),
         // Adds to the last used list (AppController.currentListId).
         QuickAddField(app: app, hint: s.quickCapture),
+        // Once, after the first save by voice (design §10).
+        if (app.speech.isSupported && app.settings.voiceUsed && !app.settings.guideCardDismissed) ...[
+          const SizedBox(height: 12),
+          _GuideCard(app: app),
+        ],
         SectionHeader(s.todaysPlan, icon: Icons.wb_sunny_outlined),
         if (overdue.isEmpty && todays.isEmpty && reminders.isEmpty)
           SoftCard(child: Text(s.nothingToday, style: Theme.of(context).textTheme.bodyLarge))
@@ -139,6 +145,57 @@ class TodayPage extends StatelessWidget {
                     : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [plan, side]),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The one-time card that points to the "Shortcuts & Siri" guide. Opening
+/// the guide closes it for good, the same as its close button.
+class _GuideCard extends StatelessWidget {
+  const _GuideCard({required this.app});
+
+  final AppController app;
+
+  void _dismiss() => app.updateSettings(app.settings.copyWith(guideCardDismissed: true));
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final t = Theme.of(context);
+    return SoftCard(
+      padding: const EdgeInsets.fromLTRB(18, 8, 8, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bolt_rounded, color: t.colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(child: Text(s.guideCardTitle, style: t.textTheme.titleMedium)),
+              IconButton(
+                key: const Key('guide-card-close'),
+                tooltip: s.close,
+                onPressed: _dismiss,
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Text(s.guideCardBody, style: t.textTheme.bodyMedium),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            key: const Key('guide-card-open'),
+            onPressed: () {
+              _dismiss();
+              ShortcutGuidePage.open(context);
+            },
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: Text(s.guideOpen),
           ),
         ],
       ),
