@@ -350,4 +350,27 @@ class S {
   String get voiceAutoSaveSub => _(
       'Liste seçmezsen son kullandığın listeye kaydeder. Eller serbest kullanım için.',
       'If you don’t pick a list, it saves to the one you used last. For hands-free use.');
+
+  // Task 9
+  /// What VoiceOver reads for an icon of `lib/ui/matrix/list_icons.dart`.
+  String listIconName(String key) => switch (key) {
+        'person' => _('Kişi', 'Person'),
+        'work' => _('Çanta', 'Briefcase'),
+        'school' => _('Kep', 'Graduation cap'),
+        'shopping' => _('Alışveriş arabası', 'Shopping cart'),
+        'home' => _('Ev', 'House'),
+        'star' => _('Yıldız', 'Star'),
+        'favorite' => _('Kalp', 'Heart'),
+        'fitness' => _('Dambıl', 'Dumbbell'),
+        'travel' => _('Uçak', 'Plane'),
+        'book' => _('Kitap', 'Book'),
+        'pets' => _('Pati', 'Paw'),
+        'money' => _('Kumbara', 'Piggy bank'),
+        'health' => _('Sağlık', 'Health'),
+        'music' => _('Nota', 'Music note'),
+        'idea' => _('Ampul', 'Light bulb'),
+        _ => _('Liste', 'List'),
+      };
+  /// The open-task count beside a box title, as VoiceOver reads it.
+  String openTasks(int n) => _('$n açık görev', '$n open tasks');
 }
