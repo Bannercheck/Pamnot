@@ -65,7 +65,8 @@ class _HomeShellState extends State<HomeShell> {
     final p = notificationTaps.value;
     if (p == null) return;
     // Task 19 adds the widget's `w:list:<id>` case here, before bare `w:`.
-    if (p.startsWith('w:')) {
+    // `w:` the widget, `m:` the daily motivation line: both open Today.
+    if (p.startsWith('w:') || p.startsWith('m:')) {
       _go(0);
     } else if (p.startsWith('t:')) {
       _go(2);
