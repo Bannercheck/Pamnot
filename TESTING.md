@@ -147,6 +147,17 @@ Uygulama silinip kurulursa Eylem düğmesine ve Arkaya Dokunma'ya atanan kestirm
 - [ ] Koyu temada ve iOS 26'nın cam (saydam) görünümünde yazılar okunabilmeli.
 - [ ] Eski **Pamnot · Bugün** widget'ı hâlâ eklenebilmeli ve güncellenmeli.
 
+**Kestirme kılavuzu ve PiP (iPhone ve iPad)**
+- [ ] Ayarlar > **Kestirmeler ve Siri**'de Eylem düğmesi adımında **Ayarlar'ı aç**'a dokunun: kılavuz
+      videosu sağ altta Resim içinde Resim (PiP) olarak oynamalı ve Ayarlar açılmalı.
+- [ ] Ayarlar'da sayfalar arasında gezinin: video oynamayı sürdürmeli.
+- [ ] Pamnot'a dönün: PiP penceresi kapanmalı.
+- [ ] Müzik ya da podcast çalarken **Ayarlar'ı aç**'a dokunun: müzik kesilmemeli, videonun sesi
+      olmamalı.
+- [ ] **Kısayolu çalıştır**: Pamnot dinler hâlde açılmalı ve adım **Tamam** olmalı.
+- [ ] Eylem düğmesi olmayan bir iPhone'da ve iPad'de kartlar düzgün görünmeli.
+- [ ] İlk sesli kayıttan sonra Bugün ekranında kılavuz kartı bir kez görünmeli.
+
 Bir sorun görürseniz ekran görüntüsü ve kısa bir açıklama yeterli: hangi cihaz, ne yaptınız,
 ne bekliyordunuz.
 
@@ -164,7 +175,9 @@ App Store Connect yanıtları ve inceleme notu taslağı:
    §3 ve §4 maddeleri. **Xcode > Product > Archive > Generate Privacy Report** ile (Organizer'da
    arşivin üzerinde) ML Kit bildirimlerini doğrulayın.
 5. App Store Connect alanları doldurulur (App Privacy, yaş derecelendirmesi, kategori, ekran
-   görüntüleri, destek ve gizlilik adresi, inceleme notu), sonra **Submit for Review**. Gizlilik
+   görüntüleri, destek ve gizlilik adresi, inceleme notu), sonra **Submit for Review**. İnceleme
+   notuna kılavuz videosunun PiP'i ve `audio` arka plan kipi için uyum belgesi §4.4'teki İngilizce
+   metin eklenir; 2.5.4 gerekçesiyle red gelirse geri çekilme yolu da oradadır. Gizlilik
    adresi [`PRIVACY.md`](PRIVACY.md)'nin GitHub sayfasıdır (`lib/services/links.dart`); depo
    herkese açık değilse oradaki iki sabit değiştirilir.
 6. `CLAUDE.md` kuralı: yayından önce `security-audit` tam denetimi çalıştırılır.

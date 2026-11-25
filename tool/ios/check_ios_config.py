@@ -6,7 +6,9 @@ phrases in VoiceTaskIntent.swift, the launch-bridge registration in AppDelegate.
 the bridge's two actions ("voice" from the App Intent only, "voice-link" for pamnot:// links),
 the Reduce Transparency bridge (channel 'app.pamnot/a11y') and its registration, and the
 AlarmKit bridge (channel 'app.pamnot/alarm'), its permission text, button titles and registration,
-and the calendar permission texts (iOS 17+ full access and the iOS 16 key).
+the calendar permission texts (iOS 17+ full access and the iOS 16 key), and the Picture in
+Picture bridge for the guide video (channel 'app.pamnot/pip'), its registration and the one
+background mode it needs (UIBackgroundModes exactly ["audio"]).
 Standard library only. Prints every failure and exits 1; prints `ios config ok` on success.
 
 Usage: python3 tool/ios/check_ios_config.py
@@ -58,11 +60,13 @@ PERMISSION_TEXT = {
 
 FORBIDDEN_INFO_KEYS = (
     "NSSiriUsageDescription",
-    "UIBackgroundModes",
     "NSUserActivityTypes",
     "NSUserNotificationsUsageDescription",
     "UIRequiresFullScreen",
 )
+# Only for the guide video's Picture in Picture (design §10, compliance doc §4.1); the video is
+# muted and the microphone never listens in the background.
+EXPECTED_BACKGROUND_MODES = ["audio"]
 EXPECTED_URL_TYPE = {
     "CFBundleTypeRole": "Editor",
     "CFBundleURLName": "app.pamnot.pamnot",
@@ -138,6 +142,9 @@ def check_info_plist():
     for key in INFO_KEYS:
         if info.get(key) != PERMISSION_TEXT["en"][key]:
             fail(f"Info.plist: {key} must be the English permission text, found {info.get(key)!r}")
+    if info.get("UIBackgroundModes") != EXPECTED_BACKGROUND_MODES:
+        fail(f"Info.plist: UIBackgroundModes must be exactly {EXPECTED_BACKGROUND_MODES!r}, "
+             f"found {info.get('UIBackgroundModes')!r}")
     for key in FORBIDDEN_INFO_KEYS:
         if key in info:
             fail(f"Info.plist: {key} must not be present")
@@ -354,7 +361,8 @@ def check_intent(tables):
 # 5. AppDelegate.swift -----------------------------------------------------------------------
 
 # Bridges AppDelegate registers on the UI engine only, after the background-engine callback.
-UI_ENGINE_BRIDGES = ("PamnotLaunchBridge", "PamnotAccessibilityBridge", "PamnotAlarmPlugin")
+UI_ENGINE_BRIDGES = ("PamnotLaunchBridge", "PamnotAccessibilityBridge", "PamnotAlarmPlugin",
+                     "PamnotPipPlugin")
 
 
 def check_app_delegate():
@@ -450,6 +458,39 @@ def check_alarm_plugin():
             fail(f"PamnotAlarmPlugin.swift: sync must be serialized ({needle} not found)")
 
 
+# 9. PamnotPipPlugin.swift -------------------------------------------------------------------
+
+def check_pip_plugin():
+    raw = read_text(RUNNER / "PamnotPipPlugin.swift")
+    if raw is None:
+        return
+    source = strip_swift_comments(raw)
+    # The channel contract of lib/services/pip_player.dart, and the design §10 rules: a muted,
+    # looping video that mixes with other audio and starts Picture in Picture only from start().
+    for needle in ('"app.pamnot/pip"', '"isSupported"', '"prepare"', '"start"', '"stop"',
+                   "class PamnotPipPlugin: NSObject, FlutterPlugin",
+                   "AVPictureInPictureControllerDelegate",
+                   "AVPictureInPictureController.isPictureInPictureSupported()",
+                   "AVPictureInPictureController(playerLayer:",
+                   "canStartPictureInPictureAutomaticallyFromInline = true",
+                   "isMuted = true", ".mixWithOthers", ".playback",
+                   "AVQueuePlayer", "AVPlayerLooper",
+                   "FlutterDartProject.lookupKey(forAsset:",
+                   "insertSubview(", "at: 0)",
+                   "isPictureInPicturePossible", "startPictureInPicture()",
+                   "pictureInPictureControllerDidStartPictureInPicture",
+                   "failedToStartPictureInPictureWithError",
+                   "pictureInPictureControllerDidStopPictureInPicture",
+                   "setActive(false, options: .notifyOthersOnDeactivation)"):
+        if needle not in source:
+            fail(f"PamnotPipPlugin.swift: {needle} not found")
+    # The layer stays in the view hierarchy as it is: a hidden or transparent layer cannot
+    # start Picture in Picture.
+    for needle in ("isHidden = true", "alpha = 0", "opacity = 0"):
+        if needle in source:
+            fail(f"PamnotPipPlugin.swift: {needle} must not be used (the player layer stays visible)")
+
+
 def main():
     check_info_plist()
     check_privacy_manifest()
@@ -459,6 +500,7 @@ def main():
     check_bridge()
     check_accessibility_bridge()
     check_alarm_plugin()
+    check_pip_plugin()
     if failures:
         for message in failures:
             print(f"FAIL {message}")

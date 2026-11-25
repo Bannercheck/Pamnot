@@ -29,7 +29,7 @@ Pamnot bugünkü haliyle App Store'a **gönderilemez**; ama engellerin hiçbiri 
   koyu modda beyaz parlıyor, ilk açılışta sahte görev/alışkanlık geçmişi geliyor.
 - Onaylı ses tasarımı kurallarla büyük ölçüde uyumlu. **Dört küçük değişiklik** gerekiyor (§4.2): İngilizce eylem
   adı, Eylem Düğmesi kurulum yardımı, VoiceOver açıkken geri sayım, "Son tanınanlar" günlüğünün açık rızası.
-- İyi olanlar: arka plan modu yok, izinler bağlam içinde isteniyor, iPad dört yönü ve çoklu görevi destekliyor,
+- İyi olanlar: arka plan modu yalnız kılavuz videosunun PiP'i için `audio` (ses kapalı, §4.4), izinler bağlam içinde isteniyor, iPad dört yönü ve çoklu görevi destekliyor,
   UIScene yaşam döngüsü kullanılıyor, veriler cihazda, hesap/giriş yok, reklam ve izleme yok.
 
 ---
@@ -422,8 +422,10 @@ indication when recording" **[Apple]**):
 2. Mikrofon kapandığında durum yazısı aynı anda değişir ("Duraklatıldı", "Kaydedildi"). "Dinliyorum" yazısı
    mikrofon kapalıyken ekranda kalmamalı; bunun için durum, eklentinin `Started`/`Stopped` olaylarına bağlanır,
    zamanlayıcıya değil.
-3. Ekran görünmezken dinleme yoktur: tasarım §6.3'teki `hidden`/`paused` durdurması zorunludur; `UIBackgroundModes`
-   `audio` **eklenmez** (2.5.4). Dönüşte mikrofon kendiliğinden açılmaz (tasarımda var).
+3. Ekran görünmezken dinleme yoktur: tasarım §6.3'teki `hidden`/`paused` durdurması zorunludur; arka plan ses
+   kipi mikrofon için **kullanılmaz** (2.5.4). Dönüşte mikrofon kendiliğinden açılmaz (tasarımda var).
+   v2'de `UIBackgroundModes` = `["audio"]` yalnız kılavuz videosunun PiP'i için eklendi (§4.4); dinleme
+   kuralı aynen geçerlidir.
 4. Dinleme başlarken ve biterken kısa sistem sesi isteğe bağlıdır; eklenirse sessiz modda çalmaz.
 
 **App Shortcut / Siri / Eylem Düğmesi** (Guideline 2.5.11; HIG App Shortcuts, Action button **[Apple]**):
@@ -502,6 +504,32 @@ politikasında ve Ayarlar > Sesle ekleme notunda yazılır (tasarım §6.7'de va
   kullanmıyor **[Depo]**, Apple'ın "yaygın SDK" listesinde değil **[Apple]**
   https://developer.apple.com/support/third-party-SDK-requirements/).
 - CI: `plutil -lint ios/Runner/PrivacyInfo.xcprivacy` ve derlenen `Runner.app` içinde dosyanın varlığı kontrolü.
+
+### 4.4 Kılavuz videosu PiP'i ve arka plan ses kipi (v2, tasarım §10)
+
+- **Ne:** Kestirme kılavuzunda "Ayarlar'ı aç"a dokununca kısa, **sessiz** bir kılavuz videosu Resim içinde Resim
+  (PiP) olarak oynar ve kullanıcı Ayarlar'da adımları izlerken sağ altta sürer (`ios/Runner/PamnotPipPlugin.swift`).
+- **Neden `UIBackgroundModes` = `["audio"]`:** Apple, özel bir oynatıcıda PiP için "Audio, AirPlay, and Picture
+  in Picture" arka plan kipini ister ("Adopting Picture in Picture in a custom player" **[Apple]**
+  https://developer.apple.com/documentation/avkit/adopting-picture-in-picture-in-a-custom-player). Kip yalnız
+  bunun içindir: video sessiz oynar (`isMuted = true`), ses oturumu `.playback` + `.mixWithOthers` olduğu için
+  çalan müziği kesmez, PiP kapanınca oturum `.notifyOthersOnDeactivation` ile bırakılır. Mikrofon arka planda
+  hiçbir zaman dinlemez (§4.1 madde 3). `tool/ios/check_ios_config.py` değerin tam olarak `["audio"]`
+  olduğunu denetler.
+- **PiP yalnız kullanıcı dokunuşuyla başlar:** `start` yalnız "Ayarlar'ı aç" dokunuşunun içinde Dart'tan
+  çağrılır; uygulama PiP'i kendi başına başlatmaz. Oynatıcı yalnız bu dokunuştan sonra oynar; PiP kapanınca
+  oynatıcı ve katmanı kaldırılır.
+- **2.5.4 gerekçesiyle red gelirse geri çekilme:** `ios/Runner/Info.plist`'ten `UIBackgroundModes` anahtarı
+  silinir, `PamnotPipPlugin` `isSupported` için `false` döndürür (denetim betiğinde beklenen değer de
+  kaldırılır). "Ayarlar'ı aç" düğmesi o zaman yalnız Ayarlar'ı açar; kılavuzun geri kalanı (adım kartları,
+  animasyon, "Tamam" işaretleri) aynen çalışır.
+- **App Review notu (EN, §5.5'teki taslağa eklenir):**
+
+> The "audio" background mode is used only for Picture in Picture of a short, muted guide video. In Pamnot,
+> open Settings (top right) > Shortcuts & Siri, expand the "Action button" step and tap "Open Settings": the
+> video keeps playing in Picture in Picture while the user follows the steps in the iOS Settings app. Picture in Picture starts only from that tap,
+> the video has no sound, it mixes with other audio, and the app plays no audio in the background otherwise.
+> The microphone is never used in the background.
 
 ---
 
@@ -601,6 +629,8 @@ https://developer.apple.com/help/app-store-connect/manage-app-accessibility/over
 > framework. Notifications are local only (flutter_local_notifications); permission is requested when the user
 > first saves a reminder.
 
+(v2'de eklenir: §4.4'teki PiP ve arka plan ses kipi notu.)
+
 (Seçenek A'da eklenir: "Handwriting recognition uses Google ML Kit on device; it downloads a ~20 MB model on
 first use.")
 
@@ -657,6 +687,7 @@ first use.")
 - Yaş derecelendirme tanımları — https://developer.apple.com/help/app-store-connect/reference/app-information/age-ratings-values-and-definitions
 - İhracat uyumu — https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations
 - Ses tanıma izni — https://developer.apple.com/documentation/speech/asking-permission-to-use-speech-recognition
+- Özel oynatıcıda Resim içinde Resim — https://developer.apple.com/documentation/avkit/adopting-picture-in-picture-in-a-custom-player
 - HIG: Privacy, Accessibility, Typography, Color, Dark Mode, Motion, Layout, Launching, App icons, App Shortcuts,
   Action button, Siri, Playing haptics, Managing notifications, Multitasking —
   https://developer.apple.com/design/human-interface-guidelines/

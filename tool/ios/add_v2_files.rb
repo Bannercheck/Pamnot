@@ -4,7 +4,7 @@
 # stays as it is.
 require 'xcodeproj'
 
-V2_SOURCES = %w[PamnotAccessibilityBridge.swift PamnotAlarmPlugin.swift].freeze
+V2_SOURCES = %w[PamnotAccessibilityBridge.swift PamnotAlarmPlugin.swift PamnotPipPlugin.swift].freeze
 
 project = Xcodeproj::Project.open(ARGV.fetch(0))
 target  = project.targets.find { |t| t.name == 'Runner' } or abort 'Runner target missing'
