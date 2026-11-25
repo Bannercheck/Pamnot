@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/strings.dart';
@@ -16,8 +17,10 @@ const matrixBoxesBlur = true;
 /// cards, "+ Add", then the folded "Finished (n)" section.
 ///
 /// With [scrollable] the cards scroll inside the box (the 2×2 grid, the box
-/// gets a fixed height); without it the box is as tall as its content (the
-/// single column, the page scrolls).
+/// gets a fixed height). Without it the box is a sliver, a section of the
+/// page's [CustomScrollView] as tall as its content (the single column, the
+/// page scrolls), whose rows are built only when they come on screen; there
+/// its header row carries `Key('box-<quadrant>')`.
 ///
 /// It is also the drop target of card drags: a card dropped on a card goes
 /// before it when over its upper half, after it otherwise; dropped below the
@@ -42,6 +45,27 @@ class QuadrantBox extends StatefulWidget {
 
 class _QuadrantBoxState extends State<QuadrantBox> {
   bool _showFinished = false;
+
+  /// The sliver box's rows a dragged card is over (each row is a drop target).
+  final _hovered = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _hovered.dispose();
+    super.dispose();
+  }
+
+  /// A row's count change; a row disposed mid-drag (scrolled away during
+  /// layout) reports after the frame, when the box may be gone.
+  void _hover(int delta, {bool later = false}) {
+    if (!later) {
+      _hovered.value += delta;
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _hovered.value += delta;
+    });
+  }
 
   /// Where each open card is on screen, to place a dropped card.
   final _cardKeys = <String, GlobalKey>{};
@@ -195,42 +219,101 @@ class _QuadrantBoxState extends State<QuadrantBox> {
               ),
     ];
 
-    final Widget content = widget.scrollable
-        ? Column(
-            children: [
-              header,
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  itemCount: rows.length,
-                  itemBuilder: (context, i) => rows[i](),
-                ),
-              ),
-            ],
-          )
-        : Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [header, for (final r in rows) r()],
-            ),
-          );
-
     final radius = BorderRadius.circular(24);
+    BoxDecoration highlight(bool on) => BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: on ? c.primary : Colors.transparent, width: 2),
+        );
+
+    if (!widget.scrollable) {
+      // The single column: every row is its own drop target, and the box
+      // shows the highlight while a card is over any of them.
+      Widget row(Widget child) => _RowDropTarget(onHover: _hover, onDrop: _drop, child: child);
+      final list = SliverPadding(
+        padding: const EdgeInsets.only(bottom: 4),
+        sliver: SliverList.builder(
+          itemCount: rows.length + 1,
+          itemBuilder: (context, i) =>
+              i == 0 ? row(KeyedSubtree(key: Key('box-${_q.name}'), child: header)) : row(rows[i - 1]()),
+        ),
+      );
+      return ValueListenableBuilder<int>(
+        valueListenable: _hovered,
+        child: SliverGlassPanel(sliver: list),
+        builder: (context, n, panel) => DecoratedSliver(
+          position: DecorationPosition.foreground,
+          decoration: highlight(n > 0),
+          sliver: panel,
+        ),
+      );
+    }
+
+    final Widget content = Column(
+      children: [
+        header,
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 4),
+            itemCount: rows.length,
+            itemBuilder: (context, i) => rows[i](),
+          ),
+        ),
+      ],
+    );
+
     return DragTarget<String>(
       onAcceptWithDetails: _drop,
       builder: (context, candidates, _) => DecoratedBox(
         position: DecorationPosition.foreground,
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          border: Border.all(
-            color: candidates.isNotEmpty ? c.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
+        decoration: highlight(candidates.isNotEmpty),
         child: GlassPanel(blurred: matrixBoxesBlur, child: content),
       ),
     );
   }
+}
+
+/// One row of a sliver [QuadrantBox] as a drop target. While a card is over
+/// it, it counts itself in through [onHover]; it counts itself out when the
+/// card leaves, drops, or the row is scrolled away and disposed mid-drag.
+class _RowDropTarget extends StatefulWidget {
+  const _RowDropTarget({required this.onHover, required this.onDrop, required this.child});
+
+  final void Function(int delta, {bool later}) onHover;
+  final void Function(DragTargetDetails<String>) onDrop;
+  final Widget child;
+
+  @override
+  State<_RowDropTarget> createState() => _RowDropTargetState();
+}
+
+class _RowDropTargetState extends State<_RowDropTarget> {
+  bool _over = false;
+
+  void _set(bool over) {
+    if (over == _over) return;
+    _over = over;
+    widget.onHover(over ? 1 : -1);
+  }
+
+  @override
+  void dispose() {
+    // Disposed during layout (a lazy list dropping an off-screen row): no rebuild now.
+    if (_over) widget.onHover(-1, later: true);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => DragTarget<String>(
+        onWillAcceptWithDetails: (_) {
+          _set(true);
+          return true;
+        },
+        onLeave: (_) => _set(false),
+        onAcceptWithDetails: (d) {
+          _set(false);
+          widget.onDrop(d);
+        },
+        builder: (context, _, _) => widget.child,
+      );
 }
 

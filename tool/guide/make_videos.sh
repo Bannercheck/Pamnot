@@ -7,6 +7,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
+# Check the tools before the (slow) frame rendering.
+for tool in flutter ffmpeg ffprobe; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "make_videos.sh: $tool not found on PATH (needs flutter, ffmpeg with libx264, ffprobe)" >&2
+    exit 1
+  fi
+done
+
 GUIDE_FRAMES=$(mktemp -d)
 export GUIDE_FRAMES
 trap 'rm -rf "$GUIDE_FRAMES"' EXIT
@@ -18,6 +26,7 @@ names=(shortcut action_button back_tap outlook)
 for name in "${names[@]}"; do
   ffmpeg -y -loglevel error -framerate 30 -i "$GUIDE_FRAMES/$name/%04d.png" \
     -c:v libx264 -profile:v high -pix_fmt yuv420p -crf 26 \
+    -fflags +bitexact -map_metadata -1 \
     -movflags +faststart -an "assets/guide/$name.mp4"
 done
 

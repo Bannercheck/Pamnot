@@ -476,4 +476,8 @@ class S {
           ],
         _ => throw ArgumentError.value(step, 'step', 'Unknown guide step'),
       };
+
+  // Final fix
+  /// The card menu's action for a finished task (it un-finishes it).
+  String get markUndone => _('Bitmedi olarak işaretle', 'Mark as not done');
 }

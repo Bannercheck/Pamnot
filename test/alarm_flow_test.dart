@@ -304,8 +304,33 @@ void main() {
     final saved = c.reminders.singleWhere((r) => r.id == draft.id);
     expect(saved.title, 'İlaç');
     expect(saved.alertKind, AlertKind.alarm);
-    // An alarm needs no notification permission.
-    expect(scheduler.permissionRequests, 0);
+    // The alarm does not need it, but its notification fallback (a revoked alarm permission)
+    // does: saving asks once, the first time.
+    expect(scheduler.permissionRequests, 1);
+    expect(c.settings.notificationsAsked, isTrue);
+    await close(tester, c);
+  });
+
+  testWidgets('görev düzenleyici: Alarm ile kaydetmek bildirim iznini bir kez ister (geri dönüş için)',
+      (tester) async {
+    final alarms = NoopAlarmScheduler()..state = AlarmAccess.authorized;
+    final scheduler = NoopScheduler();
+    final c = await widgetController(tester, alarms, scheduler);
+    await pumpHost(tester, c);
+    final t = task('alarmTask', now.add(const Duration(hours: 2)));
+    c.upsertTask(t);
+    showTaskEditor(host(tester), c, t);
+    await tester.pumpAndSettle();
+    expect(selectedKind(tester), AlertKind.alarm);
+    await tapVisible(tester, find.widgetWithText(FilledButton, s.save));
+    expect(find.byType(TaskEditor), findsNothing);
+    expect(scheduler.permissionRequests, 1);
+
+    // Asked once: a second save does not ask again.
+    showTaskEditor(host(tester), c, c.tasks.singleWhere((x) => x.id == t.id));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.widgetWithText(FilledButton, s.save));
+    expect(scheduler.permissionRequests, 1);
     await close(tester, c);
   });
 

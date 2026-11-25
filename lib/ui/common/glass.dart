@@ -76,17 +76,40 @@ class GlassPanel extends StatelessWidget {
         builder: (context, _) => glassEnabledOf(context) ? _glass(context) : _plain(context),
       );
 
-  Widget _plain(BuildContext context) {
+  /// The plain surface drawn while glass is off. Under Increase Contrast the
+  /// edge is `outline` (≥ 3:1 on the surface; `outlineVariant` is about 1.2:1).
+  static BoxDecoration plainDecoration(BuildContext context, double radius) {
     final c = Theme.of(context).colorScheme;
-    final shape = BorderRadius.circular(radius);
-    return ClipRRect(
-      borderRadius: shape,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: c.brightness == Brightness.dark ? c.surfaceContainerHigh : c.surfaceContainerLowest,
-          borderRadius: shape,
-          border: Border.all(color: c.outlineVariant),
+    return BoxDecoration(
+      color: c.brightness == Brightness.dark ? c.surfaceContainerHigh : c.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: MediaQuery.highContrastOf(context) ? c.outline : c.outlineVariant),
+    );
+  }
+
+  /// The glass fill and edge, without the blur.
+  static BoxDecoration glassDecoration(Brightness b, double radius) => BoxDecoration(
+        color: fill(b),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: border(b)),
+      );
+
+  /// The top light over [glassDecoration].
+  static BoxDecoration highlightDecoration(Brightness b, double radius) => BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [highlight(b), highlight(b).withValues(alpha: 0)],
+          stops: const [0, 0.4],
         ),
+      );
+
+  Widget _plain(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: DecoratedBox(
+        decoration: plainDecoration(context, radius),
         child: Padding(padding: padding, child: child),
       ),
     );
@@ -96,21 +119,9 @@ class GlassPanel extends StatelessWidget {
     final b = Theme.of(context).colorScheme.brightness;
     final shape = BorderRadius.circular(radius);
     final Widget surface = DecoratedBox(
-      decoration: BoxDecoration(
-        color: fill(b),
-        borderRadius: shape,
-        border: Border.all(color: border(b)),
-      ),
+      decoration: glassDecoration(b, radius),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: shape,
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [highlight(b), highlight(b).withValues(alpha: 0)],
-            stops: const [0, 0.4],
-          ),
-        ),
+        decoration: highlightDecoration(b, radius),
         child: Padding(padding: padding, child: child),
       ),
     );
@@ -124,4 +135,33 @@ class GlassPanel extends StatelessWidget {
           : BackdropFilter(filter: filter, child: surface),
     );
   }
+}
+
+/// [GlassPanel] around a [sliver], for a panel that is a section of a
+/// scrolling page and builds its rows lazily (the Matrix's single column).
+///
+/// The same fill, edge and top light, and the same plain surface while glass
+/// is off; there is no blur, because a sliver cannot carry a
+/// [BackdropFilter] (the fill alone keeps the text contrast, see
+/// [GlassPanel.fill]). Nothing is clipped: the rows keep clear of the corners.
+class SliverGlassPanel extends StatelessWidget {
+  const SliverGlassPanel({super.key, required this.sliver, this.radius = 24});
+
+  final Widget sliver;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: SystemAccessibility.reduceTransparency,
+        builder: (context, _) {
+          if (!glassEnabledOf(context)) {
+            return DecoratedSliver(decoration: GlassPanel.plainDecoration(context, radius), sliver: sliver);
+          }
+          final b = Theme.of(context).colorScheme.brightness;
+          return DecoratedSliver(
+            decoration: GlassPanel.glassDecoration(b, radius),
+            sliver: DecoratedSliver(decoration: GlassPanel.highlightDecoration(b, radius), sliver: sliver),
+          );
+        },
+      );
 }

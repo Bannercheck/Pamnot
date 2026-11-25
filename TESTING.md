@@ -15,6 +15,10 @@ macOS, iOS ve Windows işleri daha pahalı Actions dakikası kullandığı için
 dalında, etiketlerde, elle başlatıldığında (**Run workflow**) ya da commit mesajında
 `[full-build]` geçtiğinde çalışır. Android ve web her push'ta derlenir.
 
+> **Not:** Şu an GitHub Actions kullanılmıyor. iOS derlemesini ve AlarmKit bağlantısını hiçbir
+> otomatik iş denetlemiyor; yayından önce aşağıdaki
+> [iOS derleme denetimi (Mac'te, elle)](#ios-derleme-denetimi-macte-elle) adımları bunun yerini alır.
+
 ## Kurulum
 
 ### Android
@@ -56,6 +60,29 @@ App Groups denetimi kalır. Ayrıntılar ve el ile kurulum yedeği:
 ### Windows
 `pamnot-windows` klasörünü açın ve `pamnot.exe`'yi çalıştırın. SmartScreen uyarısında
 **Ek bilgi → Yine de çalıştır** deyin. `data` klasörü ve DLL'ler `.exe` ile aynı yerde kalmalı.
+
+### iOS derleme denetimi (Mac'te, elle)
+Xcode 26 (iOS 26 SDK) kurulu bir Mac'te, deponun kökünde:
+
+```bash
+flutter pub get
+flutter build ios --release --no-codesign
+
+# Runner AlarmKit'e bağlı olmalı ...
+BIN=build/ios/iphoneos/Runner.app/Runner
+otool -L "$BIN" | grep AlarmKit
+# ... ama zayıf bağla (iOS 16–25'te açılış çökmesin): LC_LOAD_WEAK_DYLIB görünmeli,
+# LC_LOAD_DYLIB görünmemeli.
+otool -l "$BIN" | grep -B2 AlarmKit.framework
+```
+
+- [ ] `flutter build ios --release --no-codesign` hatasız bitmeli (Swift uyarıları kabul, hata yok).
+- [ ] `otool -L` çıktısında `/System/Library/Frameworks/AlarmKit.framework/AlarmKit` satırı olmalı.
+- [ ] `otool -l | grep -B2 AlarmKit.framework` çıktısında `cmd LC_LOAD_WEAK_DYLIB` olmalı. `LC_LOAD_DYLIB`
+      görünürse AlarmKit zayıf bağlanmamıştır: iOS 26'dan eski cihazlarda uygulama açılışta çöker.
+- [ ] Bir **iOS 16, 17 ya da 18 simülatöründe** uygulamayı bir kez açın
+      (`flutter run -d <simülatör>`): açılmalı, çökmemeli; görev ve hatırlatıcı düzenleyicide
+      **Uyarı türü** görünmemeli.
 
 ## Neyi denemeli
 
@@ -148,8 +175,11 @@ Uygulama silinip kurulursa Eylem düğmesine ve Arkaya Dokunma'ya atanan kestirm
 - [ ] Eski **Pamnot · Bugün** widget'ı hâlâ eklenebilmeli ve güncellenmeli.
 
 **Kestirme kılavuzu ve PiP (iPhone ve iPad)**
-- [ ] Kılavuz açıkken, **Ayarlar'ı aç**'a dokunmadan önce ekranın sol üst köşesinde küçük bir video
-      kutusu görünmemeli.
+- [ ] Kılavuz açıkken ve bir adım kartı açıkken, **Ayarlar'ı aç**'a dokunmadan önce ekranın sol üst
+      köşesinde (uygulama çubuğunun üstünde) küçük bir video kutusu görünmemeli.
+- [ ] Kartı açıp hemen **Ayarlar'ı aç**'a dokunun: video yine PiP olarak açılmalı.
+- [ ] Kartı açıp kapatın ya da kılavuzdan geri çıkın: müzik çalıyorsa etkilenmemeli; kılavuz dışında
+      hiçbir yerde video kutusu kalmamalı.
 - [ ] Ayarlar > **Kestirmeler ve Siri**'de Eylem düğmesi adımında **Ayarlar'ı aç**'a dokunun: kılavuz
       videosu sağ altta Resim içinde Resim (PiP) olarak oynamalı ve Ayarlar açılmalı.
 - [ ] Ayarlar'da sayfalar arasında gezinin: video oynamayı sürdürmeli.
@@ -159,6 +189,32 @@ Uygulama silinip kurulursa Eylem düğmesine ve Arkaya Dokunma'ya atanan kestirm
 - [ ] **Kısayolu çalıştır**: Pamnot dinler hâlde açılmalı ve adım **Tamam** olmalı.
 - [ ] Eylem düğmesi olmayan bir iPhone'da ve iPad'de kartlar düzgün görünmeli.
 - [ ] İlk sesli kayıttan sonra Bugün ekranında kılavuz kartı bir kez görünmeli.
+
+**Alarm (iOS 26 ve üstü, gerçek cihaz)**
+- [ ] Bir hatırlatıcıda (ya da saatli bir görevde) **Uyarı türü → Alarm**'ı seçin: ilk seçimde iOS
+      alarm izni sorulmalı. İzin verince seçim **Alarm**'da kalmalı.
+- [ ] Kaydedince, bildirim izni hiç sorulmamışsa bir kez sorulmalı (alarm izni kapanırsa bildirim
+      olarak hatırlatmak için).
+- [ ] Telefon **sessiz moddayken ve kilitliyken** alarmın saatini bekleyin: alarm tam ekran çalmalı,
+      başlıkta görevin adı görünmeli (adında `%` olan bir görevle de deneyin: `%50 indirim`).
+- [ ] **Ertele**: alarm susmalı ve dokuz dakika sonra yeniden çalmalı. **Kapat**: alarm susmalı ve
+      tekrar çalmamalı.
+- [ ] İzin isteminde **İzin Verme** deyin: seçim **Bildirim**'e dönmeli ve "Alarm izni kapalı"
+      açıklaması görünmeli.
+- [ ] Alarm kurulu bir öğe varken **Ayarlar > Pamnot > Alarmlar** iznini kapatıp Pamnot'a dönün: öğe
+      bildirim olarak hatırlatılmalı (saatinde bildirim gelmeli, alarm çalmamalı).
+
+**Takvim (iPhone ve iPad)**
+- [ ] İlk açılışta takvim izni sorulmamalı. Plan'da **Takvimi göster**'e ilk dokunuşta sorulmalı;
+      izin verince haftanın etkinlikleri salt okunur görünmeli.
+- [ ] İzin isteminde **İzin Verme** deyin: Plan'da "Takvim erişimi kapalı — Ayarlar'ı aç" çıkmalı ve
+      dokununca iOS Ayarlar'da Pamnot açılmalı; görevler ve hatırlatıcılar görünmeye devam etmeli.
+- [ ] **Ayarlar > Uygulamalar > Takvim > Takvim Hesapları**'na bir Outlook (Outlook.com ya da
+      Exchange) hesabı ekleyin: o hesabın etkinlikleri Plan'da görünmeli ve **Görünecek takvimler**
+      listesinde seçilebilmeli.
+- [ ] Gece yarısını aşan bir etkinlik (23:00–01:00) ertesi gün 00:00'dan başlıyor görünmeli.
+- [ ] Pamnot Plan'da açıkken **Ayarlar > Pamnot > Takvimler** iznini kapatıp geri dönün: etkinlikler
+      kaybolmalı, uygulama çökmemeli ve "Takvim erişimi kapalı" görünmeli.
 
 Bir sorun görürseniz ekran görüntüsü ve kısa bir açıklama yeterli: hangi cihaz, ne yaptınız,
 ne bekliyordunuz.

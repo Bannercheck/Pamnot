@@ -44,6 +44,20 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
+  testWidgets('SystemAccessibility: köprü PlatformException verirse değer değişmez, hata yayılmaz', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    const channel = MethodChannel('app.pamnot/a11y');
+    SystemAccessibility.reduceTransparency.value = false;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel, (c) async => throw PlatformException(code: 'unavailable'));
+    SystemAccessibility.start();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(SystemAccessibility.reduceTransparency.value, isFalse);
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   test('pubspec derleme numarası 8, takvim paketi, cümle ve kılavuz varlıkları kayıtlı', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     expect(pubspec, contains('version: 1.0.0+8'));

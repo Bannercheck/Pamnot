@@ -81,7 +81,7 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<!-- Only for the guide video's Picture in Picture (muted); see the App Store compliance doc §4.1. -->
+	<!-- Only for the guide video's Picture in Picture (muted); see the App Store compliance doc §4.4. -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

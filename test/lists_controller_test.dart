@@ -62,6 +62,23 @@ void main() {
 
   List<String> titles(List<TaskItem> l) => [for (final t in l) t.title];
 
+  test('silinen görevi geri almak Matris\'in gösterdiği listeyi değiştirmez', () async {
+    final c = await boot(MemoryStore({'settings': settingsDoc}));
+    final t = c.draftTask(listId: 'work', quadrant: Quadrant.doNow).copyWith(title: 'Rapor');
+    c.upsertTask(t);
+    c.selectList(TaskList.personalId);
+    final removed = c.deleteTask(t.id)!;
+    c.restoreTask(removed);
+    expect(c.currentListId, TaskList.personalId);
+    expect(c.tasks.single.id, t.id);
+    expect(c.tasks.single.listId, 'work');
+    // A task whose list was deleted meanwhile comes back in an existing list.
+    final gone = c.deleteTask(t.id)!;
+    c.restoreTask(gone.copyWith(listId: 'missing'));
+    expect(c.lists.map((l) => l.id), contains(c.tasks.single.listId));
+    expect(c.currentListId, TaskList.personalId);
+  });
+
   test('ilk açılış: beş hazır liste oluşur ve kaydedilir', () async {
     final store = MemoryStore();
     final c = await boot(store);

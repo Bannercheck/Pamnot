@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/dates.dart';
@@ -139,6 +141,11 @@ class _TaskEditorState extends State<TaskEditor> {
     }
     final edited = _t.copyWith(title: title, notes: _notes.text.trim());
     widget.app.upsertTask(edited);
+    // An alarm needs no notification permission, but its fallback (a revoked alarm permission)
+    // does: ask once if the app never has. A notification was asked for when its time was set.
+    if (edited.remindAt != null && widget.app.ringsAsAlarm(edited.alertKind)) {
+      unawaited(widget.app.ensureNotificationPermission());
+    }
     // Another list or box: the task goes to the end of that box.
     if (edited.listId != widget.task.listId || edited.quadrant != widget.task.quadrant) {
       widget.app.moveTask(edited.id, listId: edited.listId, quadrant: edited.quadrant);

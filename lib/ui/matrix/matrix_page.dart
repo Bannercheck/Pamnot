@@ -14,7 +14,8 @@ import 'quadrant_box.dart';
 /// Phone width (≥ 360 pt) with text at most 130 %: a 2×2 grid of equal boxes
 /// whose cards scroll inside each box. Narrower, larger text, or too short
 /// for two rows of boxes (a phone on its side): one column, the four boxes
-/// under each other, and the page scrolls.
+/// under each other as sliver sections whose cards are built only on screen,
+/// and the page scrolls.
 ///
 /// Keys: `list-tab-<id>`, `list-add`, `box-<quadrant>`, `box-add-<quadrant>`,
 /// `matrix-card-<taskId>`, `box-finished-<quadrant>`.
@@ -32,8 +33,9 @@ class MatrixPage extends StatelessWidget {
     final listId = app.currentListId;
     final bottom = scrollEndSpace(context);
 
+    // In the single column the box is a sliver; its header row carries `box-<quadrant>`.
     Widget box(Quadrant q, {required bool scrollable}) => QuadrantBox(
-          key: Key('box-${q.name}'),
+          key: scrollable ? Key('box-${q.name}') : Key('box-sliver-${q.name}'),
           app: app,
           listId: listId,
           quadrant: q,
@@ -79,15 +81,23 @@ class MatrixPage extends StatelessWidget {
                       ),
                     );
                   }
-                  return ListView(
+                  // Each box is a sliver section: only the rows on screen are built.
+                  return CustomScrollView(
                     key: const Key('matrix-scroll'),
-                    padding: EdgeInsets.fromLTRB(12, 0, 12, bottom),
-                    children: [
-                      for (final q in Quadrant.values)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: _gap),
-                          child: box(q, scrollable: false),
+                    slivers: [
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(12, 0, 12, bottom),
+                        sliver: SliverMainAxisGroup(
+                          slivers: [
+                            for (final q in Quadrant.values)
+                              SliverPadding(
+                                key: ValueKey(q),
+                                padding: const EdgeInsets.only(bottom: _gap),
+                                sliver: box(q, scrollable: false),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   );
                 }),

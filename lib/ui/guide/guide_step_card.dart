@@ -18,6 +18,7 @@ class GuideStepCard extends StatefulWidget {
     required this.lines,
     this.actions = const [],
     this.onOpen,
+    this.onClose,
   });
 
   /// One of `AppSettings.guideSteps`.
@@ -32,6 +33,9 @@ class GuideStepCard extends StatefulWidget {
   /// Called each time the card is opened.
   final VoidCallback? onOpen;
 
+  /// Called each time the card is closed.
+  final VoidCallback? onClose;
+
   @override
   State<GuideStepCard> createState() => _GuideStepCardState();
 }
@@ -41,7 +45,11 @@ class _GuideStepCardState extends State<GuideStepCard> {
 
   void _toggle() {
     setState(() => _open = !_open);
-    if (_open) widget.onOpen?.call();
+    if (_open) {
+      widget.onOpen?.call();
+    } else {
+      widget.onClose?.call();
+    }
   }
 
   @override

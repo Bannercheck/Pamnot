@@ -29,15 +29,24 @@ import 'support/fake_speech_engine.dart';
 /// A Picture in Picture player that writes every call to [log], the same
 /// list the fake [openExternal] writes to, so the order is visible.
 class _FakePip implements PipPlayer {
-  _FakePip(this.log);
+  _FakePip(this.log, {this.gate});
 
   final List<String> log;
+
+  /// When set, prepare logs 'prepared' only once this completes (a slow load).
+  final Completer<void>? gate;
 
   @override
   Future<bool> isSupported() async => true;
 
   @override
-  Future<void> prepare(String assetPath) async => log.add('prepare $assetPath');
+  Future<void> prepare(String assetPath) async {
+    log.add('prepare $assetPath');
+    if (gate != null) {
+      await gate!.future;
+      log.add('prepared');
+    }
+  }
 
   @override
   Future<bool> start() async {
@@ -305,6 +314,79 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
     expect(log, ['start', 'open app-settings:', 'stop']);
+    await shutdown(tester, c);
+  });
+
+  testWidgets('kart kapanınca pip.stop; PiP Ayarlar için başladıysa kapanış durdurmaz', (tester) async {
+    final c = await boot(tester, pip: _FakePip(log));
+    await openGuide(tester);
+    await expand(tester, 'actionButton');
+    expect(log, ['prepare assets/guide/action_button.mp4']);
+    // Closing the card removes the prepared player.
+    await expand(tester, 'actionButton');
+    expect(log, ['prepare assets/guide/action_button.mp4', 'stop']);
+
+    // Closing a card whose video is not the prepared one leaves the prepared one alone.
+    await expand(tester, 'backTap');
+    await expand(tester, 'outlook');
+    log.clear();
+    await expand(tester, 'backTap');
+    expect(log, isEmpty);
+
+    // While the video plays for the trip to Settings, closing its card does not stop it.
+    await tapKey(tester, 'guide-open-settings-outlook');
+    expect(log, ['start', 'open app-settings:']);
+    await expand(tester, 'outlook');
+    expect(log, ['start', 'open app-settings:']);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(log, ['start', 'open app-settings:', 'stop']);
+    await shutdown(tester, c);
+  });
+
+  testWidgets('kılavuzdan çıkınca pip.stop', (tester) async {
+    final c = await boot(tester, pip: _FakePip(log));
+    await openGuide(tester);
+    await expand(tester, 'backTap');
+    log.clear();
+    Navigator.of(tester.element(find.byType(ShortcutGuidePage))).pop();
+    await settle(tester);
+    expect(find.byType(ShortcutGuidePage), findsNothing);
+    expect(log, ['stop']);
+    await shutdown(tester, c);
+  });
+
+  testWidgets('hızlı "Ayarlar\'ı aç": start, video yüklenince (en çok 1 sn beklenir) çağrılır', (tester) async {
+    final gate = Completer<void>();
+    var c = await boot(tester, pip: _FakePip(log, gate: gate));
+    await openGuide(tester);
+    await expand(tester, 'backTap');
+    expect(log, ['prepare assets/guide/back_tap.mp4']);
+    final tap = find.byKey(const Key('guide-open-settings-backTap'));
+    await tester.ensureVisible(tap);
+    await settle(tester);
+    await tester.tap(tap);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(log, ['prepare assets/guide/back_tap.mp4']);
+    gate.complete();
+    await settle(tester);
+    expect(log, ['prepare assets/guide/back_tap.mp4', 'prepared', 'start', 'open app-settings:']);
+    await shutdown(tester, c);
+
+    // A load that never ends holds the trip to Settings for at most a second.
+    log.clear();
+    c = await boot(tester, pip: _FakePip(log, gate: Completer<void>()));
+    await openGuide(tester);
+    await expand(tester, 'outlook');
+    await tester.ensureVisible(find.byKey(const Key('guide-open-settings-outlook')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('guide-open-settings-outlook')));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(log, ['prepare assets/guide/outlook.mp4']);
+    await tester.pump(const Duration(milliseconds: 600));
+    await settle(tester);
+    expect(log, ['prepare assets/guide/outlook.mp4', 'start', 'open app-settings:']);
     await shutdown(tester, c);
   });
 

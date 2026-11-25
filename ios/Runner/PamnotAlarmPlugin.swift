@@ -72,13 +72,6 @@ struct PamnotSnoozeIntent: LiveActivityIntent {
   }
 }
 
-// openAppWhenRun is deprecated in the iOS 26 SDK; the same pattern as VoiceTaskIntent.
-@available(iOS 26.0, *)
-@available(*, deprecated)
-extension PamnotSnoozeIntent {
-  static var openAppWhenRun: Bool { false }
-}
-
 @available(iOS 26.0, *)
 enum PamnotAlarms {
   /// The alarm ids the last `sync` set (snoozed alarms are never added).
@@ -186,23 +179,29 @@ enum PamnotAlarms {
 
   static func schedule(id: UUID, title: String, schedule: Alarm.Schedule) async throws {
     let alert = AlarmPresentation.Alert(
-      title: LocalizedStringResource(String.LocalizationValue(title)),
+      title: LocalizedStringResource(String.LocalizationValue(escapedFormat(title))),
       stopButton: AlarmButton(text: "alarm.stop", textColor: .white, systemImageName: "stop.circle"),
       secondaryButton: AlarmButton(text: "alarm.snooze", textColor: .white, systemImageName: "zzz"),
       secondaryButtonBehavior: .custom
     )
     let attributes = AlarmAttributes<PamnotAlarmMetadata>(
       presentation: AlarmPresentation(alert: alert),
+      metadata: PamnotAlarmMetadata(),
       tintColor: Color(red: 0.435, green: 0.361, blue: 0.749)
     )
     let configuration = AlarmManager.AlarmConfiguration.alarm(
       schedule: schedule,
       attributes: attributes,
       stopIntent: nil,
-      secondaryIntent: PamnotSnoozeIntent(title: title),
-      sound: .default
+      secondaryIntent: PamnotSnoozeIntent(title: title)
     )
     _ = try await AlarmManager.shared.schedule(id: id, configuration: configuration)
+  }
+
+  /// The user's title is not a localization key: a String.LocalizationValue built from a plain
+  /// String is read as a format, so every "%" is doubled to show as itself.
+  static func escapedFormat(_ title: String) -> String {
+    title.replacingOccurrences(of: "%", with: "%%")
   }
 }
 

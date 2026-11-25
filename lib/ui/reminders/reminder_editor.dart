@@ -68,8 +68,13 @@ class _ReminderEditorState extends State<_ReminderEditor> {
     final nav = Navigator.of(context);
     if (title.isNotEmpty) {
       widget.app.upsertReminder(_r.copyWith(title: title, note: _note.text.trim(), enabled: true));
-      // An alarm rings without notification permission.
-      if (!widget.app.ringsAsAlarm(_r.alertKind)) await widget.app.requestNotifications();
+      // An alarm rings without notification permission, but turns into a notification when
+      // the alarm permission is revoked: it asks only if the app never has.
+      if (widget.app.ringsAsAlarm(_r.alertKind)) {
+        await widget.app.ensureNotificationPermission();
+      } else {
+        await widget.app.requestNotifications();
+      }
     }
     nav.pop();
   }

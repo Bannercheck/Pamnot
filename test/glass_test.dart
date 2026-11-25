@@ -95,6 +95,59 @@ void main() {
     expect(_plainColor(tester), PamnotTheme.light().colorScheme.surfaceContainerLowest);
   });
 
+  for (final (name, theme) in [('açık', PamnotTheme.light()), ('koyu', PamnotTheme.dark())]) {
+    testWidgets('Kontrastı Artır açıkken düz yüzeyin kenarı outline, ≥ 3:1: $name', (tester) async {
+      await tester.pumpWidget(_host(_panel, theme: theme, highContrast: true));
+      final c = theme.colorScheme;
+      final d = tester
+          .widgetList<DecoratedBox>(
+            find.descendant(of: find.byType(GlassPanel), matching: find.byType(DecoratedBox)),
+          )
+          .map((b) => b.decoration)
+          .whereType<BoxDecoration>()
+          .firstWhere((d) => d.color != null);
+      final edge = (d.border! as Border).top.color;
+      expect(edge, c.outline);
+      expect(contrast(edge, d.color!), greaterThanOrEqualTo(3));
+    });
+  }
+
+  testWidgets('SliverGlassPanel: cam açıkken dolgu, kapalıyken düz yüzey; ikisinde de bulanıklık yok',
+      (tester) async {
+    Widget host({bool highContrast = false}) => _host(
+          SizedBox(
+            height: 300,
+            child: CustomScrollView(slivers: [
+              SliverGlassPanel(
+                sliver: SliverList.list(children: const [SizedBox(height: 80, child: Text('dilim'))]),
+              ),
+            ]),
+          ),
+          highContrast: highContrast,
+        );
+    BoxDecoration first() => tester
+        .widgetList<DecoratedSliver>(find.byType(DecoratedSliver))
+        .map((d) => d.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere((d) => d.color != null);
+
+    await tester.pumpWidget(host());
+    expect(find.text('dilim'), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(first().color, GlassPanel.fill(Brightness.light));
+    expect((first().border! as Border).top.color, GlassPanel.border(Brightness.light));
+
+    SystemAccessibility.reduceTransparency.value = true;
+    await tester.pump();
+    final light = PamnotTheme.light().colorScheme;
+    expect(first().color, light.surfaceContainerLowest);
+    expect((first().border! as Border).top.color, light.outlineVariant);
+
+    SystemAccessibility.reduceTransparency.value = false;
+    await tester.pumpWidget(host(highContrast: true));
+    expect((first().border! as Border).top.color, light.outline);
+  });
+
   testWidgets('blurred: false bulanıklık çizmez ama dolguyu çizer', (tester) async {
     await tester.pumpWidget(_host(const GlassPanel(blurred: false, child: SizedBox(width: 50, height: 50))));
     expect(find.byType(BackdropFilter), findsNothing);

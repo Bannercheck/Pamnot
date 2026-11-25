@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pamnot/l10n/strings.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:pamnot/models/task.dart';
 import 'package:pamnot/models/task_list.dart';
@@ -144,6 +145,20 @@ void main() {
     await tester.tap(find.text('Bitti'));
     await tester.pumpAndSettle();
     expect(c.tasks.single.done, isTrue);
+
+    // A finished card's menu offers to un-finish it, with its own label and icon.
+    await tester.tap(find.byKey(const Key('box-finished-plan')));
+    await tester.pumpAndSettle();
+    await tester.longPress(card('a'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bitti'), findsNothing);
+    expect(find.text(S.tr.markUndone), findsOneWidget);
+    expect(S.tr.markUndone, 'Bitmedi olarak işaretle');
+    expect(S.en.markUndone, 'Mark as not done');
+    expect(find.widgetWithIcon(ListTile, Icons.undo_rounded), findsOneWidget);
+    await tester.tap(find.text(S.tr.markUndone));
+    await tester.pumpAndSettle();
+    expect(c.tasks.single.done, isFalse);
     await shutdownMatrix(tester, c);
   });
 
@@ -261,6 +276,54 @@ void main() {
     await pumpMatrix(tester, c);
     expect(find.byType(MatrixCard).evaluate().length, lessThan(60));
     expect(find.text('100'), findsNWidgets(4));
+    await shutdownMatrix(tester, c);
+  });
+
+  testWidgets('tek sütunda da (ölçek 2,0) 400 görevden yalnız görünen kartlar kurulur', (tester) async {
+    final c = await matrixController(tester);
+    for (var i = 0; i < 400; i++) {
+      addTask(c, 't$i', 'Görev $i', q: Quadrant.values[i % 4]);
+    }
+    await pumpMatrix(tester, c, size: const Size(375, 812), textScale: 2);
+    expect(find.byKey(const Key('matrix-scroll')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(find.byType(MatrixCard).evaluate().length, lessThan(40));
+    // The page still reaches the last box, its header, its count and its add button.
+    final scroll = find.descendant(of: find.byKey(const Key('matrix-scroll')), matching: find.byType(Scrollable)).first;
+    await tester.scrollUntilVisible(find.byKey(const Key('box-add-later')), 2000, scrollable: scroll, maxScrolls: 400);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('box-add-later')), findsOneWidget);
+    expect(find.byType(MatrixCard).evaluate().length, lessThan(40));
+    expect(tester.takeException(), isNull);
+    await shutdownMatrix(tester, c);
+  });
+
+  testWidgets('tek sütunda kart başka kutunun kartına sürüklenince oraya taşınır', (tester) async {
+    final c = await matrixController(tester);
+    addTask(c, 'a', 'Kargo', q: Quadrant.doNow);
+    addTask(c, 'b', 'Fatura', q: Quadrant.plan);
+    await pumpMatrix(tester, c, size: const Size(375, 812), textScale: 2);
+    expect(find.byKey(const Key('matrix-scroll')), findsOneWidget);
+    // While the card is over the other box, that box (and only it) shows the highlight.
+    Iterable<Color> highlighted() => tester
+        .widgetList<DecoratedSliver>(find.byType(DecoratedSliver))
+        .where((d) => d.position == DecorationPosition.foreground)
+        .map((d) => ((d.decoration as BoxDecoration).border! as Border).top.color)
+        .where((color) => color != Colors.transparent);
+    final primary = Theme.of(tester.element(card('a'))).colorScheme.primary;
+    final g = await tester.startGesture(tester.getCenter(card('a')));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g.moveTo(tester.getCenter(card('b')) + const Offset(0, -10));
+    await tester.pump(const Duration(milliseconds: 16));
+    await g.moveTo(tester.getCenter(card('b')) - const Offset(0, 20));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(highlighted(), [primary]);
+    await g.up();
+    await tester.pumpAndSettle();
+    expect(highlighted(), isEmpty);
+    final moved = c.tasks.singleWhere((t) => t.id == 'a');
+    expect(moved.quadrant, Quadrant.plan);
+    expect(c.tasksIn(c.currentListId, Quadrant.plan).map((t) => t.id), ['a', 'b']);
     await shutdownMatrix(tester, c);
   });
 

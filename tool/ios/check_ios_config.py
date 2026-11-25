@@ -456,6 +456,17 @@ def check_alarm_plugin():
                    "await previous?.value", "syncTail = Task", "MainActor.assumeIsolated"):
         if needle not in source:
             fail(f"PamnotAlarmPlugin.swift: sync must be serialized ({needle} not found)")
+    # The zero-risk AlarmKit spellings (no Mac here to compile them): metadata passed
+    # explicitly, the default sound left out, no deprecated openAppWhenRun, and the user's
+    # title escaped so "%" is not read as a format.
+    for needle in ("metadata: PamnotAlarmMetadata()",
+                   'replacingOccurrences(of: "%", with: "%%")',
+                   "String.LocalizationValue(escapedFormat(title))"):
+        if needle not in source:
+            fail(f"PamnotAlarmPlugin.swift: {needle} not found")
+    for needle in ("sound:", "openAppWhenRun", "String.LocalizationValue(title)"):
+        if needle in source:
+            fail(f"PamnotAlarmPlugin.swift: {needle} must not be used")
 
 
 # 9. PamnotPipPlugin.swift -------------------------------------------------------------------
@@ -476,7 +487,7 @@ def check_pip_plugin():
                    "isMuted = true", ".mixWithOthers", ".playback",
                    "AVQueuePlayer", "AVPlayerLooper",
                    "FlutterDartProject.lookupKey(forAsset:",
-                   "insertSubview(", "at: 0)",
+                   "insertSubview(host, belowSubview: root.view)", "window.insertSubview(host, at: 0)",
                    "isPictureInPicturePossible", "startPictureInPicture()",
                    "pictureInPictureControllerDidStartPictureInPicture",
                    "failedToStartPictureInPictureWithError",
@@ -484,6 +495,14 @@ def check_pip_plugin():
                    "setActive(false, options: .notifyOthersOnDeactivation)"):
         if needle not in source:
             fail(f"PamnotPipPlugin.swift: {needle} not found")
+    # The host never goes into the FlutterView (its subviews draw over the app), and the
+    # audio session is taken in start(), from the user's tap, not when a card opens.
+    if "root.view.insertSubview" in source or "root.view.addSubview" in source:
+        fail("PamnotPipPlugin.swift: the player host must go below the FlutterView, not into it")
+    start_body = source[source.find("private func start("):]
+    prepare_body = source[source.find("private func prepare("):source.find("private func start(")]
+    if "setActive(true)" in prepare_body or "setActive(true)" not in start_body:
+        fail("PamnotPipPlugin.swift: the audio session must be activated in start(), not prepare()")
     # The layer stays in the view hierarchy as it is: a hidden or transparent layer cannot
     # start Picture in Picture.
     for needle in ("isHidden = true", "alpha = 0", "opacity = 0"):

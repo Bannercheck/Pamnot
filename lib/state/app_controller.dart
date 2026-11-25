@@ -772,7 +772,19 @@ class AppController extends ChangeNotifier {
     return t;
   }
 
-  void restoreTask(TaskItem t) => upsertTask(t);
+  /// Puts back a deleted task (Undo). Unlike [upsertTask] it does not make
+  /// the task's list the current one: the Matrix keeps showing its list.
+  void restoreTask(TaskItem t) {
+    final listId = listById(t.listId).id;
+    if (listId != t.listId) t = t.copyWith(listId: listId);
+    final i = _tasks.indexWhere((x) => x.id == t.id);
+    if (i >= 0) {
+      _tasks[i] = t;
+    } else {
+      _tasks.add(t);
+    }
+    _changed({Slice.tasks});
+  }
 
   List<TaskItem> tasksDueOn(DateTime day) =>
       _tasks.where((t) => t.due != null && isSameDay(t.due!, day)).toList()..sort(_byTime);
@@ -1300,6 +1312,8 @@ class AppController extends ChangeNotifier {
   List<AgendaEntry> agenda(DateTime day) => _agenda(day, withEvents: true);
 
   List<AgendaEntry> _agenda(DateTime day, {required bool withEvents}) {
+    // A timed event that began on an earlier day shows from this day's 00:00.
+    final dayStart = dateOnly(day);
     final entries = <AgendaEntry>[
       for (final t in tasksDueOn(day))
         AgendaEntry(
@@ -1328,7 +1342,7 @@ class AppController extends ChangeNotifier {
             kind: AgendaKind.event,
             id: e.id,
             title: e.title,
-            time: e.allDay ? null : e.start,
+            time: e.allDay ? null : (e.start.isBefore(dayStart) ? dayStart : e.start),
             end: e.allDay ? null : e.end,
             done: false,
             colorIndex: 0,

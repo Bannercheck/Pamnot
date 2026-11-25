@@ -314,6 +314,14 @@ void main() {
     expect(thursday.first.end, DateTime(2026, 11, 26, 13));
     expect(thursday.first.color, 0xFFE53935);
     expect(thursday.last.time, isNull);
+
+    // The night event: its own start on the first day, from 00:00 on the next.
+    final tuesday = c.agenda(DateTime(2026, 11, 24)).single;
+    expect(tuesday.time, DateTime(2026, 11, 24, 23));
+    final next = c.agenda(wednesday).single;
+    expect(next.title, 'Gece');
+    expect(next.time, DateTime(2026, 11, 25));
+    expect(next.end, DateTime(2026, 11, 25, 1));
     c.dispose();
   });
 

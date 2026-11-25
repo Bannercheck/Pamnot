@@ -49,12 +49,19 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
   /// How long "Open Settings" waits for Picture in Picture to start.
   static const _pipWait = Duration(milliseconds: 800);
 
+  /// How long "Open Settings" waits for the step's video to finish loading.
+  static const _prepareWait = Duration(seconds: 1);
+
   /// Asked once; the hint and the video depend on it.
   late final Future<bool> _pipSupported = widget.app.pip.isSupported();
   bool _pip = false;
 
   /// A video was started for the trip to Settings; stopped on return.
   bool _pipStarted = false;
+
+  /// The step whose video was last loaded, and that load (awaited before start).
+  String? _preparedStep;
+  Future<void>? _preparing;
 
   @override
   void initState() {
@@ -68,6 +75,8 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Leaving the guide removes the player (and its view) the cards loaded.
+    unawaited(widget.app.pip.stop());
     super.dispose();
   }
 
@@ -93,12 +102,27 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
     'outlook': 'assets/guide/outlook.mp4',
   };
 
-  Future<void> _prepare(String step) async {
-    if (await _pipSupported) await widget.app.pip.prepare(_videos[step]!);
+  void _prepare(String step) {
+    _preparedStep = step;
+    final load = _preparing = () async {
+      if (await _pipSupported) await widget.app.pip.prepare(_videos[step]!);
+    }();
+    unawaited(load);
+  }
+
+  /// A closed card's video is removed, unless it is playing for the trip to Settings.
+  void _closed(String step) {
+    if (_pipStarted || _preparedStep != step) return;
+    _preparedStep = null;
+    _preparing = null;
+    unawaited(widget.app.pip.stop());
   }
 
   Future<void> _openSettings() async {
     if (await _pipSupported) {
+      // A fast tap right after opening the card waits (briefly) for the video to load.
+      final load = _preparing;
+      if (load != null) await load.timeout(_prepareWait, onTimeout: () {});
       _pipStarted = true;
       await widget.app.pip.start().timeout(_pipWait, onTimeout: () => false);
     }
@@ -180,7 +204,8 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
                   done: app.guideStepDone(step),
                   lines: s.guideStepLines(step),
                   actions: actions(step),
-                  onOpen: _videos.containsKey(step) ? () => unawaited(_prepare(step)) : null,
+                  onOpen: _videos.containsKey(step) ? () => _prepare(step) : null,
+                  onClose: _videos.containsKey(step) ? () => _closed(step) : null,
                 ),
                 const SizedBox(height: 12),
               ],

@@ -222,8 +222,8 @@ Future<void> showCardMenu(BuildContext context, AppController app, TaskItem task
             },
           ),
           ListTile(
-            leading: const Icon(Icons.check_circle_outline_rounded),
-            title: Text(s.markDone),
+            leading: Icon(task.done ? Icons.undo_rounded : Icons.check_circle_outline_rounded),
+            title: Text(task.done ? s.markUndone : s.markDone),
             onTap: () {
               Navigator.pop(sheet);
               app.toggleTask(task.id);

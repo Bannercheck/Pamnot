@@ -9,7 +9,7 @@ import UIKit
 /// - `isSupported` → Bool: whether the device can play in Picture in Picture.
 /// - `prepare {asset}`: loads the bundled Flutter asset (e.g. 'assets/guide/action_button.mp4')
 ///   into a muted, looping player whose layer sits behind the Flutter view.
-/// - `start` → Bool: plays and starts Picture in Picture; answers whether it started within
+/// - `start` → Bool: takes the audio session, plays and starts Picture in Picture; answers whether it started within
 ///   0.8 s. Dart only calls it from a user's tap: the app never starts Picture in Picture by itself.
 /// - `stop`: stops Picture in Picture, removes the player and its layer and gives the audio
 ///   session back to other apps. Closing the Picture in Picture window does the same.
@@ -76,23 +76,14 @@ final class PamnotPipPlugin: NSObject, FlutterPlugin, AVPictureInPictureControll
       return
     }
 
-    let session = AVAudioSession.sharedInstance()
-    do {
-      try session.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers])
-      try session.setActive(true)
-      sessionActive = true
-    } catch {
-      result(FlutterError(code: "audio_session", message: error.localizedDescription, details: nil))
-      return
-    }
-
     let player = AVQueuePlayer()
     player.isMuted = true
     let looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: URL(fileURLWithPath: path)))
 
     // Picture in Picture needs the layer in the view hierarchy, neither hidden nor transparent.
-    // The root view is the FlutterView itself: index 0 puts the host below the root view's other
-    // subviews, but it may still draw over Flutter's own render layer (a small box at the top-left).
+    // The root view is the FlutterView itself, and its subviews draw over Flutter's own layer:
+    // the host goes below the FlutterView instead (a sibling under it in its superview, else the
+    // window's back-most subview), where the opaque Flutter view covers it.
     // TESTING.md lists the device check for this.
     let host = UIView(frame: CGRect(origin: .zero, size: Self.videoSize))
     host.isUserInteractionEnabled = false
@@ -100,7 +91,15 @@ final class PamnotPipPlugin: NSObject, FlutterPlugin, AVPictureInPictureControll
     playerLayer.frame = host.bounds
     playerLayer.videoGravity = .resizeAspect
     host.layer.addSublayer(playerLayer)
-    root.view.insertSubview(host, at: 0)
+    if let parent = root.view.superview {
+      parent.insertSubview(host, belowSubview: root.view)
+    } else if let window = root.view.window {
+      window.insertSubview(host, at: 0)
+    } else {
+      looper.disableLooping()
+      result(FlutterError(code: "no_view", message: "The root view is not in a window", details: nil))
+      return
+    }
 
     self.player = player
     self.looper = looper
@@ -127,6 +126,18 @@ final class PamnotPipPlugin: NSObject, FlutterPlugin, AVPictureInPictureControll
     if controller.isPictureInPictureActive {
       result(true)
       return
+    }
+    // The audio session is taken only here, from the user's tap, and given back in tearDown.
+    if !sessionActive {
+      let session = AVAudioSession.sharedInstance()
+      do {
+        try session.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers])
+        try session.setActive(true)
+        sessionActive = true
+      } catch {
+        result(false)
+        return
+      }
     }
     pendingStart = result
     player.play()

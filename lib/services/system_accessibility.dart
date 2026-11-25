@@ -36,6 +36,9 @@ abstract final class SystemAccessibility {
       if (value != null) reduceTransparency.value = value;
     } on MissingPluginException {
       // The bridge is not registered (widget tests).
+    } on PlatformException catch (e) {
+      // The bridge failed: keep the current value (glass stays as it is).
+      debugPrint('Accessibility bridge failed: $e');
     }
   }
 }
