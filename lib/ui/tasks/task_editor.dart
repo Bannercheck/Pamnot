@@ -12,21 +12,27 @@ import '../common/soft.dart';
 import '../matrix/list_icons.dart';
 import 'task_tile.dart';
 
-Future<void> showTaskEditor(BuildContext context, AppController app, TaskItem task, {bool isNew = false}) =>
+/// [boxChosen] marks the task's box as the user's choice (a Matrix box's
+/// Add button), so a new task's box does not follow its date and time.
+Future<void> showTaskEditor(BuildContext context, AppController app, TaskItem task,
+        {bool isNew = false, bool boxChosen = false}) =>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       constraints: const BoxConstraints(maxWidth: 640),
-      builder: (_) => TaskEditor(app: app, task: task, isNew: isNew),
+      builder: (_) => TaskEditor(app: app, task: task, isNew: isNew, boxChosen: boxChosen),
     );
 
 class TaskEditor extends StatefulWidget {
-  const TaskEditor({super.key, required this.app, required this.task, this.isNew = false});
+  const TaskEditor({super.key, required this.app, required this.task, this.isNew = false, this.boxChosen = false});
 
   final AppController app;
   final TaskItem task;
   final bool isNew;
+
+  /// Whether the task's box was already chosen by the user.
+  final bool boxChosen;
 
   @override
   State<TaskEditor> createState() => _TaskEditorState();
@@ -44,7 +50,7 @@ class _TaskEditorState extends State<TaskEditor> {
 
   /// Whether the user chose the box; until then a new task's box follows
   /// its date and time ([AppController.defaultQuadrant]).
-  bool _boxChosen = false;
+  late bool _boxChosen = widget.boxChosen;
 
   @override
   void dispose() {

@@ -200,6 +200,42 @@ void main() {
     await shutdownMatrix(tester, c);
   });
 
+  testWidgets('kutunun "Ekle" düğmesiyle açılan yeni görev: gün ve saat seçmek kutuyu değiştirmez', (tester) async {
+    final handle = tester.ensureSemantics();
+    final c = await matrixController(tester);
+    await pumpMatrix(tester, c);
+    final add = find.byKey(const Key('box-add-later'));
+    await tester.ensureVisible(add);
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    expect(isSelected(tester, boxChip(Quadrant.later)), isTrue);
+
+    // A day, then a time, leave the box the user opened the editor from.
+    await tapVisible(tester, find.text('Yarın'));
+    expect(isSelected(tester, boxChip(Quadrant.later)), isTrue);
+    expect(isSelected(tester, boxChip(Quadrant.plan)), isFalse);
+    final ok = MaterialLocalizations.of(tester.element(find.byType(TaskEditor))).okButtonLabel;
+    await tapVisible(tester, find.text('Bugün'));
+    await tapVisible(tester, find.text('Saat'));
+    await tester.tap(find.text(ok));
+    await tester.pumpAndSettle();
+    expect(isSelected(tester, boxChip(Quadrant.later)), isTrue);
+    expect(isSelected(tester, boxChip(Quadrant.doNow)), isFalse);
+    await tapVisible(tester, find.text('Yarın'));
+
+    final title = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Ne yapılacak?');
+    await reveal(tester, title);
+    await tester.enterText(title, 'Kitap oku');
+    await save(tester);
+    final t = c.tasks.single;
+    expect(t.title, 'Kitap oku');
+    expect(t.quadrant, Quadrant.later);
+    expect(t.due, DateTime(2026, 11, 26, 9));
+    handle.dispose();
+    await shutdownMatrix(tester, c);
+  });
+
   testWidgets('Bugün: görev satırında liste rengi noktası ve liste adı etiketi', (tester) async {
     final c = await matrixController(tester);
     addTask(c, 'w', 'Sunum hazırla', listId: 'work', due: matrixNow);

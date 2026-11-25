@@ -149,6 +149,7 @@ class _QuadrantBoxState extends State<QuadrantBox> {
                   _app,
                   _app.draftTask(listId: widget.listId, quadrant: _q),
                   isNew: true,
+                  boxChosen: true,
                 ),
                 icon: const Icon(Icons.add_rounded),
                 label: Text(s.addToBox),
