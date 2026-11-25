@@ -1,17 +1,14 @@
-# Checks every push and builds test copies of Pamnot for each platform.
+# Builds test copies of Pamnot for each platform.
 #
-# Android and web build on every push. The macOS, iOS and Windows jobs use
-# runners that cost more Actions minutes (macOS counts 10x), so they run on
-# main, on tags, when started by hand, or when a commit message contains
-# [full-build].
+# Runs only when started by hand (Actions > Build > Run workflow): the owner
+# asked not to spend Actions minutes on every push. Builds and checks run
+# locally (flutter analyze, flutter test, and Xcode on the owner's Mac).
 #
 # Every action is pinned to the full commit SHA of the tag named in its
 # comment, so a moved tag cannot change what runs here.
 name: Build
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 concurrency:
