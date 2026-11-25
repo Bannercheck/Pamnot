@@ -33,6 +33,8 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
         widget.controller.refreshDay();
         // Alarm permission may have changed in the system Settings.
         unawaited(widget.controller.refreshAlarmAccess());
+        // Calendar access may have been turned off, or events changed.
+        unawaited(widget.controller.refreshCalendar());
         // A shortcut run while the app was in the background left a request.
         unawaited(LaunchActionsBridge.pull());
       },

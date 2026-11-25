@@ -8,6 +8,7 @@ import '../../services/links.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
 import '../common/soft.dart';
+import 'calendar_settings.dart';
 import 'voice_settings.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -128,6 +129,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ]),
                 if (app.speech.isSupported) VoiceSettingsGroup(app: app),
+                if (app.calendar.isSupported) CalendarSettingsGroup(app: app),
                 group(s.notifications, [_NotificationTiles(app: app)]),
                 group(s.about, [
                   ListTile(

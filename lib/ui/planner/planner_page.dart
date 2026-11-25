@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../core/dates.dart';
 import '../../l10n/strings.dart';
 import '../../models/reminder.dart';
+import '../../services/calendar/calendar_source.dart';
+import '../../services/links.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
 import '../../theme/pamnot_theme.dart';
@@ -36,6 +38,9 @@ class _PlannerPageState extends State<PlannerPage> {
   DateTime? _anchor;
   bool _month = false;
 
+  /// The calendar week last asked for, so a rebuild does not ask again.
+  String? _calendarWeekKey;
+
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<PlanSection>(
         valueListenable: planSection,
@@ -43,7 +48,7 @@ class _PlannerPageState extends State<PlannerPage> {
       );
 
   Widget _build(BuildContext context, PlanSection section) {
-    final app = AppScope.of(context, {Slice.tasks, Slice.reminders, Slice.settings});
+    final app = AppScope.of(context, {Slice.tasks, Slice.reminders, Slice.settings, Slice.calendar});
     final s = S.of(context);
     final today = dateOnly(app.now());
     final mondayFirst = app.settings.mondayFirst;
@@ -53,6 +58,7 @@ class _PlannerPageState extends State<PlannerPage> {
     final pad = wide ? 28.0 : 16.0;
     final agenda = app.agenda(selected);
     final reminders = section == PlanSection.reminders;
+    _requestCalendarWeek(app, selected);
 
     void shift(int dir) => setState(() {
           _anchor = _month ? DateTime(anchor.year, anchor.month + dir) : addDays(anchor, 7 * dir);
@@ -178,6 +184,7 @@ class _PlannerPageState extends State<PlannerPage> {
                                 onPick: (d) => setState(() => _selected = d),
                               ),
                       ),
+                      if (app.calendar.isSupported) _CalendarPrompt(app: app),
                     ],
                   ),
                 ),
@@ -210,6 +217,21 @@ class _PlannerPageState extends State<PlannerPage> {
         ],
       ),
     );
+  }
+
+  /// Loads the selected day's week of calendar events (in month view too:
+  /// only one week is ever queried). Also remembered while the calendar is
+  /// off, so turning it on loads this week.
+  void _requestCalendarWeek(AppController app, DateTime selected) {
+    if (!app.calendar.isSupported) return;
+    final st = app.settings;
+    final key = '${dayKey(startOfWeek(selected, mondayFirst: st.mondayFirst))}|${st.showCalendar}';
+    if (key == _calendarWeekKey) return;
+    _calendarWeekKey = key;
+    // Not during build: a finished load notifies listeners.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) app.loadCalendarWeek(selected);
+    });
   }
 
   Future<void> _addFor(BuildContext context, AppController app, DateTime day) async {
@@ -247,6 +269,43 @@ class _PlannerPageState extends State<PlannerPage> {
           : DateTime(day.year, day.month, day.day, 9);
       await showReminderEditor(context, app, app.draftReminder(at: at), isNew: true);
     }
+  }
+}
+
+/// Under the week strip: "Show calendar" until the user turns the calendar
+/// on (the first tap asks for access), or why events are missing when access
+/// was refused.
+class _CalendarPrompt extends StatelessWidget {
+  const _CalendarPrompt({required this.app});
+
+  final AppController app;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    if (app.calendarAccess == CalendarAccess.denied) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: ListTile(
+          key: const Key('calendar-denied'),
+          leading: const Icon(Icons.event_busy_rounded),
+          title: Text(s.calendarDenied),
+          trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+          onTap: openAppSettings,
+        ),
+      );
+    }
+    if (app.settings.showCalendar) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: OutlinedButton.icon(
+        key: const Key('show-calendar'),
+        style: OutlinedButton.styleFrom(minimumSize: const Size(44, 44)),
+        onPressed: app.enableCalendar,
+        icon: const Icon(Icons.event_rounded),
+        label: Text(s.showCalendar),
+      ),
+    );
   }
 }
 
@@ -431,6 +490,7 @@ class AgendaRow extends StatelessWidget {
     final s = S.of(context);
     final t = Theme.of(context);
     final c = t.colorScheme;
+    if (entry.kind == AgendaKind.event) return _EventRow(entry: entry);
     final p = pastelAt(entry.colorIndex);
     final isTask = entry.kind == AgendaKind.task;
     return Row(
@@ -495,6 +555,83 @@ class AgendaRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A calendar event in the agenda: read-only, so no check box and no tap.
+/// The time range (or "All day") on the left, a flat card with a stripe in
+/// the calendar's colour on the right.
+class _EventRow extends StatelessWidget {
+  const _EventRow({required this.entry});
+
+  final AgendaEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final t = Theme.of(context);
+    final c = t.colorScheme;
+    final title = entry.title.trim().isEmpty ? s.untitledEvent : entry.title;
+    final start = entry.time;
+    final end = entry.end;
+    final when = start == null ? s.allDay : (end == null ? hhmm(start) : '${hhmm(start)}–${hhmm(end)}');
+    final label = t.textTheme.labelLarge?.copyWith(color: c.onSurfaceVariant);
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      label: '${s.calendarEventLabel}: $title, $when',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: MediaQuery.textScalerOf(context).scale(58),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: start == null
+                  ? Text(s.allDay, style: label)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(hhmm(start), style: label),
+                        if (end != null) Text(hhmm(end), style: t.textTheme.labelSmall?.copyWith(color: c.onSurfaceVariant)),
+                      ],
+                    ),
+            ),
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: ColoredBox(
+                color: c.surfaceContainerLow,
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        key: Key('event-stripe-${entry.id}'),
+                        width: 4,
+                        color: entry.color == null ? c.primary : Color(entry.color!),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(11, 15, 6, 15),
+                        child: Icon(Icons.event_rounded, size: 22, color: c.onSurfaceVariant),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 14, 14, 14),
+                          child: Text(title, style: t.textTheme.titleSmall?.copyWith(color: c.onSurface)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
