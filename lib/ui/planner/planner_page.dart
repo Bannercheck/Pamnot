@@ -11,8 +11,17 @@ import '../common/format.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';
 import '../reminders/reminder_editor.dart';
+import '../reminders/reminders_page.dart';
 import '../tasks/task_editor.dart';
 import '../tasks/task_tile.dart';
+
+/// The two sections of Plan: the calendar agenda and every reminder.
+enum PlanSection { agenda, reminders }
+
+/// The section Plan shows. HomeShell writes it (a tapped reminder
+/// notification opens [PlanSection.reminders]); [PlannerPage] listens and
+/// writes it back when the user switches.
+final planSection = ValueNotifier<PlanSection>(PlanSection.agenda);
 
 class PlannerPage extends StatefulWidget {
   const PlannerPage({super.key});
@@ -27,7 +36,12 @@ class _PlannerPageState extends State<PlannerPage> {
   bool _month = false;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<PlanSection>(
+        valueListenable: planSection,
+        builder: (context, section, _) => _build(context, section),
+      );
+
+  Widget _build(BuildContext context, PlanSection section) {
     final app = AppScope.of(context, {Slice.tasks, Slice.reminders, Slice.settings});
     final s = S.of(context);
     final today = dateOnly(app.now());
@@ -37,119 +51,160 @@ class _PlannerPageState extends State<PlannerPage> {
     final wide = MediaQuery.sizeOf(context).width >= 560;
     final pad = wide ? 28.0 : 16.0;
     final agenda = app.agenda(selected);
+    final reminders = section == PlanSection.reminders;
 
     void shift(int dir) => setState(() {
           _anchor = _month ? DateTime(anchor.year, anchor.month + dir) : addDays(anchor, 7 * dir);
         });
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'plan-fab',
-        onPressed: () => _addFor(context, app, selected),
-        icon: const Icon(Icons.add_rounded),
-        label: Text(s.add),
-      ),
+      floatingActionButton: reminders
+          ? FloatingActionButton.extended(
+              heroTag: 'plan-fab',
+              onPressed: () => showReminderEditor(context, app, app.draftReminder(), isNew: true),
+              icon: const Icon(Icons.add_alert_rounded),
+              label: Text(s.newReminder),
+            )
+          : FloatingActionButton.extended(
+              heroTag: 'plan-fab',
+              onPressed: () => _addFor(context, app, selected),
+              icon: const Icon(Icons.add_rounded),
+              label: Text(s.add),
+            ),
       body: CustomScrollView(
         slivers: [
           PageHeader(
             title: s.planner,
-            subtitle: toBeginningOfSentenceCase(DateFormat('MMMM y', s.locale).format(_month ? anchor : addDays(anchor, 3))),
+            subtitle: reminders
+                ? null
+                : toBeginningOfSentenceCase(DateFormat('MMMM y', s.locale).format(_month ? anchor : addDays(anchor, 3))),
             actions: [
-              IconButton(
-                tooltip: s.goToToday,
-                onPressed: () => setState(() {
-                  _selected = today;
-                  _anchor = null;
-                }),
-                icon: const Icon(Icons.today_rounded),
-              ),
+              if (!reminders)
+                IconButton(
+                  tooltip: s.goToToday,
+                  onPressed: () => setState(() {
+                    _selected = today;
+                    _anchor = null;
+                  }),
+                  icon: const Icon(Icons.today_rounded),
+                ),
             ],
           ),
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(pad, 4, pad, 0),
+            padding: EdgeInsets.fromLTRB(pad, 4, pad, 8),
             sliver: SliverToBoxAdapter(
               child: ContentWidth(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          tooltip: s.previous,
-                          onPressed: () => shift(-1),
-                          icon: const Icon(Icons.chevron_left_rounded),
-                        ),
-                        Expanded(
-                          child: Center(
-                            child: SegmentedButton<bool>(
-                              showSelectedIcon: false,
-                              segments: [
-                                ButtonSegment(value: false, label: Text(s.week)),
-                                ButtonSegment(value: true, label: Text(s.month)),
-                              ],
-                              selected: {_month},
-                              onSelectionChanged: (v) => setState(() {
-                                _month = v.first;
-                                _anchor = null;
-                              }),
+                child: Center(
+                  child: SegmentedButton<PlanSection>(
+                    showSelectedIcon: false,
+                    segments: [
+                      ButtonSegment(
+                        value: PlanSection.agenda,
+                        icon: const Icon(Icons.calendar_month_rounded),
+                        label: Text(s.planAgendaTab),
+                      ),
+                      ButtonSegment(
+                        value: PlanSection.reminders,
+                        icon: const Icon(Icons.notifications_none_rounded),
+                        label: Text(s.reminders),
+                      ),
+                    ],
+                    selected: {section},
+                    onSelectionChanged: (v) => planSection.value = v.first,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (reminders)
+            RemindersList(app: app)
+          else ...[
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pad, 4, pad, 0),
+              sliver: SliverToBoxAdapter(
+                child: ContentWidth(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            tooltip: s.previous,
+                            onPressed: () => shift(-1),
+                            icon: const Icon(Icons.chevron_left_rounded),
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: SegmentedButton<bool>(
+                                showSelectedIcon: false,
+                                segments: [
+                                  ButtonSegment(value: false, label: Text(s.week)),
+                                  ButtonSegment(value: true, label: Text(s.month)),
+                                ],
+                                selected: {_month},
+                                onSelectionChanged: (v) => setState(() {
+                                  _month = v.first;
+                                  _anchor = null;
+                                }),
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          tooltip: s.next,
-                          onPressed: () => shift(1),
-                          icon: const Icon(Icons.chevron_right_rounded),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    AnimatedSwitcher(
-                      duration: motion(context, const Duration(milliseconds: 220)),
-                      child: _month
-                          ? _MonthGrid(
-                              key: ValueKey('m${anchor.year}-${anchor.month}'),
-                              app: app,
-                              month: anchor,
-                              selected: selected,
-                              today: today,
-                              mondayFirst: mondayFirst,
-                              onPick: (d) => setState(() => _selected = d),
-                            )
-                          : _WeekStrip(
-                              key: ValueKey('w${dayKey(anchor)}'),
-                              app: app,
-                              start: anchor,
-                              selected: selected,
-                              today: today,
-                              onPick: (d) => setState(() => _selected = d),
-                            ),
-                    ),
-                  ],
+                          IconButton(
+                            tooltip: s.next,
+                            onPressed: () => shift(1),
+                            icon: const Icon(Icons.chevron_right_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      AnimatedSwitcher(
+                        duration: motion(context, const Duration(milliseconds: 220)),
+                        child: _month
+                            ? _MonthGrid(
+                                key: ValueKey('m${anchor.year}-${anchor.month}'),
+                                app: app,
+                                month: anchor,
+                                selected: selected,
+                                today: today,
+                                mondayFirst: mondayFirst,
+                                onPick: (d) => setState(() => _selected = d),
+                              )
+                            : _WeekStrip(
+                                key: ValueKey('w${dayKey(anchor)}'),
+                                app: app,
+                                start: anchor,
+                                selected: selected,
+                                today: today,
+                                onPick: (d) => setState(() => _selected = d),
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: pad),
-            sliver: SliverToBoxAdapter(
-              child: ContentWidth(
-                child: SectionHeader(
-                  toBeginningOfSentenceCase(longDate(s, selected)),
-                  icon: Icons.wb_sunny_outlined,
-                ),
-              ),
-            ),
-          ),
-          if (agenda.isEmpty)
-            SliverToBoxAdapter(child: EmptyState(emoji: '☁️', text: s.emptyDay))
-          else
             SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: pad),
-              sliver: SliverList.separated(
-                itemCount: agenda.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, i) => ContentWidth(child: AgendaRow(app: app, entry: agenda[i])),
+              sliver: SliverToBoxAdapter(
+                child: ContentWidth(
+                  child: SectionHeader(
+                    toBeginningOfSentenceCase(longDate(s, selected)),
+                    icon: Icons.wb_sunny_outlined,
+                  ),
+                ),
               ),
             ),
+            if (agenda.isEmpty)
+              SliverToBoxAdapter(child: EmptyState(emoji: '☁️', text: s.emptyDay))
+            else
+              SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: pad),
+                sliver: SliverList.separated(
+                  itemCount: agenda.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, i) => ContentWidth(child: AgendaRow(app: app, entry: agenda[i])),
+                ),
+              ),
+          ],
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
       ),

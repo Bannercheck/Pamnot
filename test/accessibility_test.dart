@@ -17,6 +17,7 @@ import 'package:pamnot/models/task.dart';
 import 'package:pamnot/services/handwriting.dart';
 import 'package:pamnot/state/app_controller.dart';
 import 'package:pamnot/theme/pamnot_theme.dart';
+import 'package:pamnot/ui/common/glass_nav_bar.dart';
 import 'package:pamnot/ui/notes/ink/ink_canvas.dart';
 import 'package:pamnot/ui/notes/notes_page.dart';
 import 'package:pamnot/ui/planner/planner_page.dart';
@@ -30,7 +31,7 @@ void main() {
   setUpAll(() => initializeDateFormatting());
   // Tuesday.
   final now = DateTime(2026, 10, 27, 9, 0);
-  const tabs = ['Bugün', 'Notlar', 'Takip', 'Plan', 'Hatırlatma'];
+  const tabs = ['Bugün', 'Notlar', 'Takip', 'Plan'];
 
   /// The first-run welcome note stays; on top of it three tasks (one
   /// overdue), a habit, a reminder and two notes (one pinned).
@@ -343,7 +344,9 @@ void main() {
   testWidgets('anımsatıcı anahtarı ve arama temizleme düğmesi adlarıyla okunur', (tester) async {
     final handle = tester.ensureSemantics();
     final c = await boot(tester);
-    await openTab(tester, 'Hatırlatma');
+    await openTab(tester, 'Plan');
+    await tester.tap(find.text('Anımsatıcılar'));
+    await tester.pumpAndSettle();
     expect(
       tester.getSemantics(find.byType(Switch)),
       isSemantics(label: 'İlaç al', hasToggledState: true, isToggled: true, hasTapAction: true),
@@ -447,7 +450,7 @@ void main() {
 
   testWidgets('alt çubuk etiketi 1,3 ölçekle sınırlı', (tester) async {
     final c = await boot(tester, textScale: 2.0);
-    final label = find.descendant(of: find.byType(NavigationBar), matching: find.text('Notlar'));
+    final label = find.descendant(of: find.byType(GlassNavBar), matching: find.text('Notlar'));
     expect(label, findsOneWidget);
     expect(MediaQuery.textScalerOf(tester.element(label)).scale(10), lessThanOrEqualTo(13));
     expect(MediaQuery.textScalerOf(tester.element(label)).scale(10), greaterThan(10));

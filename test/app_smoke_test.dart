@@ -10,6 +10,7 @@ import 'package:pamnot/data/store.dart';
 import 'package:pamnot/models/settings.dart';
 import 'package:pamnot/prediction/word_predictor.dart';
 import 'package:pamnot/state/app_controller.dart';
+import 'package:pamnot/ui/common/glass_nav_bar.dart';
 import 'package:pamnot/ui/notes/ink/ink_canvas.dart';
 
 void main() {
@@ -42,9 +43,9 @@ void main() {
   testWidgets('phone: tabs, notes and word suggestions', (tester) async {
     final c = await boot(tester, const Size(390, 844));
     expect(find.text('Günaydın'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(GlassNavBar), findsOneWidget);
 
-    for (final tab in ['Notlar', 'Takip', 'Plan', 'Hatırlatma', 'Bugün']) {
+    for (final tab in ['Notlar', 'Takip', 'Plan', 'Bugün']) {
       await tester.tap(find.text(tab).last);
       await tester.pumpAndSettle();
     }

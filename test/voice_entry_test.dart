@@ -10,6 +10,7 @@ import 'package:pamnot/models/settings.dart';
 import 'package:pamnot/services/launch_actions.dart';
 import 'package:pamnot/services/speech/speech_engine.dart';
 import 'package:pamnot/state/app_controller.dart';
+import 'package:pamnot/ui/common/glass_nav_bar.dart';
 import 'package:pamnot/ui/home_shell.dart';
 import 'package:pamnot/ui/reminders/reminders_page.dart';
 import 'package:pamnot/ui/tasks/task_editor.dart';
@@ -115,7 +116,7 @@ void main() {
     expect(find.byType(HomeShell, skipOffstage: false), findsOneWidget);
     expect(voiceRequests.value, isNull);
     // Still on the Today tab, with nothing pushed over it.
-    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
+    expect(tester.widget<GlassNavBar>(find.byType(GlassNavBar)).selectedIndex, 0);
     expect(find.byType(QuickAddField), findsOneWidget);
 
     await push(tester, 'pamnot://voice');
@@ -323,8 +324,8 @@ void main() {
     await boot(tester);
     notificationTaps.value = 'r:x';
     await tester.pumpAndSettle();
-    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 4);
-    expect(find.byType(RemindersPage), findsOneWidget);
+    expect(tester.widget<GlassNavBar>(find.byType(GlassNavBar)).selectedIndex, 3);
+    expect(find.byType(RemindersList), findsOneWidget);
     expect(notificationTaps.value, isNull);
     expect(find.byType(VoiceCapturePage), findsNothing);
     expect(voiceRequests.value, isNull);

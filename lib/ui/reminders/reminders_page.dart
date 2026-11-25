@@ -11,12 +11,43 @@ import '../common/page_header.dart';
 import '../common/soft.dart';
 import 'reminder_editor.dart';
 
+/// The reminders screen on its own: a header, [RemindersList] and a button
+/// for a new reminder. In the app shell the same list lives inside Plan.
 class RemindersPage extends StatelessWidget {
   const RemindersPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context, {Slice.reminders, Slice.settings});
+    final s = S.of(context);
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'rem-fab',
+        onPressed: () => showReminderEditor(context, app, app.draftReminder(), isNew: true),
+        icon: const Icon(Icons.add_alert_rounded),
+        label: Text(s.newReminder),
+      ),
+      body: CustomScrollView(
+        slivers: [
+          PageHeader(title: s.reminders),
+          RemindersList(app: app),
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Every reminder grouped as today, upcoming, recurring and past, with a
+/// notice where notifications are not delivered in the background. A sliver:
+/// place it in a [CustomScrollView].
+class RemindersList extends StatelessWidget {
+  const RemindersList({super.key, required this.app});
+
+  final AppController app;
+
+  @override
+  Widget build(BuildContext context) {
     final s = S.of(context);
     final now = app.now();
     final today = dateOnly(now);
@@ -41,55 +72,45 @@ class RemindersPage extends StatelessWidget {
       (s.past, past),
     ].where((g) => g.$2.isNotEmpty).toList();
 
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'rem-fab',
-        onPressed: () => showReminderEditor(context, app, app.draftReminder(), isNew: true),
-        icon: const Icon(Icons.add_alert_rounded),
-        label: Text(s.newReminder),
-      ),
-      body: CustomScrollView(
-        slivers: [
-          PageHeader(title: s.reminders),
-          if (!app.scheduler.schedulesInBackground)
-            SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: pad),
-              sliver: SliverToBoxAdapter(
-                child: ContentWidth(
-                  child: SoftCard(
-                    shadow: false,
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    child: Row(children: [
-                      const Icon(Icons.info_outline_rounded),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text(s.notificationsUnsupported)),
-                    ]),
-                  ),
+    return SliverMainAxisGroup(
+      slivers: [
+        if (!app.scheduler.schedulesInBackground)
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: pad),
+            sliver: SliverToBoxAdapter(
+              child: ContentWidth(
+                child: SoftCard(
+                  shadow: false,
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  child: Row(children: [
+                    const Icon(Icons.info_outline_rounded),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(s.notificationsUnsupported)),
+                  ]),
                 ),
               ),
             ),
-          if (groups.isEmpty)
-            SliverFillRemaining(hasScrollBody: false, child: EmptyState(emoji: '🔔', text: s.noReminders))
-          else
-            for (final (title, list) in groups) ...[
-              SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: pad),
-                sliver: SliverToBoxAdapter(child: ContentWidth(child: SectionHeader(title))),
-              ),
-              SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: pad),
-                sliver: SliverList.separated(
-                  itemCount: list.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => ContentWidth(
-                    child: ReminderTile(app: app, reminder: list[i].$1, next: list[i].$2),
-                  ),
+          ),
+        if (groups.isEmpty)
+          SliverToBoxAdapter(child: EmptyState(emoji: '🔔', text: s.noReminders))
+        else
+          for (final (title, list) in groups) ...[
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: pad),
+              sliver: SliverToBoxAdapter(child: ContentWidth(child: SectionHeader(title))),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: pad),
+              sliver: SliverList.separated(
+                itemCount: list.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, i) => ContentWidth(
+                  child: ReminderTile(app: app, reminder: list[i].$1, next: list[i].$2),
                 ),
               ),
-            ],
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
-        ],
-      ),
+            ),
+          ],
+      ],
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,16 +8,19 @@ import 'package:flutter/services.dart';
 import '../l10n/strings.dart';
 import '../services/launch_actions.dart';
 import '../state/app_scope.dart';
+import 'common/glass.dart';
+import 'common/glass_nav_bar.dart';
 import 'notes/note_editor_page.dart';
 import 'notes/notes_page.dart';
 import 'planner/planner_page.dart';
-import 'reminders/reminders_page.dart';
+import 'tasks/task_editor.dart';
 import 'tasks/track_page.dart';
 import 'today/today_page.dart';
 import 'voice/voice_capture_page.dart';
 
 /// Payloads of tapped notifications (`r:<id>` or `t:<id>`) and home-screen
-/// widgets (`w:today`).
+/// widgets (`w:today`). `w:` opens Today, `t:` Track and `r:` the Reminders
+/// section of Plan.
 final notificationTaps = ValueNotifier<String?>(null);
 
 class HomeShell extends StatefulWidget {
@@ -32,11 +36,14 @@ class _HomeShellState extends State<HomeShell> {
   /// Tabs are built the first time they are opened, then kept alive.
   final Set<int> _visited = {0};
 
-  static const _pages = <Widget>[TodayPage(), NotesPage(), TrackPage(), PlannerPage(), RemindersPage()];
+  /// 0 Today, 1 Notes, 2 Track, 3 Plan (Reminders live inside Plan).
+  static const _pages = <Widget>[TodayPage(), NotesPage(), TrackPage(), PlannerPage()];
 
   @override
   void initState() {
     super.initState();
+    // A new shell starts on the agenda; a reminder tap below may change it.
+    planSection.value = PlanSection.agenda;
     notificationTaps.addListener(_onNotification);
     voiceRequests.addListener(_onVoiceRequest);
     // A tap or a voice request that launched the app may have arrived before
@@ -57,7 +64,14 @@ class _HomeShellState extends State<HomeShell> {
   void _onNotification() {
     final p = notificationTaps.value;
     if (p == null) return;
-    _go(p.startsWith('w:') ? 0 : (p.startsWith('t:') ? 2 : 4));
+    if (p.startsWith('w:')) {
+      _go(0);
+    } else if (p.startsWith('t:')) {
+      _go(2);
+    } else {
+      planSection.value = PlanSection.reminders;
+      _go(3);
+    }
     notificationTaps.value = null;
   }
 
@@ -78,6 +92,17 @@ class _HomeShellState extends State<HomeShell> {
     unawaited(VoiceCapturePage.open(context, autoListen: listen));
   }
 
+  /// The middle button: voice entry where speech is supported, otherwise a
+  /// new task in the editor.
+  void _onCenter() {
+    final app = AppScope.of(context);
+    if (app.speech.isSupported) {
+      voiceRequests.value = VoiceRequest.listen;
+    } else {
+      unawaited(showTaskEditor(context, app, app.draftTask(), isNew: true));
+    }
+  }
+
   void _go(int i) => setState(() {
         _index = i;
         _visited.add(i);
@@ -94,15 +119,19 @@ class _HomeShellState extends State<HomeShell> {
       (Icons.sticky_note_2_outlined, Icons.sticky_note_2_rounded, s.notes),
       (Icons.check_circle_outline_rounded, Icons.check_circle_rounded, s.tasks),
       (Icons.calendar_month_outlined, Icons.calendar_month_rounded, s.planner),
-      (Icons.notifications_none_rounded, Icons.notifications_rounded, rail ? s.reminders : s.remindersShort),
     ];
+    final voice = AppScope.of(context).speech.isSupported;
+    final centerIcon = voice ? Icons.mic_rounded : Icons.add_rounded;
+    final centerLabel = voice ? s.voiceMicTooltip : s.navAddTask;
 
-    final body = IndexedStack(
-      index: _index,
-      children: [
-        for (var i = 0; i < _pages.length; i++)
-          _visited.contains(i) ? _pages[i] : const SizedBox.shrink(),
-      ],
+    final body = GlassScope(
+      child: IndexedStack(
+        index: _index,
+        children: [
+          for (var i = 0; i < _pages.length; i++)
+            _visited.contains(i) ? _pages[i] : const SizedBox.shrink(),
+        ],
+      ),
     );
 
     final mod = defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.iOS;
@@ -111,7 +140,7 @@ class _HomeShellState extends State<HomeShell> {
         final app = AppScope.of(context);
         NoteEditorPage.open(context, app.draftNote());
       },
-      for (var i = 0; i < 5; i++)
+      for (var i = 0; i < _pages.length; i++)
         SingleActivator(LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + i), meta: mod, control: !mod): () => _go(i),
     };
 
@@ -139,6 +168,16 @@ class _HomeShellState extends State<HomeShell> {
                           for (final (icon, sel, label) in dests)
                             NavigationRailDestination(icon: Icon(icon), selectedIcon: Icon(sel), label: Text(label)),
                         ],
+                        trailing: Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: FloatingActionButton.small(
+                            key: const Key('nav-center'),
+                            heroTag: 'nav-center',
+                            tooltip: centerLabel,
+                            onPressed: _onCenter,
+                            child: Icon(centerIcon),
+                          ),
+                        ),
                       ),
                     ),
                     VerticalDivider(width: 1, color: c.outlineVariant),
@@ -147,23 +186,41 @@ class _HomeShellState extends State<HomeShell> {
                 ),
               )
             : Scaffold(
-                body: body,
+                // The pages scroll on under the floating glass bar.
+                extendBody: true,
+                body: _AboveBar(child: body),
                 // Like the iOS tab bar, the labels grow only a little with
-                // the system text size; the pages above follow it in full.
-                bottomNavigationBar: MediaQuery.withClampedTextScaling(
-                  maxScaleFactor: 1.3,
-                  child: NavigationBar(
-                    selectedIndex: _index,
-                    onDestinationSelected: _go,
-                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                    destinations: [
-                      for (final (icon, sel, label) in dests)
-                        NavigationDestination(icon: Icon(icon), selectedIcon: Icon(sel), label: label),
-                    ],
-                  ),
+                // the system text size (GlassNavBar clamps them at 1.3); the
+                // pages above follow it in full.
+                bottomNavigationBar: GlassNavBar(
+                  items: [for (final (icon, sel, label) in dests) GlassNavItem(icon, sel, label)],
+                  selectedIndex: _index,
+                  onSelected: _go,
+                  centerIcon: centerIcon,
+                  centerLabel: centerLabel,
+                  onCenter: _onCenter,
                 ),
               ),
       ),
+    );
+  }
+}
+
+/// Inside the extended body the bar's height arrives as bottom padding;
+/// copied into the view padding too, the pages' own floating action buttons
+/// (placed by `minViewPadding`) float above the bar instead of under it.
+class _AboveBar extends StatelessWidget {
+  const _AboveBar({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final bottom = math.max(mq.viewPadding.bottom, mq.padding.bottom);
+    return MediaQuery(
+      data: mq.copyWith(viewPadding: mq.viewPadding.copyWith(bottom: bottom)),
+      child: child,
     );
   }
 }
