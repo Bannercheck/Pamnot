@@ -144,8 +144,17 @@ Future<void> showNoteActions(BuildContext context, AppController app, Note n) {
               leading: Icon(n.pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined),
               title: Text(n.pinned ? s.unpin : s.pin),
               onTap: () {
+                final unpinning = n.pinned;
                 app.togglePin(n.id);
                 Navigator.pop(sheet);
+                if (unpinning) {
+                  // Undo pins again only if the note still exists and is
+                  // still unpinned; a deleted note is left alone.
+                  showUndoSnack(messenger, s.unpinned, () {
+                    final current = app.noteById(n.id);
+                    if (current != null && !current.pinned) app.togglePin(n.id);
+                  }, s.undo);
+                }
               },
             ),
             Padding(
