@@ -23,6 +23,7 @@ import '../models/voice_log.dart';
 import '../prediction/word_predictor.dart';
 import '../services/alarm_scheduler.dart';
 import '../services/calendar/calendar_source.dart';
+import '../services/pip_player.dart';
 import '../services/handwriting.dart';
 import '../services/reminder_scheduler.dart';
 import '../services/speech/speech_engine.dart';
@@ -82,6 +83,7 @@ class AppController extends ChangeNotifier {
     SpeechEngine? speech,
     AlarmScheduler? alarms,
     CalendarSource? calendar,
+    PipPlayer? pip,
     DateTime Function()? clock,
     this.saveDelay = const Duration(milliseconds: 400),
   })  : scheduler = scheduler ?? NoopScheduler(),
@@ -90,6 +92,7 @@ class AppController extends ChangeNotifier {
         speech = speech ?? UnsupportedSpeechEngine(),
         alarms = alarms ?? NoopAlarmScheduler(),
         calendar = calendar ?? NoCalendarSource(),
+        pip = pip ?? NoPipPlayer(),
         now = clock ?? DateTime.now;
 
   final KeyValueStore store;
@@ -99,6 +102,9 @@ class AppController extends ChangeNotifier {
   final SpeechEngine speech;
   final AlarmScheduler alarms;
   final CalendarSource calendar;
+
+  /// Plays the guide videos in Picture in Picture (iOS only).
+  final PipPlayer pip;
   final DateTime Function() now;
   final Duration saveDelay;
   static const _uuid = Uuid();
@@ -1082,6 +1088,23 @@ class AppController extends ChangeNotifier {
       _voiceLogDirty = true; // the next save deletes the stored log
     }
     _changed({Slice.settings});
+  }
+
+  // ------------------------------------------------------------------ guide
+
+  static String _knownStep(String step) {
+    if (!AppSettings.guideSteps.contains(step)) throw ArgumentError.value(step, 'step', 'Unknown guide step');
+    return step;
+  }
+
+  /// Whether the guide step [step] (one of [AppSettings.guideSteps]) is done.
+  bool guideStepDone(String step) => _settings.guideDone.contains(_knownStep(step));
+
+  /// Marks the guide step [step] done (or not done); saves only on a change.
+  void markGuideStep(String step, {bool done = true}) {
+    if (guideStepDone(step) == done) return;
+    final next = done ? [..._settings.guideDone, step] : _settings.guideDone.where((s) => s != step).toList();
+    updateSettings(_settings.copyWith(guideDone: List.unmodifiable(next)));
   }
 
   // --------------------------------------------------------------- calendar

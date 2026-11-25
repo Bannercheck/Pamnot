@@ -11,3 +11,12 @@ UrlOpener openExternal = (uri) => launchUrl(uri, mode: LaunchMode.externalApplic
 /// Opens Pamnot's page in the system Settings app, the only way back once a
 /// permission was refused.
 Future<bool> openAppSettings() => openExternal(Uri.parse('app-settings:'));
+
+/// The iCloud share link of the "Sesle Görev Ekle" shortcut the owner creates
+/// once. While it is empty the "Add shortcut" button is hidden and the step
+/// explains the manual setup.
+const voiceShortcutShareUrl = '';
+const voiceShortcutName = 'Sesle Görev Ekle';
+
+/// Runs the voice shortcut in the Shortcuts app.
+Uri runShortcutUri() => Uri.parse('shortcuts://run-shortcut?name=${Uri.encodeComponent(voiceShortcutName)}');

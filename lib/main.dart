@@ -12,6 +12,7 @@ import 'services/alarm_scheduler.dart';
 import 'services/calendar/device_calendar_source.dart';
 import 'services/handwriting.dart';
 import 'services/launch_actions.dart';
+import 'services/pip_player.dart';
 import 'services/reminder_scheduler.dart';
 import 'services/speech/stt_speech_engine.dart';
 import 'services/system_accessibility.dart';
@@ -41,6 +42,8 @@ Future<void> main() async {
     // Building it asks for nothing; calendar permission waits for the first
     // tap on "Show calendar" in Plan.
     calendar: createCalendarSource(),
+    // Building it plays nothing; a guide video starts only from a tap.
+    pip: createPipPlayer(),
   );
   await controller.load();
   runApp(PamnotApp(controller: controller));

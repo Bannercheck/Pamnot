@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../models/task_list.dart';
+import '../services/links.dart';
 
 /// UI strings in Turkish and English. Kept as plain getters so a missing
 /// translation is a compile error rather than a blank label.
@@ -410,4 +411,65 @@ class S {
   /// The list widget's "every box" choice.
   String get widgetAll => _('Tümü', 'All');
   String get widgetEmpty => _('Görev yok', 'No tasks');
+
+  // v2 · K6
+  String get guideTitle => _('Kestirmeler ve Siri', 'Shortcuts & Siri');
+  String get guideCardTitle => _('Sesle eklemeyi tek dokunuşa indir', 'Make voice capture one tap away');
+  String get guideCardBody => _(
+      'Kestirme, Eylem düğmesi ya da Arkaya Dokunma ile Pamnot tek dokunuşla dinlemeye başlar.',
+      'With a shortcut, the Action button or Back Tap, Pamnot starts listening in one tap.');
+  String get guideOpen => _('Kılavuzu aç', 'Open the guide');
+  String get guideTodo => _('Yapılacak', 'To do');
+  String get guideDoneBadge => _('Tamam', 'Done');
+  String get guideMarkDone => _('Tamam olarak işaretle', 'Mark as done');
+  String get guideMarkUndone => _('Geri al', 'Undo');
+  String get guideAddShortcut => _('Kısayolu ekle', 'Add shortcut');
+  String get guideRunShortcut => _('Kısayolu çalıştır', 'Run shortcut');
+  String get guideOpenSettings => _('Ayarlar’ı aç', 'Open Settings');
+  String get guidePipHint =>
+      _('Kısa video küçük pencerede oynamaya devam eder', 'A short video keeps playing in a small window');
+
+  /// The title of a guide step (one of `AppSettings.guideSteps`).
+  String guideStepTitle(String step) => switch (step) {
+        'shortcut' => _('Sesli görev kestirmesi', 'Voice task shortcut'),
+        'actionButton' => _('Eylem düğmesi', 'Action button'),
+        'backTap' => _('Arkaya Dokunma', 'Back Tap'),
+        'outlook' => _('Outlook takvimi', 'Outlook calendar'),
+        _ => throw ArgumentError.value(step, 'step', 'Unknown guide step'),
+      };
+
+  /// The numbered lines of a guide step. Without a share link ([hasShareLink]
+  /// false, the default while `voiceShortcutShareUrl` is empty) the shortcut
+  /// step's first line explains the manual setup.
+  List<String> guideStepLines(String step, {bool hasShareLink = voiceShortcutShareUrl != ''}) => switch (step) {
+        'shortcut' => [
+            hasShareLink
+                ? _('Kısayolu ekle’ye dokun ve Kestirmeler’de ‘Kestirme Ekle’yi seç.',
+                    'Tap Add shortcut, then choose ‘Add Shortcut’ in Shortcuts.')
+                : _('Kestirmeler’de + ile yeni kestirme oluştur ve Pamnot > Sesle Görev Ekle eylemini ekle.',
+                    'In Shortcuts, tap + to create a new shortcut and add the Pamnot > Add Voice Task action.'),
+            _('Kısayolu çalıştır’a dokun; Pamnot dinlemeye başlar.', 'Tap Run shortcut; Pamnot starts listening.'),
+            _('İstersen Siri’ye ‘Pamnot ile görev ekle’ de.', 'You can also say ‘Add a task in Pamnot’ to Siri.'),
+          ],
+        'actionButton' => [
+            _('Ayarlar > Eylem Düğmesi’ni aç.', 'Open Settings > Action Button.'),
+            _('Kestirme’ye kaydır ve ‘Kestirme Seç’e dokun.', 'Swipe to Shortcut and tap ‘Choose a Shortcut’.'),
+            _('Sesle Görev Ekle’yi seç.', 'Pick Add Voice Task.'),
+          ],
+        'backTap' => [
+            _('Ayarlar > Erişilebilirlik > Dokunma > Arkaya Dokunma’yı aç.',
+                'Open Settings > Accessibility > Touch > Back Tap.'),
+            _('İki ya da Üç Dokunuş’u seç.', 'Choose Double Tap or Triple Tap.'),
+            _('Listeden Sesle Görev Ekle kestirmesini seç.', 'Pick the Add Voice Task shortcut from the list.'),
+          ],
+        'outlook' => [
+            _('Ayarlar > Uygulamalar > Takvim > Takvim Hesapları’nı aç.',
+                'Open Settings > Apps > Calendar > Calendar Accounts.'),
+            _('Hesap Ekle > Outlook.com ya da Microsoft Exchange’i seç ve giriş yap.',
+                'Tap Add Account, choose Outlook.com or Microsoft Exchange and sign in.'),
+            _('Takvimler anahtarını aç; etkinlikler Pamnot’ta Plan’da görünür.',
+                'Turn on Calendars; the events appear in Plan in Pamnot.'),
+          ],
+        _ => throw ArgumentError.value(step, 'step', 'Unknown guide step'),
+      };
 }

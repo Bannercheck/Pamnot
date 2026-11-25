@@ -22,10 +22,16 @@ class AppSettings {
     int motivationMinutes = defaultMotivationMinutes,
     this.showCalendar = false,
     this.hiddenCalendarIds = const [],
+    this.guideDone = const [],
+    this.guideCardDismissed = false,
+    this.voiceUsed = false,
   }) : motivationMinutes = motivationMinutes < 0 ? 0 : (motivationMinutes > 1439 ? 1439 : motivationMinutes);
 
   /// 09:00.
   static const defaultMotivationMinutes = 540;
+
+  /// The steps of the "Shortcuts & Siri" guide, in the order shown.
+  static const guideSteps = ['shortcut', 'actionButton', 'backTap', 'outlook'];
 
   final AppLanguage language;
   final ThemeMode themeMode;
@@ -68,6 +74,15 @@ class AppSettings {
   /// Calendars the user turned off in Settings; every other one is shown.
   final List<String> hiddenCalendarIds;
 
+  /// Guide steps marked done, each one of [guideSteps].
+  final List<String> guideDone;
+
+  /// The one-time guide card on Today was closed.
+  final bool guideCardDismissed;
+
+  /// The first voice capture was made.
+  final bool voiceUsed;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -85,6 +100,9 @@ class AppSettings {
     int? motivationMinutes,
     bool? showCalendar,
     List<String>? hiddenCalendarIds,
+    List<String>? guideDone,
+    bool? guideCardDismissed,
+    bool? voiceUsed,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -103,6 +121,9 @@ class AppSettings {
         motivationMinutes: motivationMinutes ?? this.motivationMinutes,
         showCalendar: showCalendar ?? this.showCalendar,
         hiddenCalendarIds: hiddenCalendarIds ?? this.hiddenCalendarIds,
+        guideDone: guideDone ?? this.guideDone,
+        guideCardDismissed: guideCardDismissed ?? this.guideCardDismissed,
+        voiceUsed: voiceUsed ?? this.voiceUsed,
       );
 
   Map<String, Object?> toJson() => {
@@ -122,6 +143,9 @@ class AppSettings {
         'motivationMinutes': motivationMinutes,
         'showCalendar': showCalendar,
         'hiddenCalendarIds': hiddenCalendarIds,
+        'guideDone': guideDone,
+        'guideCardDismissed': guideCardDismissed,
+        'voiceUsed': voiceUsed,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -148,5 +172,12 @@ class AppSettings {
           final List<Object?> ids => List.unmodifiable(ids.whereType<String>()),
           _ => const [],
         },
+        guideDone: switch (j['guideDone']) {
+          // Known steps only, once each, in the stored order.
+          final List<Object?> steps => List.unmodifiable(steps.whereType<String>().where(guideSteps.contains).toSet()),
+          _ => const [],
+        },
+        guideCardDismissed: j['guideCardDismissed'] == true,
+        voiceUsed: j['voiceUsed'] == true,
       );
 }
