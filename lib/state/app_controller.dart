@@ -1087,6 +1087,11 @@ class AppController extends ChangeNotifier {
   Future<void>? _calendarLoad;
 
   CalendarAccess get calendarAccess => _calendarAccess;
+
+  /// The system access was read and the user was never asked, e.g. settings
+  /// restored to a new device with the calendar on. Plan then offers
+  /// "Show calendar" again; [enableCalendar] asks.
+  bool get calendarNeedsAccess => _calendarAccessRead && _calendarAccess == CalendarAccess.notAsked;
   UnmodifiableListView<DeviceCalendarInfo> get deviceCalendars => UnmodifiableListView(_deviceCalendars);
 
   bool get _calendarShown => _settings.showCalendar && _calendarAccess == CalendarAccess.granted;
@@ -1207,12 +1212,15 @@ class AppController extends ChangeNotifier {
   }
 
   Future<CalendarAccess> _readAccess() async {
-    _calendarAccessRead = true;
     try {
       return await calendar.access();
     } catch (e) {
       debugPrint('Calendar access failed: $e');
       return CalendarAccess.denied;
+    } finally {
+      // Only once the answer is in: until then [calendarNeedsAccess] must not
+      // take the initial notAsked for a read one.
+      _calendarAccessRead = true;
     }
   }
 

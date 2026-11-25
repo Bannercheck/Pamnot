@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:pamnot/core/dates.dart';
 import 'package:pamnot/data/store.dart';
 import 'package:pamnot/l10n/strings.dart';
 import 'package:pamnot/models/settings.dart';
@@ -432,5 +433,75 @@ void main() {
     expect(summary['items'], isEmpty);
     expect(summary['total'], 0);
     c.dispose();
+  });
+
+  testWidgets('F1: oklarla hafta değişince seçim de kayar; görünen hafta sorgulanır, noktalar ve etkinlik görünür', (tester) async {
+    cal
+      ..state = CalendarAccess.granted
+      ..eventsList = [event('n', DateTime(2026, 12, 2, 9), DateTime(2026, 12, 2, 10), title: 'Gelecek hafta')];
+    final c = await pump(tester, const PlannerPage(), settings: shown);
+    expect(cal.eventsCalls, [(monday, DateTime(2026, 11, 30))]);
+
+    await tester.tap(find.byTooltip(tr.next));
+    await tester.pumpAndSettle();
+    // The visible week [Mon 30 Nov, Mon 7 Dec) is queried, the selection
+    // moved with it (Wednesday 2 December), so its event shows.
+    expect(cal.eventsCalls.last, (DateTime(2026, 11, 30), DateTime(2026, 12, 7)));
+    expect(c.busyDays(DateTime(2026, 11, 30), 7)[dayKey(DateTime(2026, 12, 2))], 1);
+    expect(find.text('Gelecek hafta'), findsOneWidget);
+
+    await tester.tap(find.byTooltip(tr.previous));
+    await tester.pumpAndSettle();
+    expect(cal.eventsCalls.last, (monday, DateTime(2026, 11, 30)));
+    expect(find.text('Gelecek hafta'), findsNothing);
+    await shutdown(tester, c);
+  });
+
+  testWidgets('F1: ay görünümünde ok seçimi yeni aya taşır (gün sınırlanır) ve o haftayı sorgular', (tester) async {
+    cal.state = CalendarAccess.granted;
+    final c = await pump(tester, const PlannerPage(), settings: shown);
+    await tester.tap(find.text(tr.month));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip(tr.next));
+    await tester.pumpAndSettle();
+    // 25 November -> 25 December; its week starts on Monday 21 December.
+    expect(cal.eventsCalls.last, (DateTime(2026, 12, 21), DateTime(2026, 12, 28)));
+    await shutdown(tester, c);
+  });
+
+  testWidgets('F2: showCalendar açık ama izin hiç sorulmamış: Plan "Takvimi göster" gösterir, Ayarlar anahtarı kapalı', (tester) async {
+    // e.g. settings restored to a new device; the system has not asked yet.
+    cal
+      ..state = CalendarAccess.notAsked
+      ..eventsList = [event('e1', DateTime(2026, 11, 25, 14), DateTime(2026, 11, 25, 15))];
+    var c = await pump(tester, const PlannerPage(), settings: shown);
+    expect(cal.requests, 0);
+    expect(c.calendarNeedsAccess, isTrue);
+    final button = find.byKey(const Key('show-calendar'));
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(cal.requests, 1);
+    expect(c.calendarAccess, CalendarAccess.granted);
+    expect(c.calendarNeedsAccess, isFalse);
+    expect(find.byKey(const Key('show-calendar')), findsNothing);
+    expect(find.text('Toplantı'), findsOneWidget);
+    await shutdown(tester, c);
+
+    cal
+      ..state = CalendarAccess.notAsked
+      ..requests = 0;
+    c = await pump(tester, const SettingsPage(), settings: shown);
+    final toggle = find.widgetWithText(SwitchListTile, tr.calendarEvents);
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(cal.requests, 0);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(cal.requests, 1);
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    expect(find.text(tr.calendarsToShow), findsOneWidget);
+    await shutdown(tester, c);
   });
 }

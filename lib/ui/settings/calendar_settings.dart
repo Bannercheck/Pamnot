@@ -38,7 +38,10 @@ class _CalendarSettingsGroupState extends State<CalendarSettingsGroup> {
     final t = Theme.of(context);
     final st = app.settings;
     final denied = app.calendarAccess == CalendarAccess.denied;
-    final on = st.showCalendar && !denied;
+    // On only with access: a restored "on" the system never asked about
+    // shows off, and turning it on asks. Until the access is read (initState
+    // reads it) the stored setting shows, so the switch does not flicker.
+    final on = st.showCalendar && !denied && !app.calendarNeedsAccess;
     final hidden = st.hiddenCalendarIds.toSet();
 
     return Padding(

@@ -60,8 +60,18 @@ class _PlannerPageState extends State<PlannerPage> {
     final reminders = section == PlanSection.reminders;
     _requestCalendarWeek(app, selected);
 
+    // The selection moves with the arrows, so the visible week (or month) is
+    // always the one holding the selected day, and its week is the one
+    // queried for calendar events (design §9: only the visible week).
     void shift(int dir) => setState(() {
-          _anchor = _month ? DateTime(anchor.year, anchor.month + dir) : addDays(anchor, 7 * dir);
+          if (_month) {
+            _anchor = DateTime(anchor.year, anchor.month + dir);
+            final last = DateTime(_anchor!.year, _anchor!.month + 1, 0).day;
+            _selected = DateTime(_anchor!.year, _anchor!.month, selected.day > last ? last : selected.day);
+          } else {
+            _anchor = addDays(anchor, 7 * dir);
+            _selected = addDays(selected, 7 * dir);
+          }
         });
 
     return Scaffold(
@@ -219,8 +229,9 @@ class _PlannerPageState extends State<PlannerPage> {
     );
   }
 
-  /// Loads the selected day's week of calendar events (in month view too:
-  /// only one week is ever queried). Also remembered while the calendar is
+  /// Loads the selected day's week of calendar events; the arrows move the
+  /// selection with the strip, so this is the visible week (in month view
+  /// too: only one week is ever queried). Also remembered while the calendar is
   /// off, so turning it on loads this week.
   void _requestCalendarWeek(AppController app, DateTime selected) {
     if (!app.calendar.isSupported) return;
@@ -273,8 +284,8 @@ class _PlannerPageState extends State<PlannerPage> {
 }
 
 /// Under the week strip: "Show calendar" until the user turns the calendar
-/// on (the first tap asks for access), or why events are missing when access
-/// was refused.
+/// on (the first tap asks for access) or while access was never decided,
+/// or why events are missing when access was refused.
 class _CalendarPrompt extends StatelessWidget {
   const _CalendarPrompt({required this.app});
 
@@ -295,7 +306,9 @@ class _CalendarPrompt extends StatelessWidget {
         ),
       );
     }
-    if (app.settings.showCalendar) return const SizedBox.shrink();
+    // On, and access granted or not read yet: nothing to offer. On while the
+    // system never asked (settings restored to a new device): offer it again.
+    if (app.settings.showCalendar && !app.calendarNeedsAccess) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: OutlinedButton.icon(
