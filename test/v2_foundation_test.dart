@@ -42,9 +42,9 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  test('pubspec derleme numarası 6, takvim paketi ve cümle varlıkları kayıtlı', () {
+  test('pubspec derleme numarası 7, takvim paketi ve cümle varlıkları kayıtlı', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
-    expect(pubspec, contains('version: 1.0.0+6'));
+    expect(pubspec, contains('version: 1.0.0+7'));
     expect(pubspec, contains('  device_calendar_plus: ^0.12.0'));
     expect(pubspec, contains('    - assets/quotes/'));
     for (final lang in ['tr', 'en']) {
@@ -135,6 +135,11 @@ void main() {
     final n = NoopAlarmScheduler();
     expect(AppController(store: MemoryStore(), alarms: n).alarms, same(n));
   });
+  test('K5 metinleri TR ve EN', () {
+    expect((S.tr.widgetAll, S.en.widgetAll), ('Tümü', 'All'));
+    expect((S.tr.widgetEmpty, S.en.widgetEmpty), ('Görev yok', 'No tasks'));
+  });
+
   test('K4 metinleri TR ve EN', () {
     expect((S.tr.showCalendar, S.en.showCalendar), ('Takvimi göster', 'Show calendar'));
     expect((S.tr.calendarSection, S.en.calendarSection), ('Takvim', 'Calendar'));

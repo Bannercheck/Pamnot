@@ -27,7 +27,7 @@ Future<void> main() async {
   await initializeDateFormatting();
 
   final scheduler = LocalNotificationScheduler(onTap: (payload) => notificationTaps.value = payload);
-  final widgets = WidgetSync.platformDefault()..listenForTaps(() => notificationTaps.value = 'w:today');
+  final widgets = WidgetSync.platformDefault()..listenForTaps((p) => notificationTaps.value = p);
   final controller = AppController(
     store: KeyValueStore.platformDefault(),
     scheduler: scheduler,

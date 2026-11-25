@@ -265,6 +265,7 @@ class AppController extends ChangeNotifier {
     unawaited(_loadInk());
     _scheduleMidnight();
     await refreshAlarmAccess();
+    await applyWidgetCompletions();
   }
 
   Timer? _midnight;
@@ -551,7 +552,28 @@ class AppController extends ChangeNotifier {
     if (access != AlarmAccess.unsupported) await alarms.sync(rings);
   }
 
-  Future<void> syncWidget() => widgetSync.push(todaySummary());
+  Future<void> syncWidget() async {
+    await widgetSync.push(todaySummary());
+    await widgetSync.pushLists(listsSummary());
+  }
+
+  /// Finishes the tasks ticked on the list widget while the app was away.
+  /// Ids of deleted or already finished tasks are skipped. When anything was
+  /// waiting, the widgets get a fresh summary at once.
+  Future<void> applyWidgetCompletions() async {
+    final ids = await widgetSync.takePendingDone();
+    if (ids.isEmpty) return;
+    final t = now();
+    var changed = false;
+    for (final id in ids) {
+      final i = _tasks.indexWhere((x) => x.id == id);
+      if (i < 0 || _tasks[i].done) continue;
+      _tasks[i] = _tasks[i].copyWith(done: true, completedAt: () => t);
+      changed = true;
+    }
+    if (changed) _changed({Slice.tasks});
+    await syncWidget();
+  }
 
   /// Web can't schedule in the background, so remind while the app is open.
   void startInAppTicker() {
@@ -1330,7 +1352,6 @@ class AppController extends ChangeNotifier {
     final ordered = [...entries.where((e) => !e.done), ...entries.where((e) => e.done)];
     final (done, total) = progressOn(t);
     final next = upcomingReminders(limit: 1);
-    String hex(int i) => '#${(pastelAt(i).accent.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
     return {
       'updatedAt': t.toIso8601String(),
       'lang': s.locale,
@@ -1347,7 +1368,7 @@ class AppController extends ChangeNotifier {
             'time': e.time == null ? '' : hhmm(e.time!),
             'kind': e.kind.name,
             'done': e.done,
-            'color': hex(e.colorIndex),
+            'color': _hexColor(e.colorIndex),
           },
       ],
       'nextReminder': next.isEmpty || !isSameDay(next.first.$2, t)
@@ -1355,6 +1376,49 @@ class AppController extends ChangeNotifier {
           : {'title': next.first.$1.title, 'time': hhmm(next.first.$2)},
     };
   }
+
+  /// The JSON the iOS list widget renders (`pamnot_lists`): every list with,
+  /// per box, the number of open tasks and the first six in matrix order.
+  /// Finished tasks stay out. The field names are read by the widget.
+  Map<String, Object?> listsSummary() {
+    final s = strings;
+    final t = now();
+    String time(TaskItem x) {
+      if (x.due == null || !x.hasTime) return '';
+      final at = hhmm(x.due!);
+      return isSameDay(x.due!, t) ? at : '${DateFormat('d MMM', s.locale).format(x.due!)} $at';
+    }
+
+    return {
+      'updatedAt': t.toIso8601String(),
+      'lang': s.locale,
+      'labels': {'all': s.widgetAll, 'empty': s.widgetEmpty, 'appName': 'Pamnot'},
+      'boxes': {for (final q in Quadrant.values) q.name: s.quadrantTitle(q)},
+      'lists': [
+        for (final l in _lists)
+          {
+            'id': l.id,
+            'name': l.name,
+            'color': _hexColor(l.colorIndex),
+            'boxes': {
+              for (final q in Quadrant.values)
+                q.name: () {
+                  final open = tasksIn(l.id, q);
+                  return {
+                    'count': open.length,
+                    'items': [
+                      for (final x in open.take(6)) {'id': x.id, 'title': x.title, 'time': time(x)},
+                    ],
+                  };
+                }(),
+            },
+          },
+      ],
+    };
+  }
+
+  static String _hexColor(int i) =>
+      '#${(pastelAt(i).accent.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
   // ------------------------------------------------------------- prediction
 

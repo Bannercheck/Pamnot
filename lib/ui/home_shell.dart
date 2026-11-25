@@ -19,8 +19,8 @@ import 'today/today_page.dart';
 import 'voice/voice_capture_page.dart';
 
 /// Payloads of tapped notifications (`r:<id>` or `t:<id>`) and home-screen
-/// widgets (`w:today`). `w:` opens Today, `t:` Matrix and `r:` the Reminders
-/// section of Plan.
+/// widgets (`w:today`, `w:list:<id>`). `w:list:` opens Matrix on that list,
+/// other `w:` Today, `t:` Matrix and `r:` the Reminders section of Plan.
 final notificationTaps = ValueNotifier<String?>(null);
 
 class HomeShell extends StatefulWidget {
@@ -64,9 +64,12 @@ class _HomeShellState extends State<HomeShell> {
   void _onNotification() {
     final p = notificationTaps.value;
     if (p == null) return;
-    // Task 19 adds the widget's `w:list:<id>` case here, before bare `w:`.
-    // `w:` the widget, `m:` the daily motivation line: both open Today.
-    if (p.startsWith('w:') || p.startsWith('m:')) {
+    // Checked before bare `w:`. An unknown list id only opens the tab.
+    if (p.startsWith('w:list:')) {
+      AppScope.of(context).selectList(p.substring('w:list:'.length));
+      _go(2);
+    } else if (p.startsWith('w:') || p.startsWith('m:')) {
+      // `w:` the today widget, `m:` the daily motivation line: both open Today.
       _go(0);
     } else if (p.startsWith('t:')) {
       _go(2);

@@ -405,4 +405,9 @@ class S {
       'Outlook etkinlikleri için hesabını iPhone Ayarlar > Takvim > Hesaplar’a ekle.',
       'For Outlook events, add your account in iPhone Settings > Calendar > Accounts.');
   String get untitledEvent => _('Adsız etkinlik', 'Untitled event');
+
+  // v2 · K5
+  /// The list widget's "every box" choice.
+  String get widgetAll => _('Tümü', 'All');
+  String get widgetEmpty => _('Görev yok', 'No tasks');
 }

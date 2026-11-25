@@ -37,6 +37,8 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
         unawaited(widget.controller.refreshCalendar());
         // A shortcut run while the app was in the background left a request.
         unawaited(LaunchActionsBridge.pull());
+        // Tasks ticked on the list widget meanwhile.
+        unawaited(widget.controller.applyWidgetCompletions());
       },
     );
   }
