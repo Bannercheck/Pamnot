@@ -659,6 +659,7 @@ struct PamnotItemRow: View {
       PamnotMarker(kind: item.kind, color: item.displayColor, size: fontSize * 0.55)
         .opacity(item.done ? 0.45 : 1)
       Text(item.title)
+        .privacySensitive()
         .font(.system(size: fontSize, design: .rounded))
         .strikethrough(item.done, color: colors.textDone)
         .foregroundColor(item.done ? colors.textDone : colors.text)
@@ -878,10 +879,12 @@ struct PamnotRectangularView: View {
       } icon: {
         Image(systemName: "bell.fill")
       }
+      .privacySensitive()
       .font(.caption)
       .lineLimit(1)
     } else if let item = today.items.first(where: { !$0.done }) {
       Text(verbatim: item.time.isEmpty ? item.title : "\(item.time) \(item.title)")
+        .privacySensitive()
         .font(.caption)
         .lineLimit(1)
     } else if today.items.isEmpty {

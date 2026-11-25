@@ -12,6 +12,7 @@ Standard library only:
    extension links no pods).
 3. The Swift constants equal the Dart ones in lib/services/widget_sync.dart:
    appGroupId, listsKey, pendingDoneKey, and iOSListName == listWidgetKind.
+   Task titles and list names in both widgets are marked .privacySensitive().
 4. PamnotWidgetBundle lists both widgets.
 5. en.lproj and tr.lproj Localizable.strings parse, have no duplicate keys, have the
    same keys, and carry the box titles (TR / EN) and "All" / "Tümü".
@@ -111,6 +112,10 @@ def check_sources():
     for literal in ('"pamnot_lists"', '"pamnot_pending_done"', "group.app.pamnot.shared"):
         if literal not in combined:
             fail(f"ios/PamnotWidget/*.swift: missing {literal}")
+    # Task titles and list names are hidden on a locked device (security audit run-2).
+    for path in (LIST_WIDGET, TODAY_WIDGET):
+        if ".privacySensitive()" not in strip_comments(read(path)):
+            fail(f"{rel(path)}: task text must be marked .privacySensitive()")
 
 
 def check_constants():

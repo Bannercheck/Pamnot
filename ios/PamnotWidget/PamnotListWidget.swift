@@ -414,6 +414,7 @@ struct PamnotSingleBoxView: View {
       } else {
         PamnotListHeader(title: payload.title(of: box), count: summary.count, size: metrics.titleSize)
         Text(list.name)
+          .privacySensitive()
           .font(.system(size: metrics.headerSize, design: .rounded))
           .foregroundStyle(.secondary)
           .lineLimit(1)
@@ -537,6 +538,7 @@ struct PamnotTaskRow: View {
           .font(.system(size: metrics.rowSize, weight: .medium))
           .foregroundStyle(.secondary)
         Text(item.title)
+          .privacySensitive()
           .font(.system(size: metrics.rowSize, design: .rounded))
           .foregroundStyle(.primary)
           .lineLimit(1)
