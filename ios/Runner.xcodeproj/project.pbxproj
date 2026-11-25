@@ -9,8 +9,11 @@
 /* Begin PBXBuildFile section */
 		066C0285F984AA1175F4FC76 /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = 0EA08E4318BD6606D5C91285 /* AppShortcuts.strings */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		259C5F27BE889259F01F8774 /* PamnotListWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F423697DDF4EF6022B9EC678 /* PamnotListWidget.swift */; };
 		27258CEC1CBFD53F27B5799A /* PamnotAccessibilityBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B230511A0786B1D856C6467 /* PamnotAccessibilityBridge.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
+		37A84E07FDA3FDBE9EA7AABB /* PamnotListIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 603012BDA6D3D73CFFD8C214 /* PamnotListIntents.swift */; };
+		3A22AEA9DDE2F809C17C2200 /* PamnotWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B421414D4B26BD74BFA896 /* PamnotWidgetBundle.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		4F982FB8CEE8C09B23ABF4B6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D03986B301434341B440FB53 /* PrivacyInfo.xcprivacy */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -20,6 +23,10 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		A053AF98EEB8EA50E3768FA2 /* PamnotWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4DC497DAC7806B25B20CD2BF /* PamnotWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA41CA836DD1B3D5F188EF20 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D3E36A99B6B01ECBA9ED0F46 /* PrivacyInfo.xcprivacy */; };
+		C66A82280E7369A055EA1851 /* PamnotTodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC7DD6740F464068506D269 /* PamnotTodayWidget.swift */; };
+		D38D7164EFEC6F945C8C48C1 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 48C014264B894F171DAE09AE /* Localizable.strings */; };
 		DE9A8D7B490C4E03995261C8 /* VoiceTaskIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F79B4F00E492ECAF3DCDE696 /* VoiceTaskIntent.swift */; };
 		E034B635918B9D885A908B61 /* PamnotLaunchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B987D975D6ADCCCA72E8C351 /* PamnotLaunchBridge.swift */; };
 		EC5622EDA9DDC453073B9ADC /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 85007DE1694C6F8FC18EFE1F /* Localizable.strings */; };
@@ -34,9 +41,27 @@
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
 		};
+		C133AC652089E282C262AF98 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E5F2578BECDAD2485AF8A9C3;
+			remoteInfo = PamnotWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		2194DB9EE167CDD63386C517 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A053AF98EEB8EA50E3768FA2 /* PamnotWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -50,14 +75,19 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0BC7DD6740F464068506D269 /* PamnotTodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotTodayWidget.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1B230511A0786B1D856C6467 /* PamnotAccessibilityBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotAccessibilityBridge.swift; sourceTree = "<group>"; };
 		1E38E678C6F049DD3CF75A2D /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		378DD49B0A6BB1A80FC48274 /* PamnotWidget.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = PamnotWidget.xcconfig; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		3C06D591A9D4DEFFF72A0434 /* tr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		4DC497DAC7806B25B20CD2BF /* PamnotWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PamnotWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		603012BDA6D3D73CFFD8C214 /* PamnotListIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotListIntents.swift; sourceTree = "<group>"; };
+		61B421414D4B26BD74BFA896 /* PamnotWidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotWidgetBundle.swift; sourceTree = "<group>"; };
 		6AA6C769948EA92A5AE557DF /* tr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -66,6 +96,8 @@
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		7DCA24C3474F8DEA5746D2BB /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		8851D71D8379469C2D1897DB /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		942DA54F86C6BC444ED9239D /* PamnotWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = PamnotWidget.entitlements; sourceTree = "<group>"; };
 		95E9B1E4D0EF4CC4CF095155 /* tr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -74,10 +106,14 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AD2E11273EDD82E644B3B16C /* tr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B987D975D6ADCCCA72E8C351 /* PamnotLaunchBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotLaunchBridge.swift; sourceTree = "<group>"; };
 		CF4456AA5862BD659A2541C9 /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		CF7D4A271DE7C679A40A90EB /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D03986B301434341B440FB53 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D3E36A99B6B01ECBA9ED0F46 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		E5A1C0DE2F0B4A1100A1B2C3 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		F423697DDF4EF6022B9EC678 /* PamnotListWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PamnotListWidget.swift; sourceTree = "<group>"; };
 		F79B4F00E492ECAF3DCDE696 /* VoiceTaskIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceTaskIntent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -90,9 +126,33 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F43E7DC81DB905115D4A5A39 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		174C187AFB4567E136857358 /* PamnotWidget */ = {
+			isa = PBXGroup;
+			children = (
+				61B421414D4B26BD74BFA896 /* PamnotWidgetBundle.swift */,
+				0BC7DD6740F464068506D269 /* PamnotTodayWidget.swift */,
+				F423697DDF4EF6022B9EC678 /* PamnotListWidget.swift */,
+				603012BDA6D3D73CFFD8C214 /* PamnotListIntents.swift */,
+				D3E36A99B6B01ECBA9ED0F46 /* PrivacyInfo.xcprivacy */,
+				48C014264B894F171DAE09AE /* Localizable.strings */,
+				CF7D4A271DE7C679A40A90EB /* Info.plist */,
+				942DA54F86C6BC444ED9239D /* PamnotWidget.entitlements */,
+				378DD49B0A6BB1A80FC48274 /* PamnotWidget.xcconfig */,
+			);
+			name = PamnotWidget;
+			path = PamnotWidget;
+			sourceTree = "<group>";
+		};
 		331C8082294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -120,6 +180,7 @@
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
+				174C187AFB4567E136857358 /* PamnotWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -128,6 +189,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				4DC497DAC7806B25B20CD2BF /* PamnotWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -181,6 +243,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
+				2194DB9EE167CDD63386C517 /* Embed Foundation Extensions */,
 				9740EEB61CF901F6004384FC /* Run Script */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
@@ -191,6 +254,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				9DD9216A95E4D00BB7593613 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -199,6 +263,23 @@
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
+		};
+		E5F2578BECDAD2485AF8A9C3 /* PamnotWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4868914B60B9FC45C161B991 /* Build configuration list for PBXNativeTarget "PamnotWidgetExtension" */;
+			buildPhases = (
+				61B480F1B15F4C214CE4DB2B /* Sources */,
+				F43E7DC81DB905115D4A5A39 /* Frameworks */,
+				ED94B13726C3821F60844C9D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PamnotWidgetExtension;
+			productName = PamnotWidgetExtension;
+			productReference = 4DC497DAC7806B25B20CD2BF /* PamnotWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -239,6 +320,7 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				E5F2578BECDAD2485AF8A9C3 /* PamnotWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -263,6 +345,15 @@
 				066C0285F984AA1175F4FC76 /* AppShortcuts.strings in Resources */,
 				EC5622EDA9DDC453073B9ADC /* Localizable.strings in Resources */,
 				FED4E719F12841FBDD10EDDF /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ED94B13726C3821F60844C9D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA41CA836DD1B3D5F188EF20 /* PrivacyInfo.xcprivacy in Resources */,
+				D38D7164EFEC6F945C8C48C1 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -311,6 +402,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		61B480F1B15F4C214CE4DB2B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3A22AEA9DDE2F809C17C2200 /* PamnotWidgetBundle.swift in Sources */,
+				C66A82280E7369A055EA1851 /* PamnotTodayWidget.swift in Sources */,
+				259C5F27BE889259F01F8774 /* PamnotListWidget.swift in Sources */,
+				37A84E07FDA3FDBE9EA7AABB /* PamnotListIntents.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EA1CF9000F007C117D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -333,6 +435,12 @@
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
 		};
+		9DD9216A95E4D00BB7593613 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = PamnotWidgetExtension;
+			target = E5F2578BECDAD2485AF8A9C3 /* PamnotWidgetExtension */;
+			targetProxy = C133AC652089E282C262AF98 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -352,6 +460,15 @@
 				95E9B1E4D0EF4CC4CF095155 /* tr */,
 			);
 			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		48C014264B894F171DAE09AE /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				8851D71D8379469C2D1897DB /* en */,
+				AD2E11273EDD82E644B3B16C /* tr */,
+			);
+			name = Localizable.strings;
 			sourceTree = "<group>";
 		};
 		85007DE1694C6F8FC18EFE1F /* Localizable.strings */ = {
@@ -441,6 +558,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -500,6 +618,30 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+			};
+			name = Profile;
+		};
+		6F69F828D14DD53390308043 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 378DD49B0A6BB1A80FC48274 /* PamnotWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = PamnotWidget/PamnotWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PamnotWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.pamnot.pamnot.PamnotWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Profile;
 		};
@@ -622,6 +764,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -644,6 +787,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -659,6 +803,54 @@
 			};
 			name = Release;
 		};
+		BD58724DB7CB224504B060C9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 378DD49B0A6BB1A80FC48274 /* PamnotWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = PamnotWidget/PamnotWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PamnotWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.pamnot.pamnot.PamnotWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D0380D8DF0D74DEF43CC53C2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 378DD49B0A6BB1A80FC48274 /* PamnotWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = PamnotWidget/PamnotWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PamnotWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.pamnot.pamnot.PamnotWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -668,6 +860,16 @@
 				331C8088294A63A400263BE5 /* Debug */,
 				331C8089294A63A400263BE5 /* Release */,
 				331C808A294A63A400263BE5 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4868914B60B9FC45C161B991 /* Build configuration list for PBXNativeTarget "PamnotWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D0380D8DF0D74DEF43CC53C2 /* Release */,
+				BD58724DB7CB224504B060C9 /* Debug */,
+				6F69F828D14DD53390308043 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -32,17 +32,20 @@ flutter pub get
 open ios/Runner.xcworkspace
 ```
 
-1. Xcode'da **Runner → Signing & Capabilities** altında **Team** olarak Apple kimliğinizi seçin.
-   Ücretsiz hesap da olur. Bundle ID başka bir hesapta kayıtlıysa sonuna bir ek getirin
-   (ör. `app.pamnot.pamnot.test`).
+1. Xcode'da **Runner** ve **PamnotWidgetExtension → Signing & Capabilities** altında **Team**
+   olarak ücretli Apple Developer hesabınızı seçin. Uygulama ve widget App Group
+   (`group.app.pamnot.shared`) kullandığı için ücretsiz hesap yetmez. **App Groups** altında
+   `group.app.pamnot.shared` iki hedefte de işaretli olmalı. Bundle ID başka bir hesapta kayıtlıysa
+   iki hedefe aynı eki getirin (ör. `app.pamnot.pamnot.test` ve `app.pamnot.pamnot.test.PamnotWidget`).
 2. iPad/iPhone'u kabloyla bağlayın. Cihazda **Ayarlar → Gizlilik ve Güvenlik → Geliştirici Modu**
    açık olmalı.
 3. Terminalde `flutter run --release` komutunu çalıştırın (birden çok cihaz varsa `-d <cihaz>`).
-4. Ücretsiz hesapla ilk açılışta **Ayarlar → Genel → VPN ve Aygıt Yönetimi** altında
-   geliştiriciye güvenin. Ücretsiz hesapla kurulan uygulama 7 gün sonra yeniden kurulmalıdır.
+4. İlk açılışta istenirse **Ayarlar → Genel → VPN ve Aygıt Yönetimi** altında geliştiriciye
+   güvenin.
 
-Ana ekran widget'ı için Xcode'da extension hedefi eklemek ve App Group kullanmak gerekir. Bu,
-ücretli Apple Developer üyeliği ister: [`ios/PamnotWidget/README.md`](ios/PamnotWidget/README.md).
+Widget uzantısı (`PamnotWidgetExtension`) projede hazırdır; Xcode'da yalnız Team seçimi ve
+App Groups denetimi kalır. Ayrıntılar ve el ile kurulum yedeği:
+[`ios/PamnotWidget/README.md`](ios/PamnotWidget/README.md).
 
 ### Mac
 - **Hazır sürüm:** `pamnot-macos` içindeki zip'i açın. Uygulama imzasız olduğu için ilk açılışta
@@ -126,14 +129,23 @@ Not: `main`'e birleştirmeden önce bu liste cihazda geçilir.
       mı) ve örnekleri paylaşın; ayrıştırıcı gerekirse bunlara göre düzeltilir. **Temizle** listeyi
       boşaltmalı.
 
-Ücretsiz Apple kimliğiyle kurulan uygulama 7 günde bir yeniden kurulur. Uygulama silinip
-kurulursa Eylem düğmesine ve Arkaya Dokunma'ya atanan kestirme yeniden seçilmelidir.
+Uygulama silinip kurulursa Eylem düğmesine ve Arkaya Dokunma'ya atanan kestirme yeniden seçilmelidir.
 
 **Genel**
 - [ ] Ayarlar'dan dili (Türkçe/English) ve temayı (açık/koyu) değiştirin.
 - [ ] Uygulamayı tamamen kapatıp açın: tüm veriler yerinde olmalı.
 - [ ] Android'de ana ekrana **Pamnot · Bugün** widget'ını ekleyin. Görev ekleyip tamamlayınca
       widget güncellenmeli; widget'a dokununca uygulama Bugün ekranında açılmalı.
+
+**Liste widget'ı (iPhone ve iPad)**
+- [ ] Ana ekrana **Pamnot · Liste** widget'ını küçük, orta ve büyük boyutta ekleyin.
+- [ ] Widget'a uzun basıp **Widget'ı Düzenle** deyin: liste ve kutu seçimi çalışmalı; seçim
+      widget'a yansımalı.
+- [ ] Bir satırın dairesine dokunun: görev widget'ta bitmiş görünmeli; uygulamayı açınca da
+      bitmiş olmalı.
+- [ ] Widget'ın boş bir yerine dokunun: uygulama o listeyle açılmalı.
+- [ ] Koyu temada ve iOS 26'nın cam (saydam) görünümünde yazılar okunabilmeli.
+- [ ] Eski **Pamnot · Bugün** widget'ı hâlâ eklenebilmeli ve güncellenmeli.
 
 Bir sorun görürseniz ekran görüntüsü ve kısa bir açıklama yeterli: hangi cihaz, ne yaptınız,
 ne bekliyordunuz.

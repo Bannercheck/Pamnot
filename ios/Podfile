@@ -38,8 +38,8 @@ target 'Runner' do
   end
 end
 
-# The PamnotWidget extension links no pods (it only reads the shared App Group UserDefaults),
-# so it needs no target block here.
+# The PamnotWidgetExtension target (added by tool/ios/add_widget_target.rb) links no pods: it only
+# reads the shared App Group UserDefaults. It needs no target block here; pod install leaves it alone.
 
 post_install do |installer|
   # google_mlkit_*: ML Kit ships no 32-bit slices.
