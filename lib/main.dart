@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'data/store.dart';
 import 'prediction/word_predictor.dart';
+import 'services/alarm_scheduler.dart';
 import 'services/handwriting.dart';
 import 'services/launch_actions.dart';
 import 'services/reminder_scheduler.dart';
@@ -32,6 +33,9 @@ Future<void> main() async {
     handwriting: HandwritingRecognizer.platformDefault(),
     // Building the engine asks for no permission and does not call the plugin.
     speech: createSpeechEngine(),
+    // Building it asks for nothing; alarm permission waits for the first
+    // time Alarm is picked.
+    alarms: createAlarmScheduler(),
   );
   await controller.load();
   runApp(PamnotApp(controller: controller));

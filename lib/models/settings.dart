@@ -18,7 +18,12 @@ class AppSettings {
     this.notificationsAsked = false,
     this.lastListId = '',
     this.voiceAutoSave = true,
-  });
+    this.dailyMotivation = true,
+    int motivationMinutes = defaultMotivationMinutes,
+  }) : motivationMinutes = motivationMinutes < 0 ? 0 : (motivationMinutes > 1439 ? 1439 : motivationMinutes);
+
+  /// 09:00.
+  static const defaultMotivationMinutes = 540;
 
   final AppLanguage language;
   final ThemeMode themeMode;
@@ -49,6 +54,12 @@ class AppSettings {
   /// A voice task with no list picked saves by itself after 8 seconds.
   final bool voiceAutoSave;
 
+  /// A short, gentle line as a notification every day.
+  final bool dailyMotivation;
+
+  /// When [dailyMotivation] arrives, in minutes after midnight (0..1439).
+  final int motivationMinutes;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -62,6 +73,8 @@ class AppSettings {
     bool? notificationsAsked,
     String? lastListId,
     bool? voiceAutoSave,
+    bool? dailyMotivation,
+    int? motivationMinutes,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -76,6 +89,8 @@ class AppSettings {
         notificationsAsked: notificationsAsked ?? this.notificationsAsked,
         lastListId: lastListId ?? this.lastListId,
         voiceAutoSave: voiceAutoSave ?? this.voiceAutoSave,
+        dailyMotivation: dailyMotivation ?? this.dailyMotivation,
+        motivationMinutes: motivationMinutes ?? this.motivationMinutes,
       );
 
   Map<String, Object?> toJson() => {
@@ -91,6 +106,8 @@ class AppSettings {
         'notificationsAsked': notificationsAsked,
         'lastListId': lastListId,
         'voiceAutoSave': voiceAutoSave,
+        'dailyMotivation': dailyMotivation,
+        'motivationMinutes': motivationMinutes,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -110,5 +127,7 @@ class AppSettings {
         notificationsAsked: j['notificationsAsked'] == true,
         lastListId: (j['lastListId'] as String?) ?? '',
         voiceAutoSave: j['voiceAutoSave'] != false,
+        dailyMotivation: j['dailyMotivation'] != false,
+        motivationMinutes: (j['motivationMinutes'] as num?)?.toInt() ?? defaultMotivationMinutes,
       );
 }

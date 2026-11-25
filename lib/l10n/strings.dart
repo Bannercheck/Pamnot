@@ -379,4 +379,16 @@ class S {
   String get voiceSavedDone => _('Eklendi', 'Added');
   /// Listens again after a save; the only way the microphone re-opens.
   String get voiceAddAnother => _('Bir tane daha', 'Add another');
+
+  // v2 · K3
+  String get dailyMotivation => _('Günlük motivasyon', 'Daily motivation');
+  String get dailyMotivationSub => _('Her gün kısa, yumuşak bir cümle.', 'A short, gentle line every day.');
+  String get motivationTime => _('Saat', 'Time');
+  String get alertKind => _('Uyarı türü', 'Alert type');
+  String get alertNotification => _('Bildirim', 'Notification');
+  String get alertAlarm => _('Alarm', 'Alarm');
+  String get alarmHint =>
+      _('Sessiz modda da çalar; Ertele ve Kapat düğmeleriyle.', 'Rings even in silent mode, with Snooze and Stop.');
+  String get alarmDenied =>
+      _('Alarm izni kapalı; bildirim olarak hatırlatılacak.', 'Alarms are off; you’ll get a notification instead.');
 }

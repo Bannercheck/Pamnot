@@ -17,6 +17,7 @@ class Alert {
     required this.body,
     required this.at,
     this.repeat = Repeat.none,
+    this.alarm = false,
   });
 
   /// Stable string id (`r:<reminderId>` or `t:<taskId>`).
@@ -25,6 +26,9 @@ class Alert {
   final String body;
   final DateTime at;
   final Repeat repeat;
+
+  /// Rings as an alarm (AlarmKit) instead of a notification.
+  final bool alarm;
 
   /// Notification ids must be 32-bit ints; FNV-1a keeps them stable.
   int get id {
@@ -36,7 +40,7 @@ class Alert {
     return h;
   }
 
-  String get fingerprint => '$key|$title|$body|${at.toIso8601String()}|${repeat.name}';
+  String get fingerprint => '$key|$title|$body|${at.toIso8601String()}|${repeat.name}|$alarm';
 }
 
 abstract class ReminderScheduler {

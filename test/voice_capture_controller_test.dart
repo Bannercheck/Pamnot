@@ -1171,6 +1171,78 @@ void main() {
     await h.dispose(tester);
   });
 
+  testWidgets('Eklendi sırasında son kaydı geri almak kapanmayı iptal eder ve duraklatır', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    await tester.pump(const Duration(milliseconds: 600));
+    c.undo(c.lastSaved!);
+    expect((c.phase, c.lastSaved), (VoicePhase.paused, null));
+    expect(h.app.tasks, isEmpty);
+    await tester.pump(VoiceTimings.savedClose * 2);
+    expect((c.phase, starts(e), e.listening), (VoicePhase.paused, 1, false));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('Eklendi sırasında eski bir kaydı geri almak kapanmayı değiştirmez', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    c.addAnother();
+    await tester.pump();
+    e.say('ekmek al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    c.undo(c.saved.last);
+    expect((c.phase, c.lastSaved!.title, h.app.tasks.single.title), (VoicePhase.saved, 'Ekmek al', 'Ekmek al'));
+    await tester.pump(VoiceTimings.savedClose);
+    expect(c.phase, VoicePhase.closed);
+    await h.dispose(tester);
+  });
+
+  testWidgets('"Bir tane daha" motor başlayana dek hazırlık durumunu gösterir', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    e.startGate = Completer<void>();
+    c.addAnother();
+    expect(c.phase, VoicePhase.preparing);
+    await tester.pump(VoiceTimings.savedClose);
+    expect(c.phase, VoicePhase.preparing);
+    e.startGate!.complete();
+    await tester.pump();
+    expect((c.phase, starts(e)), (VoicePhase.listening, 2));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('Eklendi durumunda VoiceOver kapanınca kendiliğinden kapanma yeniden kurulur', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e, accessible: true);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    await tester.pump(const Duration(seconds: 10));
+    expect(c.phase, VoicePhase.saved);
+    c.accessible = false;
+    await tester.pump(VoiceTimings.savedClose - const Duration(milliseconds: 1));
+    expect(c.phase, VoicePhase.saved);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect((c.phase, starts(e)), (VoicePhase.closed, 1));
+    await h.dispose(tester);
+  });
+
   testWidgets('R10: kayıt anında arka plana geçilirse ekran gizliyken kapanmaz; dönüşte kapanır', (tester) async {
     final h = await VoiceHarness.create(tester);
     final e = FakeSpeechEngine();

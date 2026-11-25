@@ -2,6 +2,14 @@ import '../core/dates.dart';
 
 enum Repeat { none, daily, weekly, monthly, yearly }
 
+/// How a reminder or a task alerts: a notification, or an alarm that rings
+/// like the Clock app's (iOS 26+, design §7.1).
+enum AlertKind { notification, alarm }
+
+/// The JSON value of 'alert'; anything but 'alarm' (or none, in data saved
+/// before alarms existed) is a notification.
+AlertKind alertKindFromJson(Object? v) => v == AlertKind.alarm.name ? AlertKind.alarm : AlertKind.notification;
+
 class Reminder {
   const Reminder({
     required this.id,
@@ -12,6 +20,7 @@ class Reminder {
     this.enabled = true,
     this.colorIndex = 1,
     required this.createdAt,
+    this.alertKind = AlertKind.notification,
   });
 
   final String id;
@@ -24,6 +33,9 @@ class Reminder {
   final bool enabled;
   final int colorIndex;
   final DateTime createdAt;
+
+  /// Notification (default) or alarm.
+  final AlertKind alertKind;
 
   /// Whether the reminder fires on [day] (any time that day).
   bool occursOn(DateTime day) {
@@ -93,6 +105,7 @@ class Reminder {
     Repeat? repeat,
     bool? enabled,
     int? colorIndex,
+    AlertKind? alertKind,
   }) =>
       Reminder(
         id: id,
@@ -103,6 +116,7 @@ class Reminder {
         enabled: enabled ?? this.enabled,
         colorIndex: colorIndex ?? this.colorIndex,
         createdAt: createdAt,
+        alertKind: alertKind ?? this.alertKind,
       );
 
   Map<String, Object?> toJson() => {
@@ -114,6 +128,7 @@ class Reminder {
         'enabled': enabled,
         'color': colorIndex,
         'createdAt': createdAt.toIso8601String(),
+        if (alertKind == AlertKind.alarm) 'alert': alertKind.name,
       };
 
   factory Reminder.fromJson(Map<String, Object?> j) => Reminder(
@@ -126,5 +141,6 @@ class Reminder {
         enabled: j['enabled'] != false,
         colorIndex: (j['color'] as num?)?.toInt() ?? 1,
         createdAt: DateTime.parse(j['createdAt']! as String),
+        alertKind: alertKindFromJson(j['alert']),
       );
 }

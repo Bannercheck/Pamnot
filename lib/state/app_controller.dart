@@ -20,6 +20,7 @@ import '../models/task.dart';
 import '../models/task_list.dart';
 import '../models/voice_log.dart';
 import '../prediction/word_predictor.dart';
+import '../services/alarm_scheduler.dart';
 import '../services/handwriting.dart';
 import '../services/reminder_scheduler.dart';
 import '../services/speech/speech_engine.dart';
@@ -67,12 +68,14 @@ class AppController extends ChangeNotifier {
     WidgetSync? widgetSync,
     HandwritingRecognizer? handwriting,
     SpeechEngine? speech,
+    AlarmScheduler? alarms,
     DateTime Function()? clock,
     this.saveDelay = const Duration(milliseconds: 400),
   })  : scheduler = scheduler ?? NoopScheduler(),
         widgetSync = widgetSync ?? NoopWidgetSync(),
         handwriting = handwriting ?? UnsupportedRecognizer(),
         speech = speech ?? UnsupportedSpeechEngine(),
+        alarms = alarms ?? NoopAlarmScheduler(),
         now = clock ?? DateTime.now;
 
   final KeyValueStore store;
@@ -80,6 +83,7 @@ class AppController extends ChangeNotifier {
   final WidgetSync widgetSync;
   final HandwritingRecognizer handwriting;
   final SpeechEngine speech;
+  final AlarmScheduler alarms;
   final DateTime Function() now;
   final Duration saveDelay;
   static const _uuid = Uuid();

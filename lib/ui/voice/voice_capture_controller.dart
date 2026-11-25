@@ -248,6 +248,9 @@ class VoiceCaptureController extends ChangeNotifier {
       _holdTimer?.cancel();
       _idleTimer?.cancel();
       _doneTimer?.cancel();
+    } else {
+      // "Added" kept open for VoiceOver closes as it would have without it.
+      _armDoneClose();
     }
   }
 
@@ -535,6 +538,8 @@ class VoiceCaptureController extends ChangeNotifier {
   void addAnother() {
     if (_closed || _asking || _phase != VoicePhase.saved) return;
     _doneTimer?.cancel();
+    // The microphone is off until the engine reports the start.
+    _setPhase(VoicePhase.preparing);
     unawaited(_listen());
   }
 
@@ -594,6 +599,8 @@ class VoiceCaptureController extends ChangeNotifier {
   }
 
   /// Deletes a saved task or note; one already deleted elsewhere is fine.
+  /// Undoing the save "Added" shows stops the screen from closing by itself:
+  /// it waits for a tap instead.
   void undo(SavedItem item) {
     if (item.isNote) {
       app.deleteNote(item.id);
@@ -601,7 +608,13 @@ class VoiceCaptureController extends ChangeNotifier {
       app.deleteTask(item.id);
     }
     _saved.removeWhere((s) => s.id == item.id);
-    if (_lastSaved?.id == item.id) _lastSaved = null;
+    if (_lastSaved?.id == item.id) {
+      _lastSaved = null;
+      if (_phase == VoicePhase.saved) {
+        _doneTimer?.cancel();
+        return _setPhase(VoicePhase.paused);
+      }
+    }
     _notify();
   }
 

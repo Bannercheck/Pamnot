@@ -1,3 +1,4 @@
+import 'reminder.dart' show AlertKind, alertKindFromJson;
 import 'task_list.dart';
 
 enum Priority { low, normal, high }
@@ -38,6 +39,7 @@ class TaskItem {
     this.listId = TaskList.personalId,
     this.quadrant = Quadrant.plan,
     this.order = 0,
+    this.alertKind = AlertKind.notification,
   });
 
   final String id;
@@ -67,6 +69,9 @@ class TaskItem {
   /// Position inside its box.
   final int order;
 
+  /// How [remindAt] alerts: notification (default) or alarm.
+  final AlertKind alertKind;
+
   int get subtasksDone => subtasks.where((s) => s.done).length;
 
   TaskItem copyWith({
@@ -83,6 +88,7 @@ class TaskItem {
     String? listId,
     Quadrant? quadrant,
     int? order,
+    AlertKind? alertKind,
   }) =>
       TaskItem(
         id: id,
@@ -100,6 +106,7 @@ class TaskItem {
         listId: listId ?? this.listId,
         quadrant: quadrant ?? this.quadrant,
         order: order ?? this.order,
+        alertKind: alertKind ?? this.alertKind,
       );
 
   Map<String, Object?> toJson() => {
@@ -118,6 +125,7 @@ class TaskItem {
         'list': listId,
         'quadrant': quadrant.name,
         'order': order,
+        if (alertKind == AlertKind.alarm) 'alert': alertKind.name,
       };
 
   factory TaskItem.fromJson(Map<String, Object?> j) {
@@ -144,6 +152,7 @@ class TaskItem {
         quadrant: Quadrant.values.firstWhere((q) => q.name == j['quadrant'],
             orElse: () => priority == Priority.high ? Quadrant.doNow : Quadrant.plan),
         order: (j['order'] as num?)?.toInt() ?? 0,
+        alertKind: alertKindFromJson(j['alert']),
       );
   }
 }
