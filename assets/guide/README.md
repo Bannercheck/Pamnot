@@ -10,4 +10,7 @@ over the Settings app.
 - The first release renders them from the guide's own Flutter animation; real iPhone
   recordings may replace them later under the same names.
 
-The videos arrive in Task 24; this folder is registered in `pubspec.yaml` now.
+Regenerate them with `bash tool/guide/make_videos.sh` (needs flutter, ffmpeg with libx264
+and ffprobe): 540×960, 30 fps, 12 seconds (two rounds of the animation), H.264 High,
+`yuv420p`, no audio, `+faststart`, at most 600 KB each, on the light theme's surface and
+with no text.
