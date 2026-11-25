@@ -10,16 +10,16 @@ import '../services/launch_actions.dart';
 import '../state/app_scope.dart';
 import 'common/glass.dart';
 import 'common/glass_nav_bar.dart';
+import 'matrix/matrix_page.dart';
 import 'notes/note_editor_page.dart';
 import 'notes/notes_page.dart';
 import 'planner/planner_page.dart';
 import 'tasks/task_editor.dart';
-import 'tasks/track_page.dart';
 import 'today/today_page.dart';
 import 'voice/voice_capture_page.dart';
 
 /// Payloads of tapped notifications (`r:<id>` or `t:<id>`) and home-screen
-/// widgets (`w:today`). `w:` opens Today, `t:` Track and `r:` the Reminders
+/// widgets (`w:today`). `w:` opens Today, `t:` Matrix and `r:` the Reminders
 /// section of Plan.
 final notificationTaps = ValueNotifier<String?>(null);
 
@@ -36,8 +36,8 @@ class _HomeShellState extends State<HomeShell> {
   /// Tabs are built the first time they are opened, then kept alive.
   final Set<int> _visited = {0};
 
-  /// 0 Today, 1 Notes, 2 Track, 3 Plan (Reminders live inside Plan).
-  static const _pages = <Widget>[TodayPage(), NotesPage(), TrackPage(), PlannerPage()];
+  /// 0 Today, 1 Notes, 2 Matrix, 3 Plan (Reminders live inside Plan).
+  static const _pages = <Widget>[TodayPage(), NotesPage(), MatrixPage(), PlannerPage()];
 
   @override
   void initState() {
@@ -64,6 +64,7 @@ class _HomeShellState extends State<HomeShell> {
   void _onNotification() {
     final p = notificationTaps.value;
     if (p == null) return;
+    // Task 19 adds the widget's `w:list:<id>` case here, before bare `w:`.
     if (p.startsWith('w:')) {
       _go(0);
     } else if (p.startsWith('t:')) {
@@ -117,7 +118,7 @@ class _HomeShellState extends State<HomeShell> {
     final dests = [
       (Icons.wb_sunny_outlined, Icons.wb_sunny_rounded, s.today),
       (Icons.sticky_note_2_outlined, Icons.sticky_note_2_rounded, s.notes),
-      (Icons.check_circle_outline_rounded, Icons.check_circle_rounded, s.tasks),
+      (Icons.grid_view_outlined, Icons.grid_view_rounded, s.matrix),
       (Icons.calendar_month_outlined, Icons.calendar_month_rounded, s.planner),
     ];
     final voice = AppScope.of(context).speech.isSupported;

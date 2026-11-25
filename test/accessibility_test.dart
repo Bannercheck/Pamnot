@@ -31,7 +31,7 @@ void main() {
   setUpAll(() => initializeDateFormatting());
   // Tuesday.
   final now = DateTime(2026, 10, 27, 9, 0);
-  const tabs = ['Bugün', 'Notlar', 'Takip', 'Plan'];
+  const tabs = ['Bugün', 'Notlar', 'Matris', 'Plan'];
 
   /// The first-run welcome note stays; on top of it three tasks (one
   /// overdue), a habit, a reminder and two notes (one pinned).
@@ -153,10 +153,12 @@ void main() {
     });
   }
 
-  testWidgets('Takip > Alışkanlıklar ve alışkanlık düzenleyici yönergeleri karşılar', (tester) async {
+  testWidgets('Matris > ⋯ > Alışkanlıklar ve alışkanlık düzenleyici yönergeleri karşılar', (tester) async {
     final handle = tester.ensureSemantics();
     final c = await boot(tester);
-    await openTab(tester, 'Takip');
+    await openTab(tester, 'Matris');
+    await tester.tap(find.byKey(const Key('matrix-more')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Alışkanlıklar'));
     await tester.pumpAndSettle();
     await meetsAllGuidelines(tester, 'alışkanlıklar');

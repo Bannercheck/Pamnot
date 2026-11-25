@@ -44,13 +44,18 @@ class TodayPage extends StatelessWidget {
       children: [
         _ProgressCard(app: app),
         const SizedBox(height: 14),
+        // Adds to the last used list (AppController.currentListId).
         QuickAddField(app: app, hint: s.quickCapture),
         SectionHeader(s.todaysPlan, icon: Icons.wb_sunny_outlined),
         if (overdue.isEmpty && todays.isEmpty && reminders.isEmpty)
           SoftCard(child: Text(s.nothingToday, style: Theme.of(context).textTheme.bodyLarge))
         else ...[
-          for (final t in overdue) ...[TaskTile(app: app, task: t), const SizedBox(height: 8)],
-          for (final t in todays) ...[TaskTile(app: app, task: t, showDate: false), const SizedBox(height: 8)],
+          // Today mixes every list; each row shows its list's dot.
+          for (final t in overdue) ...[TaskTile(app: app, task: t, showList: true), const SizedBox(height: 8)],
+          for (final t in todays) ...[
+            TaskTile(app: app, task: t, showDate: false, showList: true),
+            const SizedBox(height: 8),
+          ],
           for (final e in reminders) ...[AgendaRow(app: app, entry: e), const SizedBox(height: 8)],
         ],
         if (upcoming.isNotEmpty) ...[

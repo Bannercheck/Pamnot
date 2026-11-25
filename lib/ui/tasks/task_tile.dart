@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../core/dates.dart';
 import '../../l10n/strings.dart';
 import '../../models/task.dart';
+import '../../models/task_list.dart';
 import '../../state/app_controller.dart';
 import '../../theme/pamnot_theme.dart';
 import '../common/format.dart';
@@ -77,11 +78,15 @@ class SoftCheck extends StatelessWidget {
 }
 
 class TaskTile extends StatelessWidget {
-  const TaskTile({super.key, required this.app, required this.task, this.showDate = true});
+  const TaskTile({super.key, required this.app, required this.task, this.showDate = true, this.showList = false});
 
   final AppController app;
   final TaskItem task;
   final bool showDate;
+
+  /// Puts an 8 pt dot in the colour of the task's list left of the title,
+  /// read by VoiceOver as the list's name (Today mixes every list).
+  final bool showList;
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +156,15 @@ class TaskTile extends StatelessWidget {
                             decoration: task.done ? TextDecoration.lineThrough : null,
                             decorationColor: c.onSurfaceVariant,
                           ),
-                          child: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          child: showList
+                              ? Row(
+                                  children: [
+                                    _ListDot(list: app.listById(task.listId)),
+                                    const SizedBox(width: 6),
+                                    Flexible(child: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                                  ],
+                                )
+                              : Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis),
                         ),
                         if (meta.isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -181,6 +194,28 @@ class TaskTile extends StatelessWidget {
       action: SnackBarAction(label: s.undo, onPressed: () => app.restoreTask(removed)),
     ));
   }
+}
+
+class _ListDot extends StatelessWidget {
+  const _ListDot({required this.list});
+
+  final TaskList list;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: list.name,
+        child: Container(
+          key: const Key('task-list-dot'),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: pastelAt(list.colorIndex).accent,
+            shape: BoxShape.circle,
+            // The pale pastels alone are too faint on the card (< 3:1).
+            border: Border.all(color: Theme.of(context).colorScheme.outline, width: 0.5),
+          ),
+        ),
+      );
 }
 
 class _Meta extends StatelessWidget {

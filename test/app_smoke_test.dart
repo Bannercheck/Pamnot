@@ -45,7 +45,7 @@ void main() {
     expect(find.text('Günaydın'), findsOneWidget);
     expect(find.byType(GlassNavBar), findsOneWidget);
 
-    for (final tab in ['Notlar', 'Takip', 'Plan', 'Bugün']) {
+    for (final tab in ['Notlar', 'Matris', 'Plan', 'Bugün']) {
       await tester.tap(find.text(tab).last);
       await tester.pumpAndSettle();
     }

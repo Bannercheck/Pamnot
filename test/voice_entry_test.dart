@@ -280,8 +280,8 @@ void main() {
   testWidgets('mikrofon düğmesini göstermek motoru çağırmaz', (tester) async {
     await boot(tester);
     expect(inQuickAdd(find.byTooltip('Sesle görev ekle')), findsOneWidget);
-    // The Tasks tab's own quick add shows one too; still no engine call.
-    await tester.tap(find.text('Takip').last);
+    // The Today tab's quick add (Track and its field are gone); still no engine call.
+    await tester.tap(find.text('Bugün').last);
     await tester.pumpAndSettle();
     expect(inQuickAdd(find.byTooltip('Sesle görev ekle')), findsOneWidget);
     expect(engine.calls, isEmpty);

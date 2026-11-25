@@ -15,11 +15,11 @@ import 'package:pamnot/state/app_controller.dart';
 import 'package:pamnot/ui/common/glass.dart';
 import 'package:pamnot/ui/common/glass_nav_bar.dart';
 import 'package:pamnot/ui/home_shell.dart';
+import 'package:pamnot/ui/matrix/matrix_page.dart';
 import 'package:pamnot/ui/notes/notes_page.dart';
 import 'package:pamnot/ui/planner/planner_page.dart';
 import 'package:pamnot/ui/reminders/reminders_page.dart';
 import 'package:pamnot/ui/tasks/task_editor.dart';
-import 'package:pamnot/ui/tasks/track_page.dart';
 import 'package:pamnot/ui/today/today_page.dart';
 import 'package:pamnot/ui/voice/voice_capture_page.dart';
 
@@ -72,7 +72,7 @@ void main() {
 
   int selected(WidgetTester tester) => tester.widget<GlassNavBar>(find.byType(GlassNavBar)).selectedIndex;
 
-  testWidgets('telefon: GlassNavBar var, NavigationBar yok; sekmeler Bugün, Notlar, Takip, Plan', (tester) async {
+  testWidgets('telefon: GlassNavBar var, NavigationBar yok; sekmeler Bugün, Notlar, Matris, Plan', (tester) async {
     await boot(tester);
     expect(find.byType(GlassNavBar), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
@@ -84,11 +84,11 @@ void main() {
       for (var i = 0; i < 4; i++)
         tester.widget<Text>(find.descendant(of: find.byKey(Key('nav-$i')), matching: find.byType(Text))).data,
     ];
-    expect(labels, ['Bugün', 'Notlar', 'Takip', 'Plan']);
+    expect(labels, ['Bugün', 'Notlar', 'Matris', 'Plan']);
     // Reminders is no longer a tab.
     expect(find.descendant(of: find.byType(GlassNavBar), matching: find.text('Hatırlatma')), findsNothing);
 
-    final pages = [TodayPage, NotesPage, TrackPage, PlannerPage];
+    final pages = [TodayPage, NotesPage, MatrixPage, PlannerPage];
     for (var i = 0; i < 4; i++) {
       await tester.tap(find.byKey(Key('nav-$i')));
       await tester.pumpAndSettle();
@@ -124,7 +124,7 @@ void main() {
     await shutdown(tester);
   });
 
-  testWidgets('r: bildirimi Plan sekmesini Hatırlatmalar bölümüyle açar; t: Takip, w: Bugün', (tester) async {
+  testWidgets('r: bildirimi Plan sekmesini Hatırlatmalar bölümüyle açar; t: Matris, w: Bugün', (tester) async {
     await boot(tester);
     notificationTaps.value = 'r:r1';
     await tester.pumpAndSettle();
@@ -137,7 +137,7 @@ void main() {
     notificationTaps.value = 't:x';
     await tester.pumpAndSettle();
     expect(selected(tester), 2);
-    expect(find.byType(TrackPage), findsOneWidget);
+    expect(find.byType(MatrixPage), findsOneWidget);
 
     notificationTaps.value = 'w:today';
     await tester.pumpAndSettle();
@@ -244,7 +244,7 @@ void main() {
       await checkEnd('Notlar', [find.textContaining('Not ')]);
       await tester.tap(find.byKey(const Key('nav-2')));
       await tester.pumpAndSettle();
-      await checkEnd('Takip', [find.textContaining('Görev '), find.byType(Checkbox)]);
+      await checkEnd('Matris', [find.textContaining('Görev '), find.byType(Checkbox)]);
       await tester.tap(find.byKey(const Key('nav-3')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Anımsatıcılar'));

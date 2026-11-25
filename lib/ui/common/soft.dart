@@ -207,7 +207,9 @@ class SoftChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (icon != null) ...[Icon(icon, size: 16, color: fg), const SizedBox(width: 6)],
-                Text(label, style: t.textTheme.labelLarge?.copyWith(color: fg)),
+                // Wraps inside a narrow sheet at large text sizes instead of
+                // overflowing; a loose fit also works in a horizontal scroll.
+                Flexible(child: Text(label, style: t.textTheme.labelLarge?.copyWith(color: fg))),
               ],
             ),
           ),

@@ -24,14 +24,14 @@ class SampleData {
         ? [
             '• Notlarına yazı ekleyebilir ya da Apple Pencil ile el yazısıyla yazabilirsin.',
             '• Yazarken klavyenin üstünde Türkçe ve İngilizce kelime önerileri çıkar. Öneriye dokun ya da Tab tuşuna bas.',
-            '• Takip sekmesinde görevlerini ve alışkanlıklarını izle.',
+            '• Matris sekmesinde görevlerini listelere ve kutulara ayır; alışkanlıkların da orada.',
             '• Plan sekmesinde haftanı düzenle; anımsatıcılar sana zamanında haber versin.',
             if (hasWidget) '• Ana ekranına Pamnot widget’ını ekleyerek bugünün planını hep gör.',
           ]
         : [
             '• Type your notes or write them by hand with Apple Pencil.',
             '• Word suggestions in English and Turkish appear above the keyboard as you type. Tap one or press Tab.',
-            '• Track your tasks and habits in the Track tab.',
+            '• Sort your tasks into lists and boxes in the Matrix tab; your habits are there too.',
             '• Shape your week in Plan; reminders reach you right on time.',
             if (hasWidget) '• Add the Pamnot widget to your home screen to keep today in sight.',
           ];
