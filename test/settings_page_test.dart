@@ -401,7 +401,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     for (final theme in [PamnotTheme.light(), PamnotTheme.dark()]) {
       // Tall enough that every row is on screen at once.
-      final c = await pumpEverything(tester, size: const Size(390, 4200), theme: theme);
+      final c = await pumpEverything(tester, size: const Size(390, 4400), theme: theme);
       // The guidelines skip what is off screen, so the page must not scroll.
       expect(tester.state<ScrollableState>(find.byType(Scrollable).first).position.maxScrollExtent, 0);
       await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));

@@ -310,12 +310,10 @@ class _NotificationTilesState extends State<_NotificationTiles> {
         ),
         // Daily motivation: turning it on asks for nothing; without
         // notification permission the system simply shows nothing.
-        // Dense and without an icon, like the page's other switches, so the
-        // pair stays compact under the two notification rows.
+        // Without an icon, like the page's other switches.
         SwitchListTile(
           title: Text(s.dailyMotivation),
           subtitle: Text(s.dailyMotivationSub),
-          dense: true,
           value: st.dailyMotivation,
           onChanged: (v) => app.updateSettings(st.copyWith(dailyMotivation: v)),
         ),
