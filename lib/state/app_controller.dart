@@ -37,7 +37,7 @@ import 'sample_data.dart';
 /// calendar's events changed.
 enum Slice { notes, tasks, reminders, habits, settings, lists, calendar }
 
-enum AgendaKind { task, reminder }
+enum AgendaKind { task, reminder, event }
 
 /// Where the notification permission stands: never asked by the app, asked
 /// and refused (only the system Settings can change it now), or allowed.
@@ -52,6 +52,8 @@ class AgendaEntry {
     required this.done,
     required this.colorIndex,
     this.repeat = Repeat.none,
+    this.color,
+    this.end,
   });
 
   final AgendaKind kind;
@@ -63,6 +65,12 @@ class AgendaEntry {
   final bool done;
   final int colorIndex;
   final Repeat repeat;
+
+  /// The calendar's colour (ARGB); only for [AgendaKind.event].
+  final int? color;
+
+  /// When a timed calendar event ends; null otherwise.
+  final DateTime? end;
 }
 
 class AppController extends ChangeNotifier {
@@ -1044,7 +1052,9 @@ class AppController extends ChangeNotifier {
 
   void updateSettings(AppSettings s) {
     final dropVoiceLog = _settings.keepVoiceLog && !s.keepVoiceLog;
+    final calendarOff = _settings.showCalendar && !s.showCalendar;
     _settings = s;
+    if (calendarOff) _clearCalendar();
     if (dropVoiceLog) {
       _voiceLog.clear();
       _voiceLogDirty = true; // the next save deletes the stored log
@@ -1052,9 +1062,199 @@ class AppController extends ChangeNotifier {
     _changed({Slice.settings});
   }
 
+  // --------------------------------------------------------------- calendar
+
+  /// Last known calendar access; read from the system on the first week load,
+  /// on [enableCalendar] and on [refreshCalendar]. Never prompts by itself.
+  late CalendarAccess _calendarAccess =
+      calendar.isSupported ? CalendarAccess.notAsked : CalendarAccess.unsupported;
+  bool _calendarAccessRead = false;
+  List<DeviceCalendarInfo> _deviceCalendars = const [];
+
+  /// Events of the loaded week only; never stored (Slice.calendar).
+  List<CalendarEvent> _calendarEvents = const [];
+
+  /// The start of the week [_calendarEvents] belongs to.
+  DateTime? _calendarWeek;
+
+  /// The week a screen asked for last, loaded once the calendar is on.
+  DateTime? _wantedCalendarWeek;
+  DateTime? _loadingCalendarWeek;
+
+  /// Bumped by every load and by [_clearCalendar]; an older load's answer is
+  /// dropped.
+  int _calendarGeneration = 0;
+  Future<void>? _calendarLoad;
+
+  CalendarAccess get calendarAccess => _calendarAccess;
+
+  /// The system access was read and the user was never asked, e.g. settings
+  /// restored to a new device with the calendar on. Plan then offers
+  /// "Show calendar" again; [enableCalendar] asks.
+  bool get calendarNeedsAccess => _calendarAccessRead && _calendarAccess == CalendarAccess.notAsked;
+  UnmodifiableListView<DeviceCalendarInfo> get deviceCalendars => UnmodifiableListView(_deviceCalendars);
+
+  bool get _calendarShown => _settings.showCalendar && _calendarAccess == CalendarAccess.granted;
+
+  DateTime _weekOf(DateTime day) => startOfWeek(day, mondayFirst: _settings.mondayFirst);
+
+  /// Asks for calendar access (only while it was never decided) when the user
+  /// turns the calendar on. On success shows the calendar and loads the
+  /// calendars and the wanted week.
+  Future<bool> enableCalendar() async {
+    if (!calendar.isSupported) return false;
+    var a = await _readAccess();
+    if (a == CalendarAccess.notAsked) a = await calendar.request();
+    _setCalendarAccess(a);
+    if (a != CalendarAccess.granted) {
+      _changed({Slice.calendar}, persist: false);
+      return false;
+    }
+    if (!_settings.showCalendar) updateSettings(_settings.copyWith(showCalendar: true));
+    await _loadDeviceCalendars();
+    await loadCalendarWeek(_wantedCalendarWeek ?? now());
+    _changed({Slice.calendar}, persist: false);
+    return true;
+  }
+
+  /// Loads the events of [day]'s week, [week start, +7 days). Does nothing when
+  /// that week is already loaded or loading, or while the calendar is off.
+  Future<void> loadCalendarWeek(DateTime day) => _requestWeek(_weekOf(day));
+
+  /// [force] reads the week again even when it is loaded; the loaded events
+  /// stay on screen until the new ones arrive.
+  Future<void> _requestWeek(DateTime week, {bool force = false}) async {
+    _wantedCalendarWeek = week;
+    if (!calendar.isSupported || !_settings.showCalendar) return;
+    if (!force) {
+      if (week == _calendarWeek) return;
+      if (week == _loadingCalendarWeek && _calendarLoad != null) return _calendarLoad;
+    }
+    _loadingCalendarWeek = week;
+    final load = _loadWeek(week, ++_calendarGeneration);
+    _calendarLoad = load;
+    try {
+      await load;
+    } finally {
+      if (identical(_calendarLoad, load)) {
+        _calendarLoad = null;
+        _loadingCalendarWeek = null;
+      }
+    }
+  }
+
+  Future<void> _loadWeek(DateTime week, int generation) async {
+    if (!_calendarAccessRead) {
+      _setCalendarAccess(await _readAccess());
+      if (_calendarAccess == CalendarAccess.granted && _deviceCalendars.isEmpty) await _loadDeviceCalendars();
+    }
+    if (_calendarAccess != CalendarAccess.granted) {
+      _clearCalendar();
+      _changed({Slice.calendar}, persist: false);
+      return;
+    }
+    List<CalendarEvent> events;
+    try {
+      events = await calendar.events(week, addDays(week, 7));
+    } catch (e) {
+      // The week stays loaded (empty) so screens do not ask again and again;
+      // the next resume tries again.
+      debugPrint('Calendar events failed: $e');
+      events = const [];
+    }
+    // A newer load, a revoked access or the switch turned off won meanwhile.
+    if (generation != _calendarGeneration || !_calendarShown) return;
+    _calendarEvents = List.unmodifiable(events);
+    _calendarWeek = week;
+    _changed({Slice.calendar}, persist: false);
+  }
+
+  /// Reads the access again (it may have changed in the system Settings) and
+  /// reloads the loaded week. Called on every resume.
+  Future<void> refreshCalendar() async {
+    if (!calendar.isSupported) return;
+    _setCalendarAccess(await _readAccess());
+    if (!_calendarShown) {
+      _clearCalendar();
+      _changed({Slice.calendar}, persist: false);
+      return;
+    }
+    await _loadDeviceCalendars();
+    // The week a screen wants now; usually the loaded one.
+    final week = _wantedCalendarWeek ?? _calendarWeek;
+    if (week != null) await _requestWeek(week, force: true);
+    _changed({Slice.calendar}, persist: false);
+  }
+
+  /// The visible events touching [day] (from the loaded week): all-day ones
+  /// first, then by start time. Empty without access.
+  List<CalendarEvent> eventsOn(DateTime day) {
+    final week = _calendarWeek;
+    if (_calendarAccess != CalendarAccess.granted || week == null) return const [];
+    final d = dateOnly(day);
+    if (d.isBefore(week) || !d.isBefore(addDays(week, 7))) return const [];
+    final hidden = _settings.hiddenCalendarIds.toSet();
+    return [
+      for (final e in _calendarEvents)
+        if (!hidden.contains(e.calendarId) && e.occursOn(d)) e,
+    ]..sort((a, b) {
+        if (a.allDay != b.allDay) return a.allDay ? -1 : 1;
+        return a.start.compareTo(b.start);
+      });
+  }
+
+  /// Shows or hides one calendar's events (Settings).
+  void setCalendarHidden(String id, bool hidden) {
+    final ids = [..._settings.hiddenCalendarIds]..remove(id);
+    if (hidden) ids.add(id);
+    updateSettings(_settings.copyWith(hiddenCalendarIds: List.unmodifiable(ids)));
+    _changed({Slice.calendar}, persist: false);
+  }
+
+  Future<CalendarAccess> _readAccess() async {
+    try {
+      return await calendar.access();
+    } catch (e) {
+      debugPrint('Calendar access failed: $e');
+      return CalendarAccess.denied;
+    } finally {
+      // Only once the answer is in: until then [calendarNeedsAccess] must not
+      // take the initial notAsked for a read one.
+      _calendarAccessRead = true;
+    }
+  }
+
+  Future<void> _loadDeviceCalendars() async {
+    try {
+      _deviceCalendars = List.unmodifiable(await calendar.calendars());
+    } catch (e) {
+      debugPrint('Calendars failed: $e');
+      _deviceCalendars = const [];
+    }
+  }
+
+  void _setCalendarAccess(CalendarAccess a) {
+    _calendarAccess = a;
+    if (a != CalendarAccess.granted) _clearCalendar();
+  }
+
+  /// Forgets every event and calendar read from the device.
+  void _clearCalendar() {
+    _calendarGeneration++;
+    _calendarEvents = const [];
+    _calendarWeek = null;
+    _loadingCalendarWeek = null;
+    _calendarLoad = null;
+    if (_calendarAccess != CalendarAccess.granted) _deviceCalendars = const [];
+  }
+
   // ----------------------------------------------------------------- agenda
 
-  List<AgendaEntry> agenda(DateTime day) {
+  /// Tasks, reminders and (when the calendar is shown) calendar events on
+  /// [day]: timed entries by time, all-day ones last.
+  List<AgendaEntry> agenda(DateTime day) => _agenda(day, withEvents: true);
+
+  List<AgendaEntry> _agenda(DateTime day, {required bool withEvents}) {
     final entries = <AgendaEntry>[
       for (final t in tasksDueOn(day))
         AgendaEntry(
@@ -1077,6 +1277,18 @@ class AppController extends ChangeNotifier {
               colorIndex: r.colorIndex,
               repeat: r.repeat,
             ),
+      if (withEvents && _calendarShown)
+        for (final e in eventsOn(day))
+          AgendaEntry(
+            kind: AgendaKind.event,
+            id: e.id,
+            title: e.title,
+            time: e.allDay ? null : e.start,
+            end: e.allDay ? null : e.end,
+            done: false,
+            colorIndex: 0,
+            color: e.color,
+          ),
     ];
     entries.sort((a, b) {
       if ((a.time == null) != (b.time == null)) return a.time == null ? 1 : -1;
@@ -1101,15 +1313,20 @@ class AppController extends ChangeNotifier {
       for (final r in _reminders) {
         if (r.enabled && r.occursOn(d)) out.update(dayKey(d), (v) => v + 1, ifAbsent: () => 1);
       }
+      if (_calendarShown) {
+        final n = eventsOn(d).length;
+        if (n > 0) out.update(dayKey(d), (v) => v + n, ifAbsent: () => n);
+      }
     }
     return out;
   }
 
-  /// The JSON the home-screen widgets render.
+  /// The JSON the home-screen widgets render. Calendar events stay out: they
+  /// are shown only in Plan.
   Map<String, Object?> todaySummary() {
     final s = strings;
     final t = now();
-    final entries = agenda(t);
+    final entries = _agenda(t, withEvents: false);
     final ordered = [...entries.where((e) => !e.done), ...entries.where((e) => e.done)];
     final (done, total) = progressOn(t);
     final next = upcomingReminders(limit: 1);
