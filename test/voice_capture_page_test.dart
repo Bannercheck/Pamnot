@@ -105,6 +105,14 @@ Future<void> sayAndSave(WidgetTester tester, FakeSpeechEngine e, String text) as
   await tester.pump();
 }
 
+/// Taps "Bir tane daha" after a save: the only way to listen again (R10).
+Future<void> addAnother(WidgetTester tester) async {
+  final b = find.byKey(const Key('voice-add-another'));
+  await tester.ensureVisible(b);
+  await tester.tap(b);
+  await tester.pump();
+}
+
 /// Every haptic the screen asked for, with whether the microphone was on.
 List<String> recordHaptics(WidgetTester tester, FakeSpeechEngine e) {
   final haptics = <String>[];
@@ -170,9 +178,11 @@ void main() {
     expect(find.byTooltip('Annemi ara görevini geri al'), findsOneWidget);
     // One light tap at the save, while the microphone was off.
     expect(haptics, ['HapticFeedbackType.lightImpact mic:false']);
-    // It listens again.
-    expect(find.text('Dinliyorum…'), findsOneWidget);
-    expect(e.listening, isTrue);
+    // R10: "Added" with the title and the list; the microphone stays off.
+    expect(find.text('Eklendi'), findsOneWidget);
+    expect(find.byKey(const Key('voice-add-another')), findsOneWidget);
+    expect(find.text('Dinliyorum…'), findsNothing);
+    expect((e.listening, starts(e)), (false, 1));
     // Undo deletes the task and the row.
     await tester.tap(find.byKey(Key('voice-undo-${t.id}')));
     await tester.pump();
@@ -241,7 +251,9 @@ void main() {
     expect((t.title, t.due), ('Toplantı', DateTime(2026, 11, 24, 10, 30)));
     expect(find.byKey(Key('voice-saved-${t.id}')), findsOneWidget);
     expect(find.byKey(const Key('voice-draft')), findsNothing);
-    expect(find.text('Dinliyorum…'), findsOneWidget);
+    // R10: saved, the microphone stays off.
+    expect(find.text('Eklendi'), findsOneWidget);
+    expect((e.listening, starts(e)), (false, 1));
     await shutdown(tester, h);
   });
 
@@ -289,6 +301,7 @@ void main() {
     await tester.tap(find.text('Aç'));
     await settleRoute(tester);
     await sayAndSave(tester, e, 'yarın akşam yedide annemi ara');
+    await addAnother(tester);
     e.say("saat 3'te dişçi");
     await tester.pump(VoiceTimings.utteranceGap);
     expect(find.text('15:00 ?'), findsOneWidget);
@@ -413,6 +426,7 @@ void main() {
     await tester.pump(VoiceTimings.previewHold);
     await tester.pump();
     expect(find.text('Kitap oku · Tarihsiz'), findsOneWidget);
+    await addAnother(tester);
     e.say('annemi aramayı hatırlat');
     await tester.pump(VoiceTimings.utteranceGap);
     expect(find.text('Tarihsiz · hatırlatma için gün söyle'), findsOneWidget);
@@ -538,14 +552,13 @@ void main() {
     await tester.tap(find.byKey(const Key('voice-save')));
     await tester.pump();
     expect(h.app.tasks.single.title, 'Annemi ara');
-    // It does not listen again by itself, and does not close on silence.
-    expect(find.text('Kaydedildi'), findsOneWidget);
+    // It does not listen again by itself, and does not close by itself.
+    expect(find.text('Eklendi'), findsOneWidget);
     expect(e.listening, isFalse);
     await tester.pump(VoiceTimings.idleClose * 2);
-    expect(find.text('Kaydedildi'), findsOneWidget);
+    expect(find.text('Eklendi'), findsOneWidget);
     expect(e.calls.last, isNot('cancel'));
-    await tester.tap(find.byKey(const Key('voice-mic')));
-    await tester.pump();
+    await addAnother(tester);
     expect(e.listening, isTrue);
     await shutdown(tester, h);
   });
@@ -580,6 +593,13 @@ void main() {
     expect(find.byKey(const Key('voice-status')), findsNothing);
     await tester.pump(VoiceTimings.previewHold);
     await tester.pump();
+    // "Added" is read out: the microphone is off.
+    expect(e.listening, isFalse);
+    expect(
+      tester.getSemantics(find.byKey(const Key('voice-done'))),
+      isSemantics(label: 'Eklendi, Annemi ara, Kişisel', isLiveRegion: true),
+    );
+    await addAnother(tester);
     expect(
       tester.getSemantics(find.byKey(const Key('voice-status'))),
       isSemantics(label: 'Dinliyorum…', isLiveRegion: false),
@@ -612,14 +632,17 @@ void main() {
     expect(status(), isSemantics(label: tr.voiceErrorGeneric, isLiveRegion: true));
     await shutdown(tester, h);
 
-    // "Saved" is announced (VoiceOver: it stays until a tap).
+    // "Added" is announced (VoiceOver: it stays until a tap).
     final h2 = await VoiceHarness.create(tester);
     final e2 = await pumpPage(tester, h2, accessibleNavigation: true);
     e2.say('yarın akşam yedide annemi ara');
     await tester.pump(VoiceTimings.utteranceGap);
     await tester.tap(find.byKey(const Key('voice-save')));
     await tester.pump();
-    expect(status(), isSemantics(label: 'Kaydedildi', isLiveRegion: true));
+    expect(
+      tester.getSemantics(find.byKey(const Key('voice-done'))),
+      isSemantics(label: 'Eklendi, Annemi ara, Kişisel', isLiveRegion: true),
+    );
     await shutdown(tester, h2);
   });
 
@@ -638,7 +661,7 @@ void main() {
     await tester.tap(find.byKey(const Key('voice-save')));
     await tester.pump();
     expect(h.app.tasks.single.title, 'Annemi ara');
-    expect(find.text('Kaydedildi'), findsOneWidget);
+    expect(find.text('Eklendi'), findsOneWidget);
     expect(e.listening, isFalse);
     await shutdown(tester, h);
   });
@@ -666,6 +689,7 @@ void main() {
       final h = await VoiceHarness.create(tester);
       final e = await pumpPage(tester, h, theme: theme);
       await sayAndSave(tester, e, 'yarın akşam yedide annemi ara');
+      await addAnother(tester);
       e.say("saat 3'te dişçi");
       await tester.pump(VoiceTimings.utteranceGap);
       expect(find.byKey(const Key('voice-countdown')), findsOneWidget);
@@ -712,6 +736,7 @@ void main() {
     final e = await pumpPage(tester, h, size: const Size(375, 667), textScale: 2);
     await sayAndSave(tester, e, 'yarın akşam yedide annemi ara');
     expect(tester.takeException(), isNull);
+    await addAnother(tester);
     e.say("saat 3'te dişçi");
     await tester.pump(VoiceTimings.utteranceGap);
     expect(find.text('15:00 ?'), findsOneWidget);
@@ -749,8 +774,11 @@ void main() {
     final h = await VoiceHarness.create(tester);
     final e = await pumpPage(tester, h, size: const Size(667, 375));
     await sayAndSave(tester, e, 'yarın akşam yedide annemi ara');
+    expect(tester.takeException(), isNull);
+    await addAnother(tester);
     e.say("saat 3'te dişçi");
     await tester.pump(VoiceTimings.utteranceGap);
+    expect(find.text('15:00 ?'), findsOneWidget);
     expect(tester.takeException(), isNull);
     // The close button stays on screen even scrolled to the end.
     await tester.drag(find.byType(SingleChildScrollView).first, const Offset(0, -2000));
@@ -812,6 +840,7 @@ void main() {
     // F7: the undo button's label keeps the first 60 characters.
     final undo = tester.widget<IconButton>(find.byKey(Key('voice-undo-${t.id}')));
     expect(undo.tooltip, '${t.title.substring(0, 59)}… görevini geri al');
+    await addAnother(tester);
     e.say('satır bir\nsatır iki');
     await tester.pump(VoiceTimings.utteranceGap + VoiceTimings.previewHold);
     await tester.pump();
@@ -848,27 +877,28 @@ void main() {
 
   // ------------------------------------------- R9: a link opens paused
 
-  testWidgets('R9: bağlantıyla açılan ekran "Duraklatıldı · Devam etmek için dokun" gösterir; mikrofon dokunuşla açılır', (
-    tester,
-  ) async {
-    final h = await VoiceHarness.create(tester);
-    final e = await pumpPage(tester, h, autoListen: false);
-    await tester.pump(const Duration(seconds: 10));
-    expect(find.text('Duraklatıldı'), findsOneWidget);
-    expect(find.text('Devam etmek için dokun'), findsOneWidget);
-    expect(find.text('Dinliyorum…'), findsNothing);
-    expect(find.byTooltip('Dinlemeyi başlat'), findsOneWidget);
-    expect(e.calls, isEmpty);
-    expect(e.listening, isFalse);
-    expect(h.app.tasks, isEmpty);
+  testWidgets(
+    'R9: bağlantıyla açılan ekran "Duraklatıldı · Devam etmek için dokun" gösterir; mikrofon dokunuşla açılır',
+    (tester) async {
+      final h = await VoiceHarness.create(tester);
+      final e = await pumpPage(tester, h, autoListen: false);
+      await tester.pump(const Duration(seconds: 10));
+      expect(find.text('Duraklatıldı'), findsOneWidget);
+      expect(find.text('Devam etmek için dokun'), findsOneWidget);
+      expect(find.text('Dinliyorum…'), findsNothing);
+      expect(find.byTooltip('Dinlemeyi başlat'), findsOneWidget);
+      expect(e.calls, isEmpty);
+      expect(e.listening, isFalse);
+      expect(h.app.tasks, isEmpty);
 
-    await tester.tap(find.byKey(const Key('voice-mic')));
-    await tester.pump();
-    expect(e.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
-    expect(e.listening, isTrue);
-    expect(find.text('Dinliyorum…'), findsOneWidget);
-    await shutdown(tester, h);
-  });
+      await tester.tap(find.byKey(const Key('voice-mic')));
+      await tester.pump();
+      expect(e.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
+      expect(e.listening, isTrue);
+      expect(find.text('Dinliyorum…'), findsOneWidget);
+      await shutdown(tester, h);
+    },
+  );
 
   testWidgets('R9: open(autoListen: false) ekranı açar ama dinlemez', (tester) async {
     final e = FakeSpeechEngine();
@@ -884,6 +914,117 @@ void main() {
     await tester.tap(find.byKey(const Key('voice-close')));
     await settleRoute(tester);
     expect(VoiceCapturePage.isOpen, isFalse);
+    await shutdown(tester, h);
+  });
+
+  // ------------------------------- R10: after a save the microphone stays off
+
+  testWidgets('R10: kayıttan sonra "Eklendi" görünür, mikrofon açılmaz, 1,2 sn sonra ekran kapanır ve özet çıkar', (
+    tester,
+  ) async {
+    final e = FakeSpeechEngine();
+    final h = await VoiceHarness.create(tester, speech: e);
+    await pumpLauncher(tester, h);
+    await tester.tap(find.text('Aç'));
+    await settleRoute(tester);
+    await sayAndSave(tester, e, 'alışveriş listesine ekmek ekle');
+    expect(h.app.tasks.single.title, 'Ekmek');
+    final done = find.byKey(const Key('voice-done'));
+    expect(done, findsOneWidget);
+    expect(find.descendant(of: done, matching: find.text('Eklendi')), findsOneWidget);
+    expect(find.descendant(of: done, matching: find.text('Ekmek')), findsOneWidget);
+    expect(find.descendant(of: done, matching: find.text('Alışveriş')), findsOneWidget);
+    expect(find.text('Bir tane daha'), findsOneWidget);
+    // The microphone button is not offered; only "Add another" listens.
+    expect(find.byKey(const Key('voice-mic')), findsNothing);
+    expect((e.listening, starts(e)), (false, 1));
+    await tester.pump(VoiceTimings.savedClose - const Duration(milliseconds: 100));
+    expect(find.byType(VoiceCapturePage), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+    await settleRoute(tester);
+    expect(find.byType(VoiceCapturePage), findsNothing);
+    expect(find.text('1 kayıt eklendi'), findsOneWidget);
+    expect(starts(e), 1);
+    await shutdown(tester, h);
+  });
+
+  testWidgets('R10: "Bir tane daha" kapanmayı durdurur ve yeniden dinler', (tester) async {
+    final e = FakeSpeechEngine();
+    final h = await VoiceHarness.create(tester, speech: e);
+    await pumpLauncher(tester, h);
+    await tester.tap(find.text('Aç'));
+    await settleRoute(tester);
+    await sayAndSave(tester, e, 'süt al');
+    await tester.pump(const Duration(milliseconds: 500));
+    await addAnother(tester);
+    expect((e.listening, starts(e)), (true, 2));
+    expect(find.text('Dinliyorum…'), findsOneWidget);
+    expect(find.byKey(const Key('voice-done')), findsNothing);
+    await tester.pump(VoiceTimings.savedClose * 2);
+    expect(find.byType(VoiceCapturePage), findsOneWidget);
+    await sayAndSave(tester, e, 'ekmek al');
+    expect(h.app.tasks, hasLength(2));
+    expect((e.listening, starts(e)), (false, 2));
+    await tester.pump(VoiceTimings.savedClose);
+    await settleRoute(tester);
+    expect(find.byType(VoiceCapturePage), findsNothing);
+    expect(find.text('2 kayıt eklendi'), findsOneWidget);
+    await shutdown(tester, h);
+  });
+
+  testWidgets('R10: VoiceOver açıkken "Eklendi" ekranı kendiliğinden kapanmaz; Kapat kapatır', (tester) async {
+    final e = FakeSpeechEngine();
+    final h = await VoiceHarness.create(tester, speech: e);
+    tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+      accessibleNavigation: true,
+    );
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await pumpLauncher(tester, h);
+    await tester.tap(find.text('Aç'));
+    await settleRoute(tester);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await tester.ensureVisible(find.byKey(const Key('voice-save')));
+    await tester.tap(find.byKey(const Key('voice-save')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.byKey(const Key('voice-done')), findsOneWidget);
+    expect((e.listening, starts(e)), (false, 1));
+    await tester.tap(find.byKey(const Key('voice-done-close')));
+    await settleRoute(tester);
+    expect(find.byType(VoiceCapturePage), findsNothing);
+    expect(find.text('1 kayıt eklendi'), findsOneWidget);
+    await shutdown(tester, h);
+  });
+
+  for (final (name, theme) in [('açık', PamnotTheme.light()), ('koyu', PamnotTheme.dark())]) {
+    testWidgets('R10: yönergeler: $name tema, "Eklendi" ve "Bir tane daha"', (tester) async {
+      final handle = tester.ensureSemantics();
+      final h = await VoiceHarness.create(tester);
+      final e = await pumpPage(tester, h, theme: theme, accessibleNavigation: true);
+      e.say('yarın akşam yedide annemi ara');
+      await tester.pump(VoiceTimings.utteranceGap);
+      await tester.tap(find.byKey(const Key('voice-save')));
+      await tester.pump();
+      expect(find.byKey(const Key('voice-add-another')), findsOneWidget);
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      handle.dispose();
+      await shutdown(tester, h);
+    });
+  }
+
+  testWidgets('R10: "Eklendi" ölçek 2,0 ve 375×667 taşmaz', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = await pumpPage(tester, h, size: const Size(375, 667), textScale: 2, accessibleNavigation: true);
+    e.say('alışveriş listesine ${List.filled(20, 'uzun').join(' ')} ekle');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await tester.ensureVisible(find.byKey(const Key('voice-save')));
+    await tester.tap(find.byKey(const Key('voice-save')));
+    await tester.pump();
+    expect(find.byKey(const Key('voice-done')), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await shutdown(tester, h);
   });
 }

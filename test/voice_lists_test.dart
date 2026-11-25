@@ -230,7 +230,13 @@ void main() {
     );
     expect(
       tester.getSemantics(boxChip(Quadrant.plan)),
-      isSemantics(label: 'Önemli · Planlı', isButton: true, hasTapAction: true, isSelected: true, hasSelectedState: true),
+      isSemantics(
+        label: 'Önemli · Planlı',
+        isButton: true,
+        hasTapAction: true,
+        isSelected: true,
+        hasSelectedState: true,
+      ),
     );
     await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
@@ -378,6 +384,46 @@ void main() {
     await tester.pump();
     expect(h.app.tasks, isEmpty);
     expect(row, findsNothing);
+    handle.dispose();
+    await shutdown(tester, h);
+  });
+
+  testWidgets('F2: Düzelt\'te liste ve kutu satırları kalır; seçim kaydetmez, metindeki liste yeniden eşleşir', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final h = await VoiceHarness.create(tester);
+    final e = await pumpVoice(tester, h);
+    await sayToPreview(tester, e, 'yarın ekmek al');
+    await tester.tap(find.byKey(const Key('voice-fix')));
+    await tester.pump();
+    expect(find.byKey(const Key('voice-draft')), findsOneWidget);
+    expect(find.text(tr.list), findsOneWidget);
+    expect(find.text(tr.box), findsOneWidget);
+    expect(find.byKey(const Key('voice-countdown')), findsNothing);
+    expectSelected(tester, listChip('personal'), true);
+    // The list follows the text as it is typed.
+    await tester.enterText(find.byKey(const Key('voice-draft')), 'iş listesine rapor ekle');
+    await tester.pump();
+    expectSelected(tester, listChip('work'), true);
+    expectSelected(tester, listChip('personal'), false);
+    // A pick only selects while correcting; no timer runs.
+    await tester.ensureVisible(listChip('home'));
+    await tester.tap(listChip('home'));
+    await tester.pump();
+    await tester.ensureVisible(boxChip(Quadrant.later));
+    await tester.tap(boxChip(Quadrant.later));
+    await tester.pump();
+    expectSelected(tester, listChip('home'), true);
+    expectSelected(tester, boxChip(Quadrant.later), true);
+    await tester.pump(VoiceTimings.previewHold * 2);
+    expect(h.app.tasks, isEmpty);
+    expect(find.byKey(const Key('voice-draft')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('voice-save')));
+    await tester.tap(find.byKey(const Key('voice-save')));
+    await tester.pump();
+    final t = h.app.tasks.single;
+    expect((t.title, t.listId, t.quadrant), ('Rapor', 'home', Quadrant.later));
     handle.dispose();
     await shutdown(tester, h);
   });

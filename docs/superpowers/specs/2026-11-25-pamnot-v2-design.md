@@ -110,6 +110,12 @@ düzenleyicinin raptiye simgesi aç/kapa olarak kalır. Geri al snack'i.
 - Kestirmeden açılan oturumda da aynı akış. Eller serbest kullanım için: 8 sn içinde seçim
   yapılmazsa son kullanılan listeye ve varsayılan kutuya kaydedilir (bu süre Ayarlar'da kapatılabilir).
 - Kilitleme kuralı (önceki tasarım §6.6) aynen: arka plana gidince son kullanılan listeye kaydedilir.
+- "Düzelt"te liste ve kutu satırları kalır: seçim yalnız seçer (sayaç yok), metinde yeni geçen liste adı
+  seçimi yeniden eşleştirir; "Kaydet" kaydeder.
+- Kayıttan sonra (liste çipi, "Ekle", 8 sn, "Düzelt" sonrası "Kaydet") mikrofon **yeniden açılmaz**
+  (sahibin kararı R10). Ekran ~1,2 sn "Eklendi" (başlık ve liste) gösterir, kapanır, özet snack'i çıkar.
+  Bu arada "Bir tane daha" düğmesi dinlemeyi yeniden başlatır; tek yol budur. VoiceOver açıkken ekran
+  kendiliğinden kapanmaz. Ayrıntı: önceki tasarım §5 adım 5-7.
 
 ## 7. Hatırlatma alarmı ve motivasyon bildirimi
 
@@ -195,6 +201,8 @@ TestFlight için derleme numarası artırılır.
 7. Outlook, iPhone takvim hesabı üzerinden; ayrı giriş yok.
 8. Takvim salt okunur.
 9. Kılavuz animasyonu çizim, videolar animasyondan üretilir.
+10. Sesle eklemede kayıttan sonra mikrofon kendiliğinden açılmaz; ~1,2 sn "Eklendi", sonra ekran kapanır;
+    yalnız "Bir tane daha" yeniden dinletir (R10, önceki "kaydet ve yeniden dinle" döngüsünün yerine).
 
 ## 13. Riskler
 

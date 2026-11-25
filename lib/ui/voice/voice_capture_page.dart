@@ -36,8 +36,9 @@ class VoiceCapturePage extends StatefulWidget {
   static bool get isOpen => _open;
 
   /// A new voice request (the shortcut run again) while a screen is showing:
-  /// it listens if its microphone waits for a tap (paused, saved, error), as
-  /// a tap would; while listening, previewing or editing nothing happens.
+  /// it listens if its microphone waits for a tap (paused, error) or it shows
+  /// "Added", as a tap would; while listening, previewing or editing nothing
+  /// happens.
   static void requestAgain() => _onRequest?.call();
 
   /// Opens the screen full screen on the root navigator; does nothing while
@@ -55,9 +56,7 @@ class VoiceCapturePage extends StatefulWidget {
       final saved = await Navigator.of(
         context,
         rootNavigator: true,
-      ).push<int>(
-        MaterialPageRoute(fullscreenDialog: true, builder: (_) => VoiceCapturePage(autoListen: autoListen)),
-      );
+      ).push<int>(MaterialPageRoute(fullscreenDialog: true, builder: (_) => VoiceCapturePage(autoListen: autoListen)));
       if (saved != null && saved > 0) {
         messenger
           ?..hideCurrentSnackBar()
@@ -73,19 +72,19 @@ class VoiceCapturePage extends StatefulWidget {
 }
 
 /// Phases in which the microphone button is shown. In the others it could
-/// do nothing (and must not ask for a permission again).
+/// do nothing (and must not ask for a permission again). After a save the
+/// "Added" panel takes its place: only "Add another" listens again (R10).
 const _micPhases = {
   VoicePhase.preparing,
   VoicePhase.listening,
   VoicePhase.preview,
   VoicePhase.editing,
-  VoicePhase.saved,
   VoicePhase.paused,
   VoicePhase.error,
 };
 
 /// Phases in which a tap on the microphone starts or stops listening.
-const _micActivePhases = {VoicePhase.listening, VoicePhase.saved, VoicePhase.paused, VoicePhase.error};
+const _micActivePhases = {VoicePhase.listening, VoicePhase.paused, VoicePhase.error};
 
 /// Phases shown on the error card.
 const _errorPhases = {
@@ -246,6 +245,7 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (_micPhases.contains(phase)) ...[_micArea(s, phase), const SizedBox(height: 16)],
+                        if (phase == VoicePhase.saved) ...[_savedPanel(s), const SizedBox(height: 16)],
                         ?_status(s, phase),
                         if (_c.transcript.isNotEmpty &&
                             (phase == VoicePhase.listening || phase == VoicePhase.preview)) ...[
@@ -287,7 +287,8 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
                             announce: phase == VoicePhase.preview,
                           ),
                         ],
-                        if (phase == VoicePhase.preview && !preview!.isNote) ...[
+                        // While correcting too (F2): a pick there only selects.
+                        if (showPreview && phase != VoicePhase.listening && !preview.isNote) ...[
                           const SizedBox(height: 16),
                           // The lists can change (or go) while the preview waits.
                           ListenableBuilder(listenable: _c.app, builder: (context, _) => _picker(s)),
@@ -390,15 +391,14 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
     final status = switch (phase) {
       VoicePhase.preparing => (Icons.hourglass_top_rounded, s.voicePreparing, null),
       VoicePhase.listening => (Icons.graphic_eq_rounded, s.voiceListening, null),
-      VoicePhase.saved => (Icons.check_circle_rounded, s.voiceSaved, null),
       VoicePhase.paused => (Icons.pause_circle_rounded, s.voicePaused, s.voiceTapToContinue),
       VoicePhase.error => (Icons.error_outline_rounded, s.voiceErrorGeneric, null),
       VoicePhase.permissionDenied => (Icons.mic_off_rounded, s.voicePermissionDenied, null),
       VoicePhase.dictationOff => (Icons.keyboard_voice_rounded, s.voiceDictationOff, null),
       VoicePhase.unsupportedLocale => (Icons.translate_rounded, s.voiceUnsupportedLocale, null),
       VoicePhase.unsupportedPlatform => (Icons.phonelink_off_rounded, s.voiceUnsupportedPlatform, null),
-      // The preview card and the draft speak for themselves.
-      VoicePhase.preview || VoicePhase.editing || VoicePhase.closed => null,
+      // The preview card, the draft and the "Added" panel speak for themselves.
+      VoicePhase.preview || VoicePhase.editing || VoicePhase.saved || VoicePhase.closed => null,
     };
     if (status == null) return null;
     final (icon, text, detail) = status;
@@ -485,9 +485,98 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
     );
   }
 
+  /// Right after a save (R10): "Added" with the title and where it went,
+  /// read out once (the microphone is off), then "Add another", the only way
+  /// to listen again, and "Close". Without VoiceOver the screen closes by
+  /// itself after [VoiceTimings.savedClose].
+  Widget _savedPanel(S s) {
+    final t = Theme.of(context);
+    final c = t.colorScheme;
+    final item = _c.lastSaved;
+    final where = item == null ? null : (item.listName ?? s.voiceNoteChip);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          key: const Key('voice-done'),
+          container: true,
+          liveRegion: true,
+          label: [s.voiceSavedDone, ?item?.title, ?where].join(', '),
+          child: ExcludeSemantics(
+            child: SoftCard(
+              shadow: false,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.check_circle_rounded, size: 48, color: c.primary),
+                  const SizedBox(height: 8),
+                  Text(
+                    s.voiceSavedDone,
+                    textAlign: TextAlign.center,
+                    style: t.textTheme.titleLarge?.copyWith(color: c.onSurface),
+                  ),
+                  if (item != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      item.title,
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.textTheme.titleMedium?.copyWith(color: c.onSurface),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          item.isNote ? Icons.sticky_note_2_outlined : Icons.list_rounded,
+                          size: 18,
+                          color: c.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            where!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            OutlinedButton(
+              key: const Key('voice-done-close'),
+              onPressed: () => unawaited(_c.close()),
+              child: Text(s.close),
+            ),
+            FilledButton.icon(
+              key: const Key('voice-add-another'),
+              onPressed: _c.addAnother,
+              icon: const Icon(Icons.mic_rounded),
+              label: Text(s.voiceAddAnother),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   /// Under the preview of a task: "List", its chips in one row that scrolls
-  /// sideways (the selected one first; a tap saves to it at once), and "Box",
-  /// the four boxes two by two (a tap selects one).
+  /// sideways (the selected one first; a tap saves to it at once, or only
+  /// selects it while correcting), and "Box", the four boxes two by two (a
+  /// tap selects one).
   Widget _picker(S s) {
     final t = Theme.of(context);
     final selectedList = _c.listId;
@@ -497,9 +586,9 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
       ..._c.app.lists.where((l) => l.id != selectedList),
     ];
     Widget label(String text) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(text, style: t.textTheme.labelLarge?.copyWith(color: t.colorScheme.onSurfaceVariant)),
-        );
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(text, style: t.textTheme.labelLarge?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

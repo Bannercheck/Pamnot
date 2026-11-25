@@ -373,4 +373,10 @@ class S {
       };
   /// The open-task count beside a box title, as VoiceOver reads it.
   String openTasks(int n) => _('$n açık görev', '$n open tasks');
+
+  // Fix: voice close
+  /// The voice screen's state right after a save.
+  String get voiceSavedDone => _('Eklendi', 'Added');
+  /// Listens again after a save; the only way the microphone re-opens.
+  String get voiceAddAnother => _('Bir tane daha', 'Add another');
 }

@@ -22,8 +22,12 @@ abstract final class VoiceTimings {
   /// (Settings > Add by voice can turn the timed save off).
   static const previewHold = Duration(seconds: 8);
 
-  /// Silence in a listen after a save closes the screen.
+  /// Silence in a listen asked for with "Add another" closes the screen.
   static const idleClose = Duration(seconds: 6);
+
+  /// How long "Added" shows after a save before the screen closes by itself
+  /// (not with VoiceOver; "Add another" stops it).
+  static const savedClose = Duration(milliseconds: 1200);
 
   /// The longest a single listen lasts.
   static const maxListen = Duration(seconds: 30);
@@ -81,8 +85,10 @@ class SavedItem {
 }
 
 /// The voice screen's state machine (design §5, §6.3, §6.6): listens, shows
-/// the parsed task, saves it after a short preview and listens again. All
-/// timing lives here; the [SpeechEngine] only reports what it heard.
+/// the parsed task, saves it after a short preview, shows "Added" and closes.
+/// The microphone never re-opens by itself after a save: only "Add another"
+/// (or a tap on the microphone, or a new voice request) opens it. All timing
+/// lives here; the [SpeechEngine] only reports what it heard.
 ///
 /// The microphone state follows the engine's events, never a timer: the
 /// phase becomes [VoicePhase.listening] on [SpeechStarted] and leaves it on
@@ -112,7 +118,7 @@ class VoiceCaptureController extends ChangeNotifier {
   bool _accessible = false;
 
   StreamSubscription<SpeechEvent>? _events;
-  Timer? _startTimer, _gapTimer, _holdTimer, _idleTimer, _maxTimer;
+  Timer? _startTimer, _gapTimer, _holdTimer, _idleTimer, _maxTimer, _doneTimer;
   bool _closed = false;
   bool _disposed = false;
 
@@ -157,11 +163,6 @@ class VoiceCaptureController extends ChangeNotifier {
   /// notifications once the app is back in the foreground.
   bool _askOnResume = false;
 
-  /// The preview shown ends a listen that the recogniser stopped with an
-  /// error: it is saved by hand, and listening does not restart by itself
-  /// after the save.
-  bool _afterFailure = false;
-
   /// The notification prompt is up; the microphone stays off meanwhile.
   bool _asking = false;
 
@@ -172,6 +173,9 @@ class VoiceCaptureController extends ChangeNotifier {
   /// correction of the text.
   String? _pickedListId;
   Quadrant? _pickedQuadrant;
+
+  /// The latest save, shown in [VoicePhase.saved]; null once undone.
+  SavedItem? _lastSaved;
 
   VoicePhase get phase => _phase;
 
@@ -186,6 +190,9 @@ class VoiceCaptureController extends ChangeNotifier {
 
   /// Saved this time the screen was open, newest first.
   List<SavedItem> get saved => List.unmodifiable(_saved);
+
+  /// What the "Added" state shows: the latest save, unless it was undone.
+  SavedItem? get lastSaved => _lastSaved;
 
   String? get localeId => _localeId;
 
@@ -204,19 +211,24 @@ class VoiceCaptureController extends ChangeNotifier {
     return _pickedQuadrant ?? app.defaultQuadrant(due: p?.due, hasTime: p?.hasTime ?? false);
   }
 
-  /// Picks the preview's box; a running countdown starts again.
+  bool get _picking => (_phase == VoicePhase.preview || _phase == VoicePhase.editing) && !(_preview?.isNote ?? true);
+
+  /// Picks the box of the preview or of the correction; a running countdown
+  /// starts again.
   void pickQuadrant(Quadrant q) {
-    if (_phase != VoicePhase.preview || (_preview?.isNote ?? true)) return;
+    if (!_picking) return;
     _pickedQuadrant = q;
     if (_holdTimer?.isActive ?? false) _armHold();
     _notify();
   }
 
-  /// Picks the preview's list and saves it at once (the quick path).
+  /// Picks the list. In the preview it saves at once (the quick path); while
+  /// correcting it only selects, and "Save" saves.
   Future<void> pickList(String id) async {
-    if (_phase != VoicePhase.preview || (_preview?.isNote ?? true)) return;
+    if (!_picking) return;
     if (!app.lists.any((l) => l.id == id)) return;
     _pickedListId = id;
+    if (_phase == VoicePhase.editing) return _notify();
     await _save();
   }
 
@@ -226,8 +238,8 @@ class VoiceCaptureController extends ChangeNotifier {
   bool get previewOnTimer => _phase == VoicePhase.preview && (_holdTimer?.isActive ?? false);
 
   /// VoiceOver or Switch Control is on (compliance §4.2-3): the preview is not
-  /// saved on a timer, the screen does not close on silence and listening
-  /// does not restart by itself after a save.
+  /// saved on a timer, and the screen does not close on silence nor by itself
+  /// after a save.
   bool get accessible => _accessible;
   set accessible(bool value) {
     if (value == _accessible) return;
@@ -235,6 +247,7 @@ class VoiceCaptureController extends ChangeNotifier {
     if (value) {
       _holdTimer?.cancel();
       _idleTimer?.cancel();
+      _doneTimer?.cancel();
     }
   }
 
@@ -350,7 +363,6 @@ class VoiceCaptureController extends ChangeNotifier {
     _awaitingStart = false;
     _inSession = true;
     _stopRequested = false;
-    _afterFailure = false;
     _transcript = '';
     _preview = null;
     _maxTimer = Timer(VoiceTimings.maxListen, _stopListening);
@@ -358,8 +370,9 @@ class VoiceCaptureController extends ChangeNotifier {
     _setPhase(VoicePhase.listening);
   }
 
-  /// After a save, a listen with nothing said closes the screen. The timer
-  /// keeps running across a listen that ended without text.
+  /// After a save, a listen (only ever asked for with "Add another", a tap or
+  /// a voice request) with nothing said closes the screen. The timer keeps
+  /// running across a listen that ended without text.
   void _armIdleClose() {
     if (_saved.isEmpty || _accessible || (_idleTimer?.isActive ?? false)) return;
     _idleTimer = Timer(VoiceTimings.idleClose, () => unawaited(close()));
@@ -458,10 +471,7 @@ class VoiceCaptureController extends ChangeNotifier {
     final keep =
         kind == SpeechErrorKind.interrupted || kind == SpeechErrorKind.network || kind == SpeechErrorKind.unknown;
     final parsed = keep && heard.isNotEmpty ? _parse(heard) : null;
-    if (parsed != null && parsed.title.trim().isNotEmpty) {
-      _afterFailure = true;
-      return _showPreview(heard, parsed);
-    }
+    if (parsed != null && parsed.title.trim().isNotEmpty) return _showPreview(heard, parsed);
     _setPhase(phase);
   }
 
@@ -474,8 +484,8 @@ class VoiceCaptureController extends ChangeNotifier {
   }
 
   /// A listen ended with nothing to save: before the first save, or when the
-  /// user stopped it, the screen waits for a tap; otherwise it listens again
-  /// and closes on silence.
+  /// user stopped it, the screen waits for a tap; otherwise (a listen asked
+  /// for after a save) it listens again and closes on silence.
   void _endWithoutText() {
     _transcript = '';
     _preview = null;
@@ -500,9 +510,9 @@ class VoiceCaptureController extends ChangeNotifier {
   }
 
   /// While listening: stops and previews what was said; with nothing said
-  /// the microphone stays off. After a save, a pause or an error: listens
-  /// again. Not prepared yet (opened by a link, or preparing failed): the
-  /// opening steps run first.
+  /// the microphone stays off. After a save: as [addAnother]. After a pause
+  /// or an error: listens again. Not prepared yet (opened by a link, or
+  /// preparing failed): the opening steps run first.
   void toggleMic() {
     switch (_phase) {
       case VoicePhase.listening:
@@ -511,10 +521,21 @@ class VoiceCaptureController extends ChangeNotifier {
       case VoicePhase.error || VoicePhase.paused when !_prepared:
         _setPhase(VoicePhase.preparing);
         unawaited(_prepareAndListen());
-      case VoicePhase.saved || VoicePhase.paused || VoicePhase.error:
+      case VoicePhase.saved:
+        addAnother();
+      case VoicePhase.paused || VoicePhase.error:
         unawaited(_listen());
       default:
     }
+  }
+
+  /// "Add another" in the "Added" state: the screen no longer closes by
+  /// itself and listens again. The only way the microphone opens after a
+  /// save besides the user's own tap or voice request.
+  void addAnother() {
+    if (_closed || _asking || _phase != VoicePhase.saved) return;
+    _doneTimer?.cancel();
+    unawaited(_listen());
   }
 
   /// Phases in which the microphone is off and waits for a tap.
@@ -527,6 +548,8 @@ class VoiceCaptureController extends ChangeNotifier {
   /// listens once the app is back in the foreground.
   void onVoiceRequest() {
     if (_closed || _asking || !_waitingPhases.contains(_phase)) return;
+    // The screen must not close before the request listens.
+    _doneTimer?.cancel();
     if (!_foreground) {
       _listenOnResume = true;
       return;
@@ -553,15 +576,18 @@ class VoiceCaptureController extends ChangeNotifier {
     _setPhase(VoicePhase.editing);
   }
 
-  /// The correction draft changed; the preview follows it.
+  /// The correction draft changed; the preview follows it, and a list named
+  /// anew in the text takes over from one picked before.
   void updateDraft(String text) {
     if (_phase != VoicePhase.editing) return;
+    final spokenBefore = _spokenListId;
     _transcript = text;
     _preview = _parse(text);
+    if (_spokenListId != null && _spokenListId != spokenBefore) _pickedListId = null;
     _notify();
   }
 
-  /// Saves the task in preview or in the draft now, then listens again.
+  /// Saves the task in preview or in the draft now; the microphone stays off.
   Future<void> saveNow() async {
     if (_phase != VoicePhase.preview && _phase != VoicePhase.editing) return;
     await _save();
@@ -575,23 +601,32 @@ class VoiceCaptureController extends ChangeNotifier {
       app.deleteTask(item.id);
     }
     _saved.removeWhere((s) => s.id == item.id);
+    if (_lastSaved?.id == item.id) _lastSaved = null;
     _notify();
   }
 
   // ------------------------------------------------------------------- saving
 
-  /// Saves the preview in the foreground: the microphone is off now. A task
-  /// with a reminder asks for notifications before listening again. After a
-  /// recogniser error the screen waits for a tap instead of listening again.
+  /// Saves the preview in the foreground and shows "Added": the microphone
+  /// is off and stays off (owner ruling R10). A task with a reminder asks for
+  /// notifications first; then the screen closes after
+  /// [VoiceTimings.savedClose], unless VoiceOver is on.
   Future<void> _save() async {
-    final relisten = !_afterFailure;
     final item = _commit();
     if (item == null) return;
+    _lastSaved = item;
     _setPhase(VoicePhase.saved);
     onSaved?.call();
     if (item.reminder && _foreground) await _askNotifications();
-    if (_closed || _accessible || !relisten || _phase != VoicePhase.saved) return;
-    await _listen();
+    _armDoneClose();
+  }
+
+  /// In the foreground, without VoiceOver, "Added" closes the screen after
+  /// [VoiceTimings.savedClose].
+  void _armDoneClose() {
+    _doneTimer?.cancel();
+    if (_closed || _accessible || !_foreground || _phase != VoicePhase.saved) return;
+    _doneTimer = Timer(VoiceTimings.savedClose, () => unawaited(close()));
   }
 
   /// Asks for notification permission if it was never asked (design §6.5),
@@ -611,7 +646,6 @@ class VoiceCaptureController extends ChangeNotifier {
     final p = _preview;
     final locale = _localeId;
     if (_closed || p == null || locale == null) return null;
-    _afterFailure = false;
     final SavedItem item;
     if (p.isNote) {
       final n = app.addSpokenNote(p.title);
@@ -667,6 +701,7 @@ class VoiceCaptureController extends ChangeNotifier {
     _backgroundAt = app.now();
     // Out of sight, only the five-minute rule closes the screen.
     _idleTimer?.cancel();
+    _doneTimer?.cancel();
     // A start still waiting resumes the same way on return: a voice
     // request as a tap would, the opening through its steps.
     if (_startTimer?.isActive ?? false) {
@@ -746,6 +781,9 @@ class VoiceCaptureController extends ChangeNotifier {
       _scheduleOpen();
     } else if (listen) {
       _scheduleRequestedListen();
+    } else {
+      // "Added" left on screen while away closes as it would have.
+      _armDoneClose();
     }
   }
 
@@ -767,7 +805,7 @@ class VoiceCaptureController extends ChangeNotifier {
   }
 
   void _cancelTimers() {
-    for (final t in [_startTimer, _gapTimer, _holdTimer, _idleTimer, _maxTimer]) {
+    for (final t in [_startTimer, _gapTimer, _holdTimer, _idleTimer, _maxTimer, _doneTimer]) {
       t?.cancel();
     }
   }

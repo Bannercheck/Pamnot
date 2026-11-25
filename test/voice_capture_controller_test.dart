@@ -3,14 +3,19 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pamnot/models/settings.dart';
+import 'package:pamnot/models/task_list.dart';
 import 'package:pamnot/services/speech/speech_engine.dart';
 import 'package:pamnot/ui/voice/voice_capture_controller.dart';
 
 import 'support/fake_speech_engine.dart';
 import 'support/voice_harness.dart';
 
-Future<VoiceCaptureController> start(WidgetTester tester, VoiceHarness h, FakeSpeechEngine e,
-    {bool accessible = false}) async {
+Future<VoiceCaptureController> start(
+  WidgetTester tester,
+  VoiceHarness h,
+  FakeSpeechEngine e, {
+  bool accessible = false,
+}) async {
   final c = VoiceCaptureController(app: h.app, engine: e, deviceLocales: () => const [Locale('tr', 'TR')])
     ..accessible = accessible;
   unawaited(c.open());
@@ -36,7 +41,7 @@ void main() {
     await h.dispose(tester);
   });
 
-  testWidgets('söyle → 1,6 sn → önizleme → 2 sn → kayıt → yeniden dinle → 6 sn → kapan', (tester) async {
+  testWidgets('söyle → 1,6 sn → önizleme → 8 sn → kayıt → Eklendi → 1,2 sn → kapan (R10)', (tester) async {
     final h = await VoiceHarness.create(tester);
     final e = FakeSpeechEngine();
     final c = await start(tester, h, e);
@@ -52,12 +57,15 @@ void main() {
     expect(h.app.tasks, isEmpty);
     await tester.pump(VoiceTimings.previewHold);
     final t = h.app.tasks.single;
-    expect((t.title, t.due, t.hasTime, t.remindAt),
-        ('Annemi ara', DateTime(2026, 11, 24, 19), true, DateTime(2026, 11, 24, 19)));
+    expect(
+      (t.title, t.due, t.hasTime, t.remindAt),
+      ('Annemi ara', DateTime(2026, 11, 24, 19), true, DateTime(2026, 11, 24, 19)),
+    );
     expect((c.saved.single.id, c.saved.single.reminder, c.saved.single.inBackground), (t.id, true, false));
     await tester.pump();
-    expect((starts(e), c.phase), (2, VoicePhase.listening));
-    await tester.pump(VoiceTimings.idleClose);
+    // R10: the microphone is not re-armed after a save.
+    expect((starts(e), c.phase), (1, VoicePhase.saved));
+    await tester.pump(VoiceTimings.savedClose);
     expect(c.phase, VoicePhase.closed);
     expect(e.listening, isFalse);
     await h.dispose(tester);
@@ -79,7 +87,7 @@ void main() {
     await h.dispose(tester);
   });
 
-  testWidgets('Düzelt geri sayımı durdurur; taslak kaydedilir ve yeniden dinlenir', (tester) async {
+  testWidgets('Düzelt geri sayımı durdurur; taslak kaydedilir, mikrofon açılmaz (R10)', (tester) async {
     final h = await VoiceHarness.create(tester);
     final e = FakeSpeechEngine();
     final c = await start(tester, h, e);
@@ -99,7 +107,7 @@ void main() {
     expect((t.title, t.due), ('Toplantı', DateTime(2026, 11, 24, 10, 30)));
     expect(c.saved.single.id, t.id);
     await tester.pump();
-    expect((starts(e), c.phase), (2, VoicePhase.listening));
+    expect((starts(e), c.phase), (1, VoicePhase.saved));
     await c.close();
     await h.dispose(tester);
   });
@@ -269,6 +277,8 @@ void main() {
     e.say('süt al');
     await tester.pump(VoiceTimings.utteranceGap);
     await tester.pump(VoiceTimings.previewHold);
+    // R10: only "Add another" listens after a save.
+    c.addAnother();
     await tester.pump();
     expect((h.app.tasks.length, starts(e), c.phase), (1, 2, VoicePhase.listening));
     await tester.pump(const Duration(seconds: 1));
@@ -493,7 +503,10 @@ void main() {
     expect(h.app.tasks.single.remindAt, DateTime(2026, 11, 24, 10));
     expect(h.scheduler.permissionRequests, 1);
     expect(micOnAtRequest, isFalse);
-    expect(startsAtRequest, 1); // asked before listening again
+    expect(startsAtRequest, 1); // asked with the microphone off
+    await tester.pump();
+    expect((starts(e), c.phase), (1, VoicePhase.saved));
+    c.addAnother();
     await tester.pump();
     expect((starts(e), c.phase), (2, VoicePhase.listening));
     e.say('yarın 11:00 rapor');
@@ -512,6 +525,7 @@ void main() {
     e.say('süt al');
     await tester.pump(VoiceTimings.utteranceGap);
     await tester.pump(VoiceTimings.previewHold);
+    c.addAnother();
     await tester.pump();
     e.say('yarın faturayı öde');
     await tester.pump(VoiceTimings.utteranceGap);
@@ -536,17 +550,22 @@ void main() {
     await c.close();
     await off.dispose(tester);
 
-    final on = await VoiceHarness.create(tester,
-        settings: const AppSettings(language: AppLanguage.tr, seeded: true, keepVoiceLog: true));
+    final on = await VoiceHarness.create(
+      tester,
+      settings: const AppSettings(language: AppLanguage.tr, seeded: true, keepVoiceLog: true),
+    );
     final e2 = FakeSpeechEngine();
     final c2 = await start(tester, on, e2);
     e2.say('yarın akşam yedide annemi ara');
     await tester.pump(VoiceTimings.utteranceGap);
     await tester.pump(VoiceTimings.previewHold);
     final entry = on.app.voiceLog.single;
-    expect((entry.transcript, entry.localeId, entry.title, entry.due),
-        ('yarın akşam yedide annemi ara', 'tr-TR', 'Annemi ara', DateTime(2026, 11, 24, 19)));
+    expect(
+      (entry.transcript, entry.localeId, entry.title, entry.due),
+      ('yarın akşam yedide annemi ara', 'tr-TR', 'Annemi ara', DateTime(2026, 11, 24, 19)),
+    );
     // A typed correction is saved, but the log keeps what was recognised.
+    c2.addAnother();
     await tester.pump();
     e2.say('yarın 10:00 toplantı');
     await tester.pump(VoiceTimings.utteranceGap);
@@ -554,8 +573,10 @@ void main() {
     c2.updateDraft('yarın 10:30 toplantı');
     await c2.saveNow();
     expect(on.app.tasks.map((t) => t.due), contains(DateTime(2026, 11, 24, 10, 30)));
-    expect((on.app.voiceLog.first.transcript, on.app.voiceLog.first.due),
-        ('yarın 10:00 toplantı', DateTime(2026, 11, 24, 10)));
+    expect(
+      (on.app.voiceLog.first.transcript, on.app.voiceLog.first.due),
+      ('yarın 10:00 toplantı', DateTime(2026, 11, 24, 10)),
+    );
     await c2.close();
     await on.dispose(tester);
   });
@@ -600,7 +621,7 @@ void main() {
     expect(h.app.tasks.single.title, 'Süt al');
     expect(c.saved.single.id, h.app.tasks.single.id);
     await tester.pump();
-    expect((starts(e), c.phase), (2, VoicePhase.listening));
+    expect((starts(e), c.phase), (1, VoicePhase.saved));
     await tester.pump(const Duration(seconds: 5));
     expect(h.app.tasks, hasLength(1));
     expect(c.saved, hasLength(1));
@@ -615,6 +636,7 @@ void main() {
     e.say('süt al');
     await tester.pump(VoiceTimings.utteranceGap);
     await tester.pump(VoiceTimings.previewHold);
+    c.addAnother();
     await tester.pump();
     expect((h.app.tasks.single.title, starts(e), c.phase), ('Süt al', 2, VoicePhase.listening));
     // The first listen's final arrives after the second listen started.
@@ -655,6 +677,9 @@ void main() {
     await tester.pump(VoiceTimings.previewHold);
     await tester.pump();
     expect(h.app.tasks.single.title, 'Süt al');
+    // R10: a listen after a save is asked for.
+    c.addAnother();
+    await tester.pump();
     final before = starts(e);
     e.say('hatırlat');
     await tester.pump(VoiceTimings.utteranceGap);
@@ -748,19 +773,19 @@ void main() {
       final t = h.app.tasks.single;
       expect((t.title, t.due), ('Toplantı', DateTime(2026, 11, 24, 10)));
       expect(c.saved.single.id, t.id);
-      // After an error the microphone does not come back on by itself.
-      await tester.pump(const Duration(seconds: 10));
+      // The microphone does not come back on by itself.
+      await tester.pump();
       expect((c.phase, starts(e), e.listening), (VoicePhase.saved, 1, false));
       c.toggleMic();
       await tester.pump();
       expect((c.phase, starts(e)), (VoicePhase.listening, 2));
-      // The next listen is an ordinary one again: timed preview, re-listen.
+      // The next listen is an ordinary one again: timed preview, no re-listen.
       e.say('süt al');
       await tester.pump(VoiceTimings.utteranceGap);
       expect(c.previewOnTimer, isTrue);
       await tester.pump(VoiceTimings.previewHold);
       await tester.pump();
-      expect((h.app.tasks.length, starts(e), c.phase), (2, 3, VoicePhase.listening));
+      expect((h.app.tasks.length, starts(e), c.phase), (2, 2, VoicePhase.saved));
       await c.close();
       await h.dispose(tester);
     });
@@ -776,8 +801,10 @@ void main() {
     c.updateDraft('yarın 10:00 toplantı');
     await c.saveNow();
     expect(h.app.tasks.single.title, 'Toplantı');
-    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
     expect((c.phase, starts(e)), (VoicePhase.saved, 1));
+    await tester.pump(VoiceTimings.savedClose);
+    expect((c.phase, starts(e)), (VoicePhase.closed, 1));
     await c.close();
     await h.dispose(tester);
   });
@@ -818,6 +845,7 @@ void main() {
     e.say('süt al');
     await tester.pump(VoiceTimings.utteranceGap);
     await tester.pump(VoiceTimings.previewHold);
+    c.addAnother();
     await tester.pump();
     expect((starts(e), c.phase), (2, VoicePhase.listening));
     // The re-listen ends by itself with nothing said; the next one is slow
@@ -857,6 +885,10 @@ void main() {
     expect((c.phase, starts(e)), (VoicePhase.editing, 1));
     await c.saveNow();
     await tester.pump();
+    // R10: "Added" waits; a request listens as "Add another" would.
+    expect((c.phase, starts(e)), (VoicePhase.saved, 1));
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay);
     expect((c.phase, starts(e)), (VoicePhase.listening, 2));
 
     // Paused: a request listens as a tap on the microphone would.
@@ -1019,6 +1051,185 @@ void main() {
     expect(e.calls, ['resolve', 'prepare:tr-TR', 'start:tr-TR']);
     expect((c.phase, e.listening), (VoicePhase.listening, true));
     await c.close();
+    await h.dispose(tester);
+  });
+
+  // ------------------------------- R10: after a save the microphone stays off
+
+  testWidgets('R10: kayıttan sonra mikrofon açılmaz; 1,2 sn "Eklendi" gösterilir ve ekran kapanır', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('alışveriş listesine ekmek ekle');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await tester.pump(VoiceTimings.previewHold);
+    expect(h.app.tasks.single.title, 'Ekmek');
+    expect((c.phase, starts(e), e.listening), (VoicePhase.saved, 1, false));
+    expect((c.lastSaved!.title, c.lastSaved!.listName), ('Ekmek', 'Alışveriş'));
+    await tester.pump(VoiceTimings.savedClose - const Duration(milliseconds: 1));
+    expect((c.phase, starts(e)), (VoicePhase.saved, 1));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect((c.phase, starts(e), e.listening), (VoicePhase.closed, 1, false));
+    expect(c.saved, hasLength(1));
+    await h.dispose(tester);
+  });
+
+  for (final how in ['liste', 'Ekle', 'Düzelt']) {
+    testWidgets('R10: $how ile kayıttan sonra engine.start çağrılmaz', (tester) async {
+      final h = await VoiceHarness.create(tester);
+      final e = FakeSpeechEngine();
+      final c = await start(tester, h, e);
+      e.say('yarın ekmek al');
+      await tester.pump(VoiceTimings.utteranceGap);
+      switch (how) {
+        case 'liste':
+          await c.pickList('shopping');
+        case 'Ekle':
+          await c.saveNow();
+        default:
+          c.edit();
+          c.updateDraft('yarın süt al');
+          await c.saveNow();
+      }
+      expect(h.app.tasks, hasLength(1));
+      await tester.pump();
+      expect((c.phase, starts(e), e.listening), (VoicePhase.saved, 1, false));
+      await tester.pump(VoiceTimings.savedClose);
+      expect((c.phase, starts(e)), (VoicePhase.closed, 1));
+      await h.dispose(tester);
+    });
+  }
+
+  testWidgets('R10: "Bir tane daha" kapanmayı iptal edip yeniden dinler; sessizlikte 6 sn sonra kapanır', (
+    tester,
+  ) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    await tester.pump(const Duration(milliseconds: 600));
+    c.addAnother();
+    await tester.pump();
+    expect((c.phase, starts(e), e.listening), (VoicePhase.listening, 2, true));
+    // The canceled auto-close does not fire.
+    await tester.pump(VoiceTimings.savedClose);
+    expect(c.phase, VoicePhase.listening);
+    // Another task: saved, the microphone stays off again, the screen closes.
+    e.say('ekmek al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await tester.pump(VoiceTimings.previewHold);
+    expect((h.app.tasks.length, c.phase, starts(e)), (2, VoicePhase.saved, 2));
+    await tester.pump(VoiceTimings.savedClose);
+    expect(c.phase, VoicePhase.closed);
+    await h.dispose(tester);
+  });
+
+  testWidgets('R10: "Bir tane daha" ardından sessizlik ekranı 6 sn sonra kapatır', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    c.addAnother();
+    await tester.pump();
+    expect(c.phase, VoicePhase.listening);
+    await tester.pump(VoiceTimings.idleClose);
+    expect((c.phase, e.listening, h.app.tasks.length), (VoicePhase.closed, false, 1));
+    await h.dispose(tester);
+  });
+
+  testWidgets('R10: kayıttaki mikrofon dokunuşu "Bir tane daha" gibidir', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    c.toggleMic();
+    await tester.pump(VoiceTimings.savedClose);
+    expect((c.phase, starts(e)), (VoicePhase.listening, 2));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('R10: VoiceOver açıkken kayıttan sonra ekran açık kalır; "Bir tane daha" dinler', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e, accessible: true);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    await tester.pump(const Duration(seconds: 30));
+    expect((c.phase, starts(e), e.listening), (VoicePhase.saved, 1, false));
+    c.addAnother();
+    await tester.pump();
+    expect((c.phase, starts(e)), (VoicePhase.listening, 2));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  testWidgets('R10: kayıt anında arka plana geçilirse ekran gizliyken kapanmaz; dönüşte kapanır', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    c.onLifecycle(AppLifecycleState.hidden);
+    await tester.pump(VoiceTimings.savedClose * 3);
+    expect((c.phase, starts(e)), (VoicePhase.saved, 1));
+    c.onLifecycle(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(c.phase, VoicePhase.saved);
+    await tester.pump(VoiceTimings.savedClose);
+    expect((c.phase, starts(e)), (VoicePhase.closed, 1));
+    await h.dispose(tester);
+  });
+
+  testWidgets('R10: kayıttayken gelen yeni istek kapanmayı iptal edip dinler', (tester) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('süt al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    await c.saveNow();
+    await tester.pump(VoiceTimings.savedClose - VoiceTimings.startDelay ~/ 2);
+    c.onVoiceRequest();
+    await tester.pump(VoiceTimings.startDelay);
+    await tester.pump();
+    expect((c.phase, starts(e)), (VoicePhase.listening, 2));
+    await c.close();
+    await h.dispose(tester);
+  });
+
+  // ------------------------------- F2: list and box while correcting
+
+  testWidgets('F2: düzeltmede liste ve kutu seçilir (kaydetmez, sayaç yok); metindeki liste yeniden eşleşir', (
+    tester,
+  ) async {
+    final h = await VoiceHarness.create(tester);
+    final e = FakeSpeechEngine();
+    final c = await start(tester, h, e);
+    e.say('yarın ekmek al');
+    await tester.pump(VoiceTimings.utteranceGap);
+    c.edit();
+    expect(c.listId, 'personal');
+    c.updateDraft('iş listesine rapor ekle');
+    expect((c.listId, c.preview!.title), ('work', 'Rapor'));
+    await c.pickList('home');
+    c.pickQuadrant(Quadrant.later);
+    expect((c.phase, c.listId, c.quadrant, c.previewOnTimer), (VoicePhase.editing, 'home', Quadrant.later, false));
+    await tester.pump(VoiceTimings.previewHold * 2);
+    expect(h.app.tasks, isEmpty);
+    // A list named anew in the text takes over from the pick.
+    c.updateDraft('okul listesine rapor ekle');
+    expect(c.listId, 'school');
+    await c.saveNow();
+    final t = h.app.tasks.single;
+    expect((t.title, t.listId, t.quadrant), ('Rapor', 'school', Quadrant.later));
     await h.dispose(tester);
   });
 }

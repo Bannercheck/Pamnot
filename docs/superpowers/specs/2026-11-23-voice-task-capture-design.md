@@ -83,11 +83,19 @@ Kullanıcı 1'i seçti: tarih/saatin yanlış kaydedilmesi bu uygulamada en paha
 3. Kullanıcı konuşur; yazı canlı görünür, altında canlı önizleme (gün, saat, başlık).
 4. Son değişiklikten **1,6 sn** sonra konuşma bitmiş sayılır. Son metin ayrıştırılır, önizleme **2 sn**
    gösterilir ("Düzelt" düğmesi ve geri sayım çubuğuyla).
-5. Süre dolunca görev kaydedilir, "Eklenenler" listesine düşer (geri alınabilir), dinleme yeniden başlar.
-6. Yeniden dinlemede **6 sn** hiçbir şey söylenmezse ekran kendiliğinden kapanır. Tek oturum en fazla
-   **30 sn** dinler.
-7. "Düzelt"e dokunulursa geri sayım durur; metin düzenlenebilir alana geçer, önizleme yazdıkça güncellenir;
-   "Kaydet" ile kaydedilir, sonra dinleme yeniden başlar.
+5. Süre dolunca (ya da liste çipi, "Ekle", "Düzelt" sonrası "Kaydet" ile) görev kaydedilir, "Eklenenler"
+   listesine düşer (geri alınabilir). **Mikrofon yeniden açılmaz** (sahibin kararı R10, 2026-11-25: "söyledik,
+   ekledi, bitti"). Ekran **yaklaşık 1,2 sn** "Eklendi" durumunu gösterir (onay ikonu, görevin başlığı ve
+   listesi), sonra kendiliğinden kapanır ve özet snack'i çıkar. Bu sürede **"Bir tane daha"** düğmesi
+   görünür: dokunulursa kendiliğinden kapanma iptal olur ve dinleme yeniden başlar. Kayıttan sonra
+   mikrofonu açmanın tek yolu budur (kullanıcının kendi yeni sesli isteği de aynı işi görür). VoiceOver /
+   Anahtar Denetimi açıkken ekran kendiliğinden kapanmaz; "Eklendi", "Kapat" ve "Bir tane daha" ile bekler.
+6. "Bir tane daha" ile açılan dinlemede **6 sn** hiçbir şey söylenmezse ekran kendiliğinden kapanır. Bir
+   kayıttan hemen sonra bu süre uygulanmaz (mikrofon zaten kapalıdır). Tek oturum en fazla **30 sn** dinler.
+7. "Düzelt"e dokunulursa geri sayım durur; metin düzenlenebilir alana geçer, önizleme yazdıkça güncellenir.
+   Liste ve kutu satırları düzeltmede de görünür: seçim yalnız seçer (kaydetmez, geri sayım yok), metinde
+   yeni bir liste adı geçerse liste ona göre yeniden eşleşir. "Kaydet" ile kaydedilir; sonrası 5. adımdaki
+   gibidir.
 8. Kapatma (✕, geri hareketi) her durumda çalışır; önizlemedeki görev **kaydedilmez** (açıkça "Kaydet"
    denmedikçe): kullanıcı ekrana bakarak vazgeçmiştir. Kaydedilen her görev "Eklenenler"de kalır ve ekran
    kapanınca bir özet snack'i çıkar.
@@ -251,7 +259,8 @@ dil desteklenmiyor · platform desteklenmiyor. Her durum metin + ikonla gösteri
   `Semantics(liveRegion: true)`, hazırlanırken ve dinlerken hariç: VoiceOver'ın sesi mikrofona girip
   tanınan metne karışmasın (uyumluluk belgesi §4.1).
 - Tanıyıcı konuşma duyulduktan sonra hatayla durursa cümle atılmaz: önizleme geri sayım olmadan açılır,
-  "Düzelt" ya da elle "Kaydet" ile kaydedilir; kayıttan sonra mikrofon kendiliğinden açılmaz. Hiçbir şey
+  "Düzelt" ya da elle "Kaydet" ile kaydedilir; kayıttan sonra mikrofon kendiliğinden açılmaz (hiçbir kayıttan
+  sonra açılmaz, §5 adım 5). Hiçbir şey
   duyulmadıysa hata ya da "duraklatıldı" gösterilir.
 - Dokunsal geri bildirim yalnız kayıt anında ve mikrofon kapalıyken (kayıt sırasında iOS titreşimi
   susturur).
@@ -306,8 +315,8 @@ Arka plan (uygulama `hidden`/`paused` olunca):
 - Birim: 145 ayrıştırıcı vektörü (§6.4), normalleştirici; mevcut `quickParse` testleri aynen geçer.
 - Denetleyici: `addSpokenTask` → `remindAt`, `alerts()` içinde `t:` uyarısı; hatırlatma kalıbı + gün →
   09:00; not yolu.
-- Widget (FakeSpeechEngine ile): aç → dinle → ara sonuç → 1,6 sn → önizleme → 2 sn → kayıt → yeniden
-  dinle → 6 sn → kapan; Düzelt; ✕ önizlemede kaydetmez; izin yok; dikte kapalı; dil desteklenmiyor;
+- Widget (FakeSpeechEngine ile): aç → dinle → ara sonuç → 1,6 sn → önizleme → 8 sn → kayıt → "Eklendi"
+  (mikrofon kapalı) → 1,2 sn → kapan; "Bir tane daha" → dinle → 6 sn → kapan; Düzelt; ✕ önizlemede kaydetmez; izin yok; dikte kapalı; dil desteklenmiyor;
   ekran açıkken gelen yeni istek; uygulama arka plana gidince iptal.
 - Derin bağlantı: `pamnot://ses` ikinci HomeShell açmaz, ekranı açar; `?homeWidget` bağlantıları değişmez.
 - Erişilebilirlik: etiketler, hedef boyutları, metin ölçeği 2.0'da taşma yok.
@@ -332,11 +341,16 @@ Arka plan (uygulama `hidden`/`paused` olunca):
 9. "Son tanınanlar" günlüğü yalnız cihazda, son 20 kayıt.
 10. Bu sürüm yalnız iOS; diğer platformlarda mikrofon düğmesi gizli.
 11. "gece 1–5" gece yarısından sonra söylenirse aynı gün; "hatırlat" tarihsizse bildirim yok.
-12. Ekran açıkken gelen yeni sesli istek duraklatıldı, kaydedildi ve hata durumlarında dinlemeye başlar;
+12. Ekran açıkken gelen yeni sesli istek duraklatıldı, kaydedildi ("Eklendi"; kendiliğinden kapanma iptal
+    olur) ve hata durumlarında dinlemeye başlar;
     hazırlanırken, dinlerken, önizlemede, düzeltmede ve bildirim izni sorulurken yok sayılır.
 13. Durum metni hazırlanırken ve dinlerken canlı bölge değildir; VoiceOver mikrofona konuşmaz.
 14. Konuşma duyulduktan sonra gelen tanıyıcı hatası cümleyi atmaz: önizleme elle "Kaydet" ile kaydedilir;
     hata yalnız hiçbir şey duyulmadıysa gösterilir.
+15. (R10, sahibin kararı, 2026-11-25) Kayıttan sonra mikrofon kendiliğinden yeniden açılmaz; önceki "kaydet,
+    sonra yeniden dinle" döngüsü kaldırıldı. Ekran ~1,2 sn "Eklendi" gösterip kapanır; yalnız "Bir tane daha"
+    yeniden dinletir. VoiceOver açıkken ekran açık kalır.
+16. Düzeltmede liste ve kutu seçilebilir; seçim kaydetmez, metinde yeni geçen liste adı seçimi değiştirir.
 
 ## 9. Builder'a kalanlar
 
