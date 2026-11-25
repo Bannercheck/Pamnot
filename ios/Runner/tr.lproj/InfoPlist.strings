@@ -1,3 +1,5 @@
 "NSMicrophoneUsageDescription" = "Pamnot, sesle görev eklerken söylediklerini duymak için mikrofonu kullanır. Ses kaydı saklanmaz.";
 "NSSpeechRecognitionUsageDescription" = "Pamnot, söylediğin görevi yazıya çevirmek için konuşma tanımayı kullanır. Sesin bunun için Apple'a gönderilebilir.";
 "NSAlarmKitUsageDescription" = "Pamnot, bir görev ya da hatırlatıcı için seçtiğin saatte alarm çalar.";
+"NSCalendarsFullAccessUsageDescription" = "Pamnot, takvimindeki etkinlikleri Plan ekranında görevlerinin yanında gösterir. Etkinlikler cihazında kalır ve değiştirilmez.";
+"NSCalendarsUsageDescription" = "Pamnot, takvimindeki etkinlikleri Plan ekranında görevlerinin yanında gösterir. Etkinlikler cihazında kalır ve değiştirilmez.";

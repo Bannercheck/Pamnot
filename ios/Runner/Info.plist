@@ -50,6 +50,10 @@
 	<true/>
 	<key>NSAlarmKitUsageDescription</key>
 	<string>Pamnot rings an alarm at the time you set for a task or reminder.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Pamnot shows your calendar events next to your tasks in Plan. Events stay on your device and are never changed.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Pamnot shows your calendar events next to your tasks in Plan. Events stay on your device and are never changed.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Pamnot uses the microphone to hear what you say when you add a task by voice. No audio is saved.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

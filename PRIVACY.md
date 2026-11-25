@@ -4,7 +4,7 @@
 
 ## Gizlilik Politikası
 
-Son güncelleme: 23 Kasım 2026
+Son güncelleme: 25 Kasım 2026
 
 Pamnot bir not, görev, anımsatıcı ve alışkanlık uygulamasıdır. Hesap ya da giriş yoktur. Pamnot
 reklam göstermez, seni izlemez ve verilerini satmaz. Pamnot'un geliştiricisinin bir sunucusu yoktur;
@@ -44,12 +44,19 @@ verilerin ona gönderilmez.
 Anımsatıcılar cihazında kurulan yerel bildirimlerdir; anlık bildirim (push) sunucusu yoktur. Bildirim
 izni ilk kez bir anımsatıcı ya da hatırlatma kurduğunda (ya da Ayarlar'dan) istenir.
 
+### Takvim
+
+- Takvim: etkinlikler cihazda okunur, hiçbir yere gönderilmez, Pamnot etkinlik oluşturmaz ya da
+  değiştirmez.
+- Takvim izni yalnızca Plan ekranında **Takvimi göster** düğmesine ilk dokunduğunda istenir. Pamnot
+  yalnızca ekranda görünen haftanın etkinliklerini okur.
+
 ### Silme ve izinler
 
 - Hesap olmadığı için silinecek bir hesap da yoktur. Uygulamayı silmek, Pamnot'un cihazındaki tüm
   verilerini siler. Cihaz yedeklerindeki kopyalar o yedeği sildiğinde silinir.
-- Mikrofon, Konuşma Tanıma ve bildirim izinlerini istediğin zaman iOS Ayarlar > Pamnot'tan geri
-  alabilirsin.
+- Mikrofon, Konuşma Tanıma, takvim ve bildirim izinlerini istediğin zaman iOS Ayarlar > Pamnot'tan
+  geri alabilirsin.
 
 ### Değişiklikler
 
@@ -59,7 +66,7 @@ Bu politika değişirse bu sayfa güncellenir ve yukarıdaki tarih değişir.
 
 ## Privacy Policy
 
-Last updated: 23 November 2026
+Last updated: 25 November 2026
 
 Pamnot is an app for notes, tasks, reminders and habits. There is no account and no sign-in. Pamnot
 shows no ads, does not track you and does not sell your data. Pamnot's developer runs no server; your
@@ -102,12 +109,18 @@ data is not sent to them.
 Reminders are local notifications scheduled on your device; there is no push notification server.
 Notification permission is requested the first time you set a reminder (or from Settings).
 
+### Calendar
+
+- Calendar: events are read on your device and sent nowhere; Pamnot never creates or changes events.
+- Calendar access is requested only the first time you tap **Show calendar** in Plan. Pamnot reads
+  only the events of the week on screen.
+
 ### Deleting data and permissions
 
 - As there is no account, there is no account to delete. Deleting the app deletes all of Pamnot's data
   on your device. Copies in device backups are deleted when you delete that backup.
-- You can withdraw Microphone, Speech Recognition and notification access at any time in iOS
-  Settings > Pamnot.
+- You can withdraw Microphone, Speech Recognition, calendar and notification access at any time in
+  iOS Settings > Pamnot.
 
 ### Changes
 

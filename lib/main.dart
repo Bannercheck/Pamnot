@@ -9,6 +9,7 @@ import 'core/motivation.dart';
 import 'data/store.dart';
 import 'prediction/word_predictor.dart';
 import 'services/alarm_scheduler.dart';
+import 'services/calendar/device_calendar_source.dart';
 import 'services/handwriting.dart';
 import 'services/launch_actions.dart';
 import 'services/reminder_scheduler.dart';
@@ -37,6 +38,9 @@ Future<void> main() async {
     // Building it asks for nothing; alarm permission waits for the first
     // time Alarm is picked.
     alarms: createAlarmScheduler(),
+    // Building it asks for nothing; calendar permission waits for the first
+    // tap on "Show calendar" in Plan.
+    calendar: createCalendarSource(),
   );
   await controller.load();
   runApp(PamnotApp(controller: controller));
