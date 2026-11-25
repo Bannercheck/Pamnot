@@ -427,6 +427,13 @@ def check_alarm_plugin():
         fail("PamnotAlarmPlugin.swift: import AlarmKit not found")
     elif guard == -1 or imported < guard:
         fail("PamnotAlarmPlugin.swift: import AlarmKit must be inside #if canImport(AlarmKit)")
+    # `sync` cancels the stored ids, awaits each schedule and then stores the new ids: two
+    # overlapping calls would orphan alarms no later sync cancels. Each call waits for the
+    # previous one (`syncTail`), and the tail is swapped synchronously on the main thread.
+    for needle in ("static var syncTail: Task<Void, Never>?", "let previous = syncTail",
+                   "await previous?.value", "syncTail = Task", "MainActor.assumeIsolated"):
+        if needle not in source:
+            fail(f"PamnotAlarmPlugin.swift: sync must be serialized ({needle} not found)")
 
 
 def main():

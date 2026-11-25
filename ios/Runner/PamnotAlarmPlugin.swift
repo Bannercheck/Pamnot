@@ -85,6 +85,9 @@ enum PamnotAlarms {
   static let idsKey = "pamnot_alarm_ids"
   static let snoozeInterval: TimeInterval = 9 * 60
 
+  /// The last `sync` started; the next one awaits it (see `handle`).
+  @MainActor static var syncTail: Task<Void, Never>?
+
   static let everyDay: [Locale.Weekday] = [
     .sunday, .monday, .tuesday, .wednesday, .thursday, .friday, .saturday,
   ]
@@ -103,8 +106,16 @@ enum PamnotAlarms {
       }
     case "sync":
       let items = call.arguments as? [[String: Any]] ?? []
-      Task { @MainActor in
-        result(await sync(items))
+      // Flutter calls handlers on the main thread, so the tail is read and replaced in call
+      // order before anything suspends: each sync starts only after the previous one stored
+      // its ids. Overlapping syncs would otherwise both cancel the same stored set, both
+      // schedule, and leave the alarms of the earlier one in no stored set (never cancelled).
+      MainActor.assumeIsolated {
+        let previous = syncTail
+        syncTail = Task { @MainActor in
+          await previous?.value
+          result(await sync(items))
+        }
       }
     default:
       result(FlutterMethodNotImplemented)
