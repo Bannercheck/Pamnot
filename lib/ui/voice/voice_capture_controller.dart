@@ -3,8 +3,10 @@ import 'dart:ui' show AppLifecycleState, Locale, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/spoken/list_match.dart';
 import '../../core/spoken/parse.dart';
 import '../../core/spoken/spoken_task.dart';
+import '../../models/task_list.dart';
 import '../../services/speech/speech_engine.dart';
 import '../../state/app_controller.dart';
 
@@ -16,8 +18,9 @@ abstract final class VoiceTimings {
   /// No new partial result for this long ends the utterance.
   static const utteranceGap = Duration(milliseconds: 1600);
 
-  /// How long the preview is shown before it is saved.
-  static const previewHold = Duration(seconds: 2);
+  /// How long the preview waits for a list or a box before it is saved
+  /// (Settings > Add by voice can turn the timed save off).
+  static const previewHold = Duration(seconds: 8);
 
   /// Silence in a listen after a save closes the screen.
   static const idleClose = Duration(seconds: 6);
@@ -55,6 +58,7 @@ class SavedItem {
     this.hasTime = false,
     this.reminder = false,
     this.inBackground = false,
+    this.listName,
   });
 
   /// The task's or the note's id.
@@ -71,6 +75,9 @@ class SavedItem {
 
   /// Saved because the app left the foreground ("saved while locking").
   final bool inBackground;
+
+  /// The name of the list the task went to; null for a note.
+  final String? listName;
 }
 
 /// The voice screen's state machine (design §5, §6.3, §6.6): listens, shows
@@ -158,6 +165,14 @@ class VoiceCaptureController extends ChangeNotifier {
   /// The notification prompt is up; the microphone stays off meanwhile.
   bool _asking = false;
 
+  /// The list named in the sentence being previewed, if any.
+  String? _spokenListId;
+
+  /// The list and the box the user picked for the preview; they outlive a
+  /// correction of the text.
+  String? _pickedListId;
+  Quadrant? _pickedQuadrant;
+
   VoicePhase get phase => _phase;
 
   /// The live transcript, or the correction draft while editing.
@@ -174,8 +189,40 @@ class VoiceCaptureController extends ChangeNotifier {
 
   String? get localeId => _localeId;
 
+  /// The list the preview goes to: the one picked, else the one named in the
+  /// sentence, else the last used one ([AppController.currentListId]). A list
+  /// deleted meanwhile falls back to the last used one.
+  String get listId {
+    final id = _pickedListId ?? _spokenListId;
+    return id != null && app.lists.any((l) => l.id == id) ? id : app.currentListId;
+  }
+
+  /// The box the preview goes to: the one picked, else the default (a time
+  /// said for today is "do now", anything else "plan").
+  Quadrant get quadrant {
+    final p = _preview;
+    return _pickedQuadrant ?? app.defaultQuadrant(due: p?.due, hasTime: p?.hasTime ?? false);
+  }
+
+  /// Picks the preview's box; a running countdown starts again.
+  void pickQuadrant(Quadrant q) {
+    if (_phase != VoicePhase.preview || (_preview?.isNote ?? true)) return;
+    _pickedQuadrant = q;
+    if (_holdTimer?.isActive ?? false) _armHold();
+    _notify();
+  }
+
+  /// Picks the preview's list and saves it at once (the quick path).
+  Future<void> pickList(String id) async {
+    if (_phase != VoicePhase.preview || (_preview?.isNote ?? true)) return;
+    if (!app.lists.any((l) => l.id == id)) return;
+    _pickedListId = id;
+    await _save();
+  }
+
   /// The preview is saved when [VoiceTimings.previewHold] runs out; false
-  /// with VoiceOver and after a recogniser error, where it is saved by hand.
+  /// when the timed save is turned off in Settings, with VoiceOver and after
+  /// a recogniser error, where it is saved by hand.
   bool get previewOnTimer => _phase == VoicePhase.preview && (_holdTimer?.isActive ?? false);
 
   /// VoiceOver or Switch Control is on (compliance §4.2-3): the preview is not
@@ -322,7 +369,7 @@ class VoiceCaptureController extends ChangeNotifier {
     if (!_inSession || _final != null) return;
     _partial = text;
     _transcript = text;
-    _preview = parseSpokenTask(text, app.now(), _lang);
+    _preview = _parse(text);
     _gapTimer?.cancel();
     _gapTimer = Timer(VoiceTimings.utteranceGap, _stopListening);
     _idleTimer?.cancel();
@@ -343,14 +390,40 @@ class VoiceCaptureController extends ChangeNotifier {
     _level = 0;
     _cancelListenTimers();
     final text = (_final ?? _partial).trim();
-    final parsed = text.isEmpty ? null : parseSpokenTask(text, app.now(), _lang);
+    final parsed = text.isEmpty ? null : _parse(text);
     if (parsed == null || parsed.title.trim().isEmpty) return _endWithoutText();
     // Before the phase changes, so the screen sees whether it is timed.
-    if (!_accessible) _holdTimer = Timer(VoiceTimings.previewHold, () => unawaited(_save()));
+    if (!_accessible && app.settings.voiceAutoSave) _armHold();
     _showPreview(text, parsed);
   }
 
+  void _armHold() {
+    _holdTimer?.cancel();
+    _holdTimer = Timer(VoiceTimings.previewHold, () => unawaited(_save()));
+  }
+
+  /// Parses [text] and takes a list named in it out of the title; the list
+  /// becomes [_spokenListId]. A note has no list.
+  SpokenTask _parse(String text) {
+    final p = parseSpokenTask(text, app.now(), _lang);
+    _spokenListId = null;
+    if (p.isNote) return p;
+    final m = matchSpokenList(p.title, app.lists, turkish: _lang == 'tr');
+    _spokenListId = m.listId;
+    if (m.title == p.title) return p;
+    return SpokenTask(
+      title: m.title,
+      due: p.due,
+      hasTime: p.hasTime,
+      remind: p.remind,
+      ambiguousHour: p.ambiguousHour,
+      isNote: p.isNote,
+    );
+  }
+
   void _showPreview(String heard, SpokenTask parsed) {
+    _pickedListId = null;
+    _pickedQuadrant = null;
     _heard = heard;
     _transcript = heard;
     _preview = parsed;
@@ -384,7 +457,7 @@ class VoiceCaptureController extends ChangeNotifier {
     unawaited(_cancelEngine());
     final keep =
         kind == SpeechErrorKind.interrupted || kind == SpeechErrorKind.network || kind == SpeechErrorKind.unknown;
-    final parsed = keep && heard.isNotEmpty ? parseSpokenTask(heard, app.now(), _lang) : null;
+    final parsed = keep && heard.isNotEmpty ? _parse(heard) : null;
     if (parsed != null && parsed.title.trim().isNotEmpty) {
       _afterFailure = true;
       return _showPreview(heard, parsed);
@@ -484,7 +557,7 @@ class VoiceCaptureController extends ChangeNotifier {
   void updateDraft(String text) {
     if (_phase != VoicePhase.editing) return;
     _transcript = text;
-    _preview = parseSpokenTask(text, app.now(), _lang);
+    _preview = _parse(text);
     _notify();
   }
 
@@ -545,7 +618,7 @@ class VoiceCaptureController extends ChangeNotifier {
       if (n == null) return null;
       item = SavedItem(id: n.id, isNote: true, title: n.body, inBackground: inBackground);
     } else {
-      final t = app.addSpokenTask(p);
+      final t = app.addSpokenTask(p, listId: listId, quadrant: quadrant);
       if (t == null) return null;
       item = SavedItem(
         id: t.id,
@@ -555,6 +628,7 @@ class VoiceCaptureController extends ChangeNotifier {
         hasTime: t.hasTime,
         reminder: t.remindAt != null,
         inBackground: inBackground,
+        listName: app.listById(t.listId).name,
       );
     }
     app.logRecognized(_heard, parseSpokenTask(_heard, app.now(), _lang), localeId: locale);
@@ -563,6 +637,8 @@ class VoiceCaptureController extends ChangeNotifier {
     _saved.insert(0, item);
     _transcript = '';
     _preview = null;
+    _spokenListId = _pickedListId = null;
+    _pickedQuadrant = null;
     return item;
   }
 
@@ -608,8 +684,10 @@ class VoiceCaptureController extends ChangeNotifier {
         _level = 0;
         _cancelListenTimers();
         unawaited(engine.cancel());
-        final parsed = text.isEmpty ? null : parseSpokenTask(text, app.now(), _lang);
+        final parsed = text.isEmpty ? null : _parse(text);
         if (parsed != null && parsed.title.trim().isNotEmpty) {
+          _pickedListId = null;
+          _pickedQuadrant = null;
           _heard = text;
           _preview = parsed;
           _commit(inBackground: true);

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../core/dates.dart';
 import '../../core/spoken/spoken_task.dart';
 import '../../l10n/strings.dart';
+import '../../models/task_list.dart';
 import '../../services/links.dart';
 import '../../services/speech/speech_engine.dart';
 import '../../state/app_scope.dart';
@@ -286,6 +287,11 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
                             announce: phase == VoicePhase.preview,
                           ),
                         ],
+                        if (phase == VoicePhase.preview && !preview!.isNote) ...[
+                          const SizedBox(height: 16),
+                          // The lists can change (or go) while the preview waits.
+                          ListenableBuilder(listenable: _c.app, builder: (context, _) => _picker(s)),
+                        ],
                         if (phase == VoicePhase.preview) ...[const SizedBox(height: 16), _previewActions(s)],
                         if (phase == VoicePhase.editing) ...[
                           const SizedBox(height: 16),
@@ -479,26 +485,96 @@ class _VoiceCapturePageState extends State<VoiceCapturePage> with SingleTickerPr
     );
   }
 
-  /// Under the preview: the countdown and "Fix"; with VoiceOver, "Fix" and
-  /// "Save" (nothing is saved on a timer).
+  /// Under the preview of a task: "List", its chips in one row that scrolls
+  /// sideways (the selected one first; a tap saves to it at once), and "Box",
+  /// the four boxes two by two (a tap selects one).
+  Widget _picker(S s) {
+    final t = Theme.of(context);
+    final selectedList = _c.listId;
+    final selectedBox = _c.quadrant;
+    final lists = [
+      ..._c.app.lists.where((l) => l.id == selectedList),
+      ..._c.app.lists.where((l) => l.id != selectedList),
+    ];
+    Widget label(String text) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(text, style: t.textTheme.labelLarge?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        label(s.list),
+        SingleChildScrollView(
+          key: const Key('voice-list-row'),
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final l in lists)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 8),
+                  child: _PickChip(
+                    key: Key('voice-list-${l.id}'),
+                    label: l.name,
+                    selected: l.id == selectedList,
+                    // A long name is cut; VoiceOver reads it whole.
+                    maxWidth: 240,
+                    maxLines: 1,
+                    onTap: () => unawaited(_c.pickList(l.id)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        label(s.box),
+        LayoutBuilder(
+          builder: (context, box) {
+            const gap = 8.0;
+            final width = (box.maxWidth - gap) / 2;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                for (final q in Quadrant.values)
+                  SizedBox(
+                    width: width,
+                    child: _PickChip(
+                      key: Key('voice-box-${q.name}'),
+                      label: s.quadrantTitle(q),
+                      selected: q == selectedBox,
+                      onTap: () {
+                        _c.pickQuadrant(q);
+                        // The controller's countdown started again.
+                        if (_c.previewOnTimer) _countdown.forward(from: 0);
+                      },
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Under the preview: the countdown while it is saved on a timer, then
+  /// "Fix" and "Add" (with the selected list and box).
   Widget _previewActions(S s) {
-    final fix = OutlinedButton(key: const Key('voice-fix'), onPressed: _c.edit, child: Text(s.voiceFix));
-    if (!_timedPreview || _c.accessible) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          fix,
-          FilledButton(key: const Key('voice-save'), onPressed: () => unawaited(_c.saveNow()), child: Text(s.save)),
-        ],
-      );
-    }
+    final buttons = Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        OutlinedButton(key: const Key('voice-fix'), onPressed: _c.edit, child: Text(s.voiceFix)),
+        FilledButton(key: const Key('voice-save'), onPressed: () => unawaited(_c.saveNow()), child: Text(s.add)),
+      ],
+    );
+    if (!_timedPreview || _c.accessible) return buttons;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Countdown(animation: _countdown, label: s.voiceCountdown),
         const SizedBox(height: 12),
-        Align(alignment: AlignmentDirectional.centerStart, child: fix),
+        buttons,
       ],
     );
   }
@@ -659,7 +735,75 @@ class _Chip extends StatelessWidget {
   }
 }
 
-/// One entry under "Added": what was saved, when it is due, and undo.
+/// A list or box choice under the preview: at least 44 pt each way, read by
+/// VoiceOver as a button with its whole name and whether it is selected; the
+/// selection shows as a tick and a filled colour, not by colour alone.
+class _PickChip extends StatelessWidget {
+  const _PickChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.maxWidth = double.infinity,
+    this.maxLines = 3,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final double maxWidth;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final c = t.colorScheme;
+    final fg = selected ? c.onPrimaryContainer : c.onSurfaceVariant;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: BorderSide(color: selected ? c.primary : c.outline),
+    );
+    return Semantics(
+      container: true,
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: 44, minHeight: 44, maxWidth: maxWidth),
+        child: Material(
+          color: selected ? c.primaryContainer : c.surfaceContainer,
+          shape: shape,
+          child: InkWell(
+            customBorder: shape,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (selected) ...[Icon(Icons.check_rounded, size: 18, color: fg), const SizedBox(width: 6)],
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: maxLines,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.textTheme.labelLarge?.copyWith(color: fg),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One entry under "Added": what was saved, when it is due, the list it went
+/// to, and undo.
 class _SavedRow extends StatelessWidget {
   const _SavedRow({super.key, required this.item, required this.now, required this.onUndo});
 
@@ -704,6 +848,8 @@ class _SavedRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: t.textTheme.bodyLarge?.copyWith(color: c.onSurface),
                 ),
+                if (item.listName case final list?)
+                  Text(s.voiceSavedTo(list), style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
                 if (item.inBackground)
                   Text(s.voiceSavedOnLock, style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
               ],
