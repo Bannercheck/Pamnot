@@ -68,7 +68,8 @@ class _ReminderEditorState extends State<_ReminderEditor> {
     final nav = Navigator.of(context);
     if (title.isNotEmpty) {
       widget.app.upsertReminder(_r.copyWith(title: title, note: _note.text.trim(), enabled: true));
-      await widget.app.requestNotifications();
+      // An alarm rings without notification permission.
+      if (!widget.app.ringsAsAlarm(_r.alertKind)) await widget.app.requestNotifications();
     }
     nav.pop();
   }
@@ -177,6 +178,14 @@ class _ReminderEditorState extends State<_ReminderEditor> {
                         ),
                     ],
                   ),
+                  if (widget.app.alarmSupported) ...[
+                    const SizedBox(height: 16),
+                    AlertKindPicker(
+                      app: widget.app,
+                      value: _r.alertKind,
+                      onChanged: (k) => setState(() => _r = _r.copyWith(alertKind: k)),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   PastelPicker(selected: _r.colorIndex, onChanged: (i) => setState(() => _r = _r.copyWith(colorIndex: i))),
                   const SizedBox(height: 20),
@@ -191,6 +200,94 @@ class _ReminderEditorState extends State<_ReminderEditor> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Alert type": Notification or Alarm (design §7.1), for reminders and
+/// tasks. Shown only where alarms are supported. Picking Alarm asks for the
+/// alarm permission the first time; when it is refused the choice returns
+/// to Notification and says why.
+class AlertKindPicker extends StatefulWidget {
+  const AlertKindPicker({super.key, required this.app, required this.value, required this.onChanged});
+
+  final AppController app;
+  final AlertKind value;
+  final ValueChanged<AlertKind> onChanged;
+
+  @override
+  State<AlertKindPicker> createState() => _AlertKindPickerState();
+}
+
+class _AlertKindPickerState extends State<AlertKindPicker> {
+  /// The last Alarm pick was refused; the line below says so.
+  bool _denied = false;
+
+  /// The latest pick; an older one waiting on the system prompt yields.
+  AlertKind? _picked;
+
+  Future<void> _pick(AlertKind k) async {
+    _picked = k;
+    widget.onChanged(k);
+    if (k != AlertKind.alarm) {
+      setState(() => _denied = false);
+      return;
+    }
+    final allowed = await widget.app.ensureAlarmAccess();
+    // Another pick may have come while the system asked.
+    if (!mounted || _picked != AlertKind.alarm) return;
+    setState(() => _denied = !allowed);
+    if (allowed) return;
+    _picked = AlertKind.notification;
+    widget.onChanged(AlertKind.notification);
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(S.of(context).alarmDenied)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final t = Theme.of(context);
+    final c = t.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(s.alertKind, style: t.textTheme.labelLarge?.copyWith(color: c.onSurfaceVariant)),
+        const SizedBox(height: 8),
+        SegmentedButton<AlertKind>(
+          showSelectedIcon: false,
+          segments: [
+            ButtonSegment(
+              value: AlertKind.notification,
+              label: Text(s.alertNotification),
+              icon: const Icon(Icons.notifications_none_rounded, size: 18),
+            ),
+            ButtonSegment(value: AlertKind.alarm, label: Text(s.alertAlarm), icon: const Icon(Icons.alarm_rounded, size: 18)),
+          ],
+          selected: {widget.value},
+          onSelectionChanged: (v) => _pick(v.first),
+        ),
+        const SizedBox(height: 6),
+        Semantics(
+          liveRegion: _denied,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ExcludeSemantics(
+                child: Icon(_denied ? Icons.info_outline_rounded : Icons.alarm_rounded, size: 16, color: c.onSurfaceVariant),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _denied ? s.alarmDenied : s.alarmHint,
+                  style: t.textTheme.bodySmall?.copyWith(color: c.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

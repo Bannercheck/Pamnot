@@ -10,6 +10,7 @@ import '../common/format.dart';
 import '../common/prediction_bar.dart';
 import '../common/soft.dart';
 import '../matrix/list_icons.dart';
+import '../reminders/reminder_editor.dart' show AlertKindPicker;
 import 'task_tile.dart';
 
 /// [boxChosen] marks the task's box as the user's choice (a Matrix box's
@@ -116,7 +117,8 @@ class _TaskEditorState extends State<TaskEditor> {
     final tm = await showTimePicker(context: context, initialTime: initial);
     if (tm == null) return;
     setState(() => _t = _t.copyWith(remindAt: () => DateTime(base.year, base.month, base.day, tm.hour, tm.minute)));
-    await widget.app.requestNotifications();
+    // An alarm rings without notification permission.
+    if (!widget.app.ringsAsAlarm(_t.alertKind)) await widget.app.requestNotifications();
   }
 
   void _addSub() {
@@ -244,6 +246,14 @@ class _TaskEditorState extends State<TaskEditor> {
                         ),
                       ],
                     ),
+                    if (widget.app.alarmSupported && _t.remindAt != null) ...[
+                      const SizedBox(height: 16),
+                      AlertKindPicker(
+                        app: widget.app,
+                        value: _t.alertKind,
+                        onChanged: (k) => setState(() => _t = _t.copyWith(alertKind: k)),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Text(s.list, style: t.textTheme.labelLarge?.copyWith(color: c.onSurfaceVariant)),
                     const SizedBox(height: 8),

@@ -31,6 +31,8 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
       onHide: () => unawaited(widget.controller.flush()),
       onResume: () {
         widget.controller.refreshDay();
+        // Alarm permission may have changed in the system Settings.
+        unawaited(widget.controller.refreshAlarmAccess());
         // A shortcut run while the app was in the background left a request.
         unawaited(LaunchActionsBridge.pull());
       },

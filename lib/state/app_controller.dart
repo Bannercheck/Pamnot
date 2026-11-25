@@ -250,6 +250,7 @@ class AppController extends ChangeNotifier {
     }
     unawaited(_loadInk());
     _scheduleMidnight();
+    await refreshAlarmAccess();
   }
 
   Timer? _midnight;
@@ -416,10 +417,24 @@ class AppController extends ChangeNotifier {
     final s = strings;
     return [
       for (final r in _reminders)
-        if (r.enabled) Alert(key: 'r:${r.id}', title: r.title, body: r.note.isEmpty ? s.reminder : r.note, at: r.at, repeat: r.repeat),
+        if (r.enabled)
+          Alert(
+            key: 'r:${r.id}',
+            title: r.title,
+            body: r.note.isEmpty ? s.reminder : r.note,
+            at: r.at,
+            repeat: r.repeat,
+            alarm: r.alertKind == AlertKind.alarm,
+          ),
       for (final t in _tasks)
         if (!t.done && t.remindAt != null)
-          Alert(key: 't:${t.id}', title: t.title, body: t.notes.isEmpty ? s.task : t.notes, at: t.remindAt!),
+          Alert(
+            key: 't:${t.id}',
+            title: t.title,
+            body: t.notes.isEmpty ? s.task : t.notes,
+            at: t.remindAt!,
+            alarm: t.alertKind == AlertKind.alarm,
+          ),
       ...motivationAlerts(),
     ];
   }
@@ -475,7 +490,52 @@ class AppController extends ChangeNotifier {
     ];
   }
 
-  Future<void> syncAlerts() => scheduler.sync(alerts());
+  Future<void>? _alertSync;
+  bool _alertSyncAgain = false;
+
+  /// Installs [alerts]: alarms through [alarms] while alarm access is
+  /// authorized, everything else (alarms included when it is not) through
+  /// [scheduler]; an alert never goes to both. Calls never overlap: one made
+  /// while a sync is running waits for it, and one more run then installs
+  /// the newest list.
+  Future<void> syncAlerts() async {
+    _alertSyncAgain = true;
+    if (_alertSync case final running?) return running;
+    final done = Completer<void>();
+    _alertSync = done.future;
+    try {
+      while (_alertSyncAgain) {
+        _alertSyncAgain = false;
+        await _syncAlertsOnce();
+      }
+    } finally {
+      _alertSync = null;
+      done.complete();
+    }
+  }
+
+  Future<void> _syncAlertsOnce() async {
+    final access = _alarmAccess;
+    final useAlarms = access == AlarmAccess.authorized;
+    final t = now();
+    final notifications = <Alert>[], rings = <Alert>[];
+    for (final a in alerts()) {
+      if (!a.alarm || !useAlarms) {
+        notifications.add(a);
+        continue;
+      }
+      // The bridge installs `at` as given, so a repeating alarm carries its
+      // next occurrence; a one-off in the past is set nowhere.
+      final probe = Reminder(id: a.key, title: a.title, at: a.at, repeat: a.repeat, createdAt: t);
+      final next = probe.nextOccurrence(t);
+      if (next == null) continue;
+      rings.add(next == a.at
+          ? a
+          : Alert(key: a.key, title: a.title, body: a.body, at: next, repeat: a.repeat, alarm: true));
+    }
+    await scheduler.sync(notifications);
+    if (access != AlarmAccess.unsupported) await alarms.sync(rings);
+  }
 
   Future<void> syncWidget() => widgetSync.push(todaySummary());
 
@@ -839,6 +899,39 @@ class AppController extends ChangeNotifier {
     _voiceLogDirty = true;
     _scheduleSave();
     // Settings shows the log.
+    _changed({Slice.settings}, persist: false);
+  }
+
+  // ------------------------------------------------------------------ alarms
+
+  AlarmAccess _alarmAccess = AlarmAccess.unsupported;
+
+  /// The last known alarm permission; read after [load] and on every resume.
+  AlarmAccess get alarmAccess => _alarmAccess;
+
+  /// Whether the "Alert type" choice is offered (iOS 26+).
+  bool get alarmSupported => alarmAccess != AlarmAccess.unsupported;
+
+  /// Whether an alert of [kind] is installed as an alarm right now.
+  bool ringsAsAlarm(AlertKind kind) => kind == AlertKind.alarm && _alarmAccess == AlarmAccess.authorized;
+
+  /// Reads the alarm permission without asking; a change re-installs the
+  /// alerts (a revoked permission turns alarms into notifications).
+  Future<void> refreshAlarmAccess() async {
+    _setAlarmAccess(await alarms.access());
+  }
+
+  /// Asks for alarm permission only while it was never decided. True when
+  /// alarms may be set.
+  Future<bool> ensureAlarmAccess() async {
+    await refreshAlarmAccess();
+    if (_alarmAccess == AlarmAccess.notDetermined) _setAlarmAccess(await alarms.requestAccess());
+    return _alarmAccess == AlarmAccess.authorized;
+  }
+
+  void _setAlarmAccess(AlarmAccess a) {
+    if (a == _alarmAccess) return;
+    _alarmAccess = a;
     _changed({Slice.settings}, persist: false);
   }
 
