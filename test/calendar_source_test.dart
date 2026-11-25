@@ -47,6 +47,36 @@ void main() {
       expect(midnight.occursOn(DateTime(2026, 11, 26)), isTrue);
       expect(midnight.occursOn(DateTime(2026, 11, 25)), isFalse);
     });
+
+    // device_calendar_plus reports an all-day event as local midnight to the
+    // next local midnight (EventKit's 23:59:59 end plus one second); an end at
+    // the day's last instant must give the same days.
+    test('tüm gün: bitişi günün son anı (23:59:59) olan etkinlik ertesi güne değmez', () {
+      final one = ev(DateTime(2026, 11, 25), DateTime(2026, 11, 25, 23, 59, 59), allDay: true);
+      expect(one.occursOn(DateTime(2026, 11, 24)), isFalse);
+      expect(one.occursOn(DateTime(2026, 11, 25)), isTrue);
+      expect(one.occursOn(DateTime(2026, 11, 26)), isFalse);
+      final three = ev(DateTime(2026, 11, 25), DateTime(2026, 11, 27, 23, 59, 59, 999), allDay: true);
+      expect(three.occursOn(DateTime(2026, 11, 25)), isTrue);
+      expect(three.occursOn(DateTime(2026, 11, 27)), isTrue);
+      expect(three.occursOn(DateTime(2026, 11, 28)), isFalse);
+    });
+
+    test('UTC anlar yerel güne göre değerlendirilir', () {
+      // The same instants as local times, held as UTC DateTimes.
+      final timed = ev(DateTime(2026, 11, 25, 23, 30).toUtc(), DateTime(2026, 11, 26, 0, 30).toUtc());
+      expect(timed.occursOn(DateTime(2026, 11, 24)), isFalse);
+      expect(timed.occursOn(DateTime(2026, 11, 25)), isTrue);
+      expect(timed.occursOn(DateTime(2026, 11, 26)), isTrue);
+      expect(timed.occursOn(DateTime(2026, 11, 27)), isFalse);
+      final allDay = ev(DateTime(2026, 11, 25).toUtc(), DateTime(2026, 11, 26).toUtc(), allDay: true);
+      expect(allDay.occursOn(DateTime(2026, 11, 24)), isFalse);
+      expect(allDay.occursOn(DateTime(2026, 11, 25)), isTrue);
+      expect(allDay.occursOn(DateTime(2026, 11, 26)), isFalse);
+      // A UTC [day] names that calendar date, whatever the device zone.
+      expect(allDay.occursOn(DateTime.utc(2026, 11, 25, 23)), isTrue);
+      expect(allDay.occursOn(DateTime.utc(2026, 11, 26)), isFalse);
+    });
   });
 
   test('NoCalendarSource: desteklenmiyor, istek de unsupported, listeler boş', () async {

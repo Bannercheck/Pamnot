@@ -7,7 +7,8 @@
    `flutter build ios`, and after it checks that extract.actionsdata names VoiceTaskIntent
    and openAppWhenRun, and that the built Runner.app carries PrivacyInfo.xcprivacy.
 2. PRIVACY.md exists, has a "Gizlilik Politikası" and a "Privacy Policy" section heading, names
-   Apple, Google ML Kit and the last 20 texts, and has a contact line in each language.
+   Apple, Google ML Kit and the last 20 texts, has a "Takvim" and a "Calendar" heading, and has a
+   contact line in each language.
 3. TESTING.md has a "Sesle görev ekleme" and a "Yayın" heading and never says "Yan tuş".
    A heading is a Markdown heading or a line that is bold as a whole, and must start with
    the title.
@@ -204,6 +205,8 @@ def check_privacy():
         return
     require_heading(PRIVACY, text, "Gizlilik Politikası")
     require_heading(PRIVACY, text, "Privacy Policy")
+    require_heading(PRIVACY, text, "Takvim")
+    require_heading(PRIVACY, text, "Calendar")
     require_words(PRIVACY, text, "Apple", "Google ML Kit")
     if not re.search(r"\b20\b", text):
         fail("PRIVACY.md: the limit of 20 kept texts is not mentioned")

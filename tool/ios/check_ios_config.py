@@ -5,7 +5,8 @@ Covers Info.plist, the privacy manifest, the en/tr .strings tables, the App Shor
 phrases in VoiceTaskIntent.swift, the launch-bridge registration in AppDelegate.swift and
 the bridge's two actions ("voice" from the App Intent only, "voice-link" for pamnot:// links),
 the Reduce Transparency bridge (channel 'app.pamnot/a11y') and its registration, and the
-AlarmKit bridge (channel 'app.pamnot/alarm'), its permission text, button titles and registration.
+AlarmKit bridge (channel 'app.pamnot/alarm'), its permission text, button titles and registration,
+and the calendar permission texts (iOS 17+ full access and the iOS 16 key).
 Standard library only. Prints every failure and exits 1; prints `ios config ok` on success.
 
 Usage: python3 tool/ios/check_ios_config.py
@@ -24,7 +25,16 @@ TABLES = ("InfoPlist", "AppShortcuts", "Localizable")
 MIC_KEY = "NSMicrophoneUsageDescription"
 SPEECH_KEY = "NSSpeechRecognitionUsageDescription"
 ALARM_KEY = "NSAlarmKitUsageDescription"
-INFO_KEYS = (MIC_KEY, SPEECH_KEY, ALARM_KEY)
+# iOS 17+ reads the full-access key; iOS 16 reads the older one. Both carry the same text.
+CALENDAR_KEY = "NSCalendarsFullAccessUsageDescription"
+CALENDAR_LEGACY_KEY = "NSCalendarsUsageDescription"
+INFO_KEYS = (MIC_KEY, SPEECH_KEY, ALARM_KEY, CALENDAR_KEY, CALENDAR_LEGACY_KEY)
+CALENDAR_TEXT = {
+    "en": "Pamnot shows your calendar events next to your tasks in Plan. "
+    "Events stay on your device and are never changed.",
+    "tr": "Pamnot, takvimindeki etkinlikleri Plan ekranında görevlerinin yanında gösterir. "
+    "Etkinlikler cihazında kalır ve değiştirilmez.",
+}
 PERMISSION_TEXT = {
     "en": {
         MIC_KEY: "Pamnot uses the microphone to hear what you say when you add a task by voice. "
@@ -32,6 +42,8 @@ PERMISSION_TEXT = {
         SPEECH_KEY: "Pamnot uses speech recognition to turn the task you say into text. "
         "Your voice may be sent to Apple for this.",
         ALARM_KEY: "Pamnot rings an alarm at the time you set for a task or reminder.",
+        CALENDAR_KEY: CALENDAR_TEXT["en"],
+        CALENDAR_LEGACY_KEY: CALENDAR_TEXT["en"],
     },
     "tr": {
         MIC_KEY: "Pamnot, sesle görev eklerken söylediklerini duymak için mikrofonu kullanır. "
@@ -39,6 +51,8 @@ PERMISSION_TEXT = {
         SPEECH_KEY: "Pamnot, söylediğin görevi yazıya çevirmek için konuşma tanımayı kullanır. "
         "Sesin bunun için Apple'a gönderilebilir.",
         ALARM_KEY: "Pamnot, bir görev ya da hatırlatıcı için seçtiğin saatte alarm çalar.",
+        CALENDAR_KEY: CALENDAR_TEXT["tr"],
+        CALENDAR_LEGACY_KEY: CALENDAR_TEXT["tr"],
     },
 }
 
