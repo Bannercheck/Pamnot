@@ -17,6 +17,7 @@ import '../models/note.dart';
 import '../models/reminder.dart';
 import '../models/settings.dart';
 import '../models/task.dart';
+import '../models/task_list.dart';
 import '../models/voice_log.dart';
 import '../prediction/word_predictor.dart';
 import '../services/handwriting.dart';
@@ -27,8 +28,9 @@ import '../theme/pamnot_theme.dart';
 import 'sample_data.dart';
 
 /// Parts of the state a screen can subscribe to; a change to one slice only
-/// rebuilds the widgets that asked for it.
-enum Slice { notes, tasks, reminders, habits, settings }
+/// rebuilds the widgets that asked for it. A slice's name is also the key
+/// its document is stored under.
+enum Slice { notes, tasks, reminders, habits, settings, lists }
 
 enum AgendaKind { task, reminder }
 
@@ -88,6 +90,7 @@ class AppController extends ChangeNotifier {
   List<TaskItem> _tasks = [];
   List<Reminder> _reminders = [];
   List<Habit> _habits = [];
+  List<TaskList> _lists = [];
   AppSettings _settings = const AppSettings();
   List<VoiceLogEntry> _voiceLog = [];
   WordPredictor? _predictor;
@@ -147,7 +150,7 @@ class AppController extends ChangeNotifier {
   static const voiceLogLimit = 20;
 
   Future<void> load() async {
-    final keys = ['settings', 'notes', 'tasks', 'reminders', 'habits', _voiceLogKey];
+    final keys = ['settings', 'notes', 'tasks', 'reminders', 'habits', _voiceLogKey, 'lists'];
     final raw = await Future.wait(keys.map(store.read));
     List<Map<String, Object?>> items(String? doc) {
       if (doc == null) return const [];
@@ -180,6 +183,27 @@ class AppController extends ChangeNotifier {
     _tasks = [for (final j in items(raw[2])) ?tryParse(j, TaskItem.fromJson)];
     _reminders = [for (final j in items(raw[3])) ?tryParse(j, Reminder.fromJson)];
     _habits = [for (final j in items(raw[4])) ?tryParse(j, Habit.fromJson)];
+    final repaired = <Slice>{};
+    final seenListIds = <String>{};
+    _lists = [
+      for (final j in items(raw[6]))
+        if (tryParse(j, TaskList.fromJson) case final l? when l.id.isNotEmpty && seenListIds.add(l.id)) l,
+    ];
+    if (_lists.isEmpty) {
+      // First start, an install from before lists existed, or a document
+      // with nothing usable in it. Written once; afterwards the saved
+      // document is the truth.
+      _lists = TaskList.defaults(tr: isTurkish);
+      repaired.add(Slice.lists);
+    }
+    _sortLists();
+    final listIds = {for (final l in _lists) l.id};
+    for (var i = 0; i < _tasks.length; i++) {
+      if (!listIds.contains(_tasks[i].listId)) {
+        _tasks[i] = _tasks[i].copyWith(listId: _lists.first.id);
+        repaired.add(Slice.tasks);
+      }
+    }
     _inkPending.addAll([for (final j in noteJson) if (j['hasInk'] == true) j['id']! as String]);
     if (_settings.keepVoiceLog) {
       _voiceLog = [for (final j in items(raw[5])) ?tryParse(j, VoiceLogEntry.fromJson)].take(voiceLogLimit).toList();
@@ -199,6 +223,10 @@ class AppController extends ChangeNotifier {
       _settings = _settings.copyWith(seeded: true);
       _changed(Slice.values.toSet());
     } else {
+      if (repaired.isNotEmpty) {
+        _dirty.addAll(repaired);
+        _scheduleSave();
+      }
       _changed(Slice.values.toSet(), persist: false);
     }
     unawaited(_loadInk());
@@ -306,6 +334,7 @@ class AppController extends ChangeNotifier {
       Slice.tasks => [for (final t in _tasks) t.toJson()],
       Slice.reminders => [for (final r in _reminders) r.toJson()],
       Slice.habits => [for (final h in _habits) h.toJson()],
+      Slice.lists => [for (final l in _lists) l.toJson()],
       Slice.settings => const [],
     };
     if (s == Slice.settings) return jsonEncode(_settings.toJson());
@@ -328,6 +357,11 @@ class AppController extends ChangeNotifier {
     if (slices.contains(Slice.tasks) || slices.contains(Slice.reminders) || slices.contains(Slice.settings)) {
       _alertTimer?.cancel();
       _alertTimer = Timer(const Duration(milliseconds: 800), () => unawaited(syncAlerts()));
+    }
+    if (slices.contains(Slice.tasks) ||
+        slices.contains(Slice.reminders) ||
+        slices.contains(Slice.settings) ||
+        slices.contains(Slice.lists)) {
       _widgetTimer?.cancel();
       _widgetTimer = Timer(const Duration(milliseconds: 600), () => unawaited(syncWidget()));
     }
@@ -459,24 +493,51 @@ class AppController extends ChangeNotifier {
 
   // ------------------------------------------------------------------ tasks
 
-  TaskItem draftTask({DateTime? due, bool hasTime = false}) =>
-      TaskItem(id: newId(), title: '', due: due, hasTime: hasTime, createdAt: now());
+  /// A new, unsaved task in [listId] (default: [currentListId]) and
+  /// [quadrant] (default: [defaultQuadrant]), placed at the end of its box.
+  TaskItem draftTask({DateTime? due, bool hasTime = false, String? listId, Quadrant? quadrant}) {
+    final list = listById(listId ?? currentListId).id;
+    final box = quadrant ?? defaultQuadrant(due: due, hasTime: hasTime);
+    return TaskItem(
+      id: newId(),
+      title: '',
+      due: due,
+      hasTime: hasTime,
+      createdAt: now(),
+      listId: list,
+      quadrant: box,
+      order: _nextOrder(list, box),
+    );
+  }
 
+  /// A task added with a time today goes to "do now", anything else to "plan".
+  Quadrant defaultQuadrant({DateTime? due, bool hasTime = false}) =>
+      hasTime && due != null && isSameDay(due, now()) ? Quadrant.doNow : Quadrant.plan;
+
+  /// Saves [t]. A task whose list no longer exists goes to the first list; a
+  /// new task's list becomes the one new tasks go to next.
   void upsertTask(TaskItem t) {
+    final listId = listById(t.listId).id;
+    if (listId != t.listId) t = t.copyWith(listId: listId);
     final i = _tasks.indexWhere((x) => x.id == t.id);
+    final slices = {Slice.tasks};
     if (i >= 0) {
       _tasks[i] = t;
     } else {
       _tasks.add(t);
+      if (_settings.lastListId != listId) {
+        _settings = _settings.copyWith(lastListId: listId);
+        slices.add(Slice.settings);
+      }
     }
-    _changed({Slice.tasks});
+    _changed(slices);
   }
 
   /// Creates a task from a quick-capture line ("yarın 10:00 toplantı").
-  TaskItem? addQuickTask(String text) {
+  TaskItem? addQuickTask(String text, {String? listId, Quadrant? quadrant}) {
     final r = quickParse(text, now());
     if (r.title.isEmpty) return null;
-    final t = draftTask(due: r.due, hasTime: r.hasTime).copyWith(title: r.title);
+    final t = draftTask(due: r.due, hasTime: r.hasTime, listId: listId, quadrant: quadrant).copyWith(title: r.title);
     upsertTask(t);
     return t;
   }
@@ -486,7 +547,7 @@ class AppController extends ChangeNotifier {
   ///
   /// A spoken time is also a reminder; "remind me" with a day but no time
   /// reminds at 09:00 that day. Reminders in the past are not set.
-  TaskItem? addSpokenTask(SpokenTask s) {
+  TaskItem? addSpokenTask(SpokenTask s, {String? listId, Quadrant? quadrant}) {
     final title = s.title.trim();
     if (s.isNote || title.isEmpty) return null;
     final due = s.due;
@@ -499,7 +560,8 @@ class AppController extends ChangeNotifier {
                 ? DateTime(due.year, due.month, due.day, 9)
                 : null;
     final remindAt = at != null && at.isAfter(now()) ? at : null;
-    final t = draftTask(due: due, hasTime: hasTime).copyWith(title: title, remindAt: () => remindAt);
+    final t = draftTask(due: due, hasTime: hasTime, listId: listId, quadrant: quadrant)
+        .copyWith(title: title, remindAt: () => remindAt);
     upsertTask(t);
     // Schedule now rather than after the usual pause: the phone may be locked
     // right after speaking.
@@ -554,6 +616,112 @@ class AppController extends ChangeNotifier {
   (int, int) progressOn(DateTime day) {
     final list = tasksDueOn(day);
     return (list.where((t) => t.done).length, list.length);
+  }
+
+  /// Tasks of one box of one list: by [TaskItem.order], then creation time.
+  List<TaskItem> tasksIn(String listId, Quadrant q, {bool done = false}) =>
+      _tasks.where((t) => t.listId == listId && t.quadrant == q && t.done == done).toList()..sort(_byOrder);
+
+  static int _byOrder(TaskItem a, TaskItem b) {
+    final c = a.order.compareTo(b.order);
+    return c != 0 ? c : a.createdAt.compareTo(b.createdAt);
+  }
+
+  int _nextOrder(String listId, Quadrant q) => _tasks
+      .where((t) => t.listId == listId && t.quadrant == q)
+      .fold(0, (n, t) => t.order >= n ? t.order + 1 : n);
+
+  /// Moves a task to another list, another box, or another place in its box
+  /// ([index], default the end). The target box is renumbered 0..n.
+  void moveTask(String id, {String? listId, Quadrant? quadrant, int? index}) {
+    final i = _tasks.indexWhere((x) => x.id == id);
+    if (i < 0) return;
+    final t = _tasks[i];
+    final list = listById(listId ?? t.listId).id;
+    final box = quadrant ?? t.quadrant;
+    final others = tasksIn(list, box, done: t.done)..removeWhere((x) => x.id == id);
+    final at = (index ?? others.length).clamp(0, others.length);
+    others.insert(at, t.copyWith(listId: list, quadrant: box));
+    for (var n = 0; n < others.length; n++) {
+      final j = _tasks.indexWhere((x) => x.id == others[n].id);
+      _tasks[j] = others[n].copyWith(order: n);
+    }
+    _changed({Slice.tasks});
+  }
+
+  // ------------------------------------------------------------------ lists
+
+  /// Every list, by [TaskList.order]. Never empty.
+  UnmodifiableListView<TaskList> get lists => UnmodifiableListView(_lists);
+
+  /// The list with [id]; the first list when there is none.
+  TaskList listById(String id) => _lists.firstWhere((l) => l.id == id, orElse: () => _lists.first);
+
+  /// The list new tasks go to: the last one used or chosen, while it exists.
+  String get currentListId => listById(_settings.lastListId).id;
+
+  void selectList(String id) {
+    if (!_lists.any((l) => l.id == id) || _settings.lastListId == id) return;
+    _settings = _settings.copyWith(lastListId: id);
+    _changed({Slice.settings});
+  }
+
+  void _sortLists() => mergeSort(_lists, compare: (a, b) => a.order.compareTo(b.order));
+
+  /// Adds a list after the others. Throws [ArgumentError] for a blank name.
+  TaskList addList(String name, {int? colorIndex, String icon = 'list'}) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) throw ArgumentError.value(name, 'name', 'must not be blank');
+    final l = TaskList(
+      id: newId(),
+      name: trimmed,
+      colorIndex: colorIndex ?? (_lists.last.colorIndex + 1) % pastels.length,
+      icon: icon,
+      order: _lists.fold(0, (n, l) => l.order >= n ? l.order + 1 : n),
+    );
+    _lists.add(l);
+    _changed({Slice.lists});
+    return l;
+  }
+
+  void updateList(TaskList l) {
+    final i = _lists.indexWhere((x) => x.id == l.id);
+    if (i < 0) return;
+    _lists[i] = l;
+    _sortLists();
+    _changed({Slice.lists});
+  }
+
+  /// The last list is not deleted (null). Otherwise its tasks move to the
+  /// first remaining list; returns the deleted list and the moved task ids
+  /// for [restoreList].
+  ({TaskList list, List<String> movedTaskIds})? deleteList(String id) {
+    final i = _lists.indexWhere((x) => x.id == id);
+    if (i < 0 || _lists.length < 2) return null;
+    final list = _lists.removeAt(i);
+    final target = _lists.first.id;
+    final moved = <String>[];
+    for (var j = 0; j < _tasks.length; j++) {
+      if (_tasks[j].listId == id) {
+        _tasks[j] = _tasks[j].copyWith(listId: target);
+        moved.add(_tasks[j].id);
+      }
+    }
+    _changed({Slice.lists, Slice.tasks});
+    return (list: list, movedTaskIds: moved);
+  }
+
+  /// Undoes [deleteList]: puts [l] back and moves [taskIds] into it again.
+  void restoreList(TaskList l, List<String> taskIds) {
+    _lists
+      ..removeWhere((x) => x.id == l.id)
+      ..add(l);
+    _sortLists();
+    final ids = taskIds.toSet();
+    for (var j = 0; j < _tasks.length; j++) {
+      if (ids.contains(_tasks[j].id)) _tasks[j] = _tasks[j].copyWith(listId: l.id);
+    }
+    _changed({Slice.lists, Slice.tasks});
   }
 
   // ------------------------------------------------------------ voice capture
