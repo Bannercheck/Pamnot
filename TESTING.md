@@ -60,7 +60,7 @@ flutter build ios --release --no-codesign
 # Runner AlarmKit'e bağlı olmalı ...
 BIN=build/ios/iphoneos/Runner.app/Runner
 otool -L "$BIN" | grep AlarmKit
-# ... ama zayıf bağla (iOS 16–25'te açılış çökmesin): LC_LOAD_WEAK_DYLIB görünmeli,
+# ... ama zayıf bağla (iOS 17–25'te açılış çökmesin): LC_LOAD_WEAK_DYLIB görünmeli,
 # LC_LOAD_DYLIB görünmemeli.
 otool -l "$BIN" | grep -B2 AlarmKit.framework
 ```
@@ -69,7 +69,7 @@ otool -l "$BIN" | grep -B2 AlarmKit.framework
 - [ ] `otool -L` çıktısında `/System/Library/Frameworks/AlarmKit.framework/AlarmKit` satırı olmalı.
 - [ ] `otool -l | grep -B2 AlarmKit.framework` çıktısında `cmd LC_LOAD_WEAK_DYLIB` olmalı. `LC_LOAD_DYLIB`
       görünürse AlarmKit zayıf bağlanmamıştır: iOS 26'dan eski cihazlarda uygulama açılışta çöker.
-- [ ] Bir **iOS 16, 17 ya da 18 simülatöründe** uygulamayı bir kez açın
+- [ ] Bir **iOS 17 ya da 18 simülatöründe** uygulamayı bir kez açın
       (`flutter run -d <simülatör>`): açılmalı, çökmemeli; görev ve hatırlatıcı düzenleyicide
       **Uyarı türü** görünmemeli.
 

@@ -1,5 +1,5 @@
-# iOS 16.0: app minimum (also satisfies google_mlkit_* which need iOS 15.5+).
-platform :ios, '16.0'
+# iOS 17.0: app minimum (also satisfies google_mlkit_* which need iOS 15.5+).
+platform :ios, '17.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -27,7 +27,7 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 
 flutter_ios_podfile_setup
 
-$iOSVersion = '16.0'
+$iOSVersion = '17.0'
 
 target 'Runner' do
   use_frameworks!
