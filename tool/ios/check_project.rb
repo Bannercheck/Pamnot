@@ -1,15 +1,22 @@
 # Usage: ruby tool/ios/check_project.rb ios/Runner.xcodeproj
 # Local check (not a CI step) that tool/ios/add_voice_files.rb and tool/ios/add_v2_files.rb wired
 # their files into the Runner target: build phases, en/tr variant groups, knownRegions,
-# objectVersion 54, and every file they add exists on disk. Also checks the PamnotWidgetExtension
+# objectVersion 54, and every file they add exists on disk. The v3 Swift files are read from the
+# V3_SOURCES line of tool/ios/add_v3_files.rb, and the Runner target must resolve
+# IPHONEOS_DEPLOYMENT_TARGET to 17.0 in every configuration. Also checks the PamnotWidgetExtension
 # target that tool/ios/add_widget_target.rb adds: its build settings, phases and files, and how
 # Runner depends on and embeds it. Generated files the project also references
 # (Generated.xcconfig, GeneratedPluginRegistrant.*, Runner.app) are not checked.
 # Prints every failure and exits 1; prints `project ok` on success.
 require 'xcodeproj'
 
-SOURCES = %w[PamnotLaunchBridge.swift VoiceTaskIntent.swift PamnotAccessibilityBridge.swift
-             PamnotAlarmPlugin.swift PamnotPipPlugin.swift].freeze
+V3_SCRIPT = File.expand_path('add_v3_files.rb', __dir__)
+v3_line = File.read(V3_SCRIPT)[/^V3_SOURCES = %w\[([^\]]*)\]\.freeze$/, 1] \
+  or abort "FAIL #{V3_SCRIPT}: V3_SOURCES = %w[...].freeze line missing"
+V3_SOURCES = v3_line.split.freeze
+SOURCES = (%w[PamnotLaunchBridge.swift VoiceTaskIntent.swift PamnotAccessibilityBridge.swift
+              PamnotAlarmPlugin.swift PamnotPipPlugin.swift] + V3_SOURCES).freeze
+RUNNER_DEPLOYMENT_TARGET = '17.0'
 PLAIN_RESOURCES = %w[PrivacyInfo.xcprivacy].freeze
 STRINGS_TABLES = %w[AppShortcuts.strings Localizable.strings InfoPlist.strings].freeze
 LANGS = %w[en tr].freeze
@@ -161,6 +168,19 @@ CONFIGS.each do |config_name|
   found = config&.build_settings&.fetch('CODE_SIGN_ENTITLEMENTS', nil)
   failures << "Runner #{config_name}: CODE_SIGN_ENTITLEMENTS must be Runner/Runner.entitlements, found #{found.inspect}" \
     unless found == 'Runner/Runner.entitlements'
+end
+
+# Runner's deployment target: its own setting wins, otherwise the project configuration of the
+# same name supplies it.
+CONFIGS.each do |config_name|
+  config = target.build_configurations.find { |c| c.name == config_name }
+  project_config = project.build_configurations.find { |c| c.name == config_name }
+  found = config&.build_settings&.fetch('IPHONEOS_DEPLOYMENT_TARGET', nil) ||
+          project_config&.build_settings&.fetch('IPHONEOS_DEPLOYMENT_TARGET', nil)
+  unless found == RUNNER_DEPLOYMENT_TARGET
+    failures << "Runner #{config_name}: IPHONEOS_DEPLOYMENT_TARGET must be #{RUNNER_DEPLOYMENT_TARGET}, " \
+                "found #{found.inspect}"
+  end
 end
 
 if failures.empty?

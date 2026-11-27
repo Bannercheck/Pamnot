@@ -64,7 +64,7 @@ Telefon, tablet ve bilgisayarda deneme adımları ve kontrol listesi: [TESTING.m
 - **iOS widget'ı:** Swift kodu `ios/PamnotWidget/` içinde hazır. Widget extension hedefi Xcode'da bir
   kez eklenmeli; adımlar [`ios/PamnotWidget/README.md`](ios/PamnotWidget/README.md) dosyasında. App Group:
   `group.app.pamnot.shared`.
-- **iOS dağıtım hedefi** 16.0 (kilit ekranı widget'ları ve ML Kit için).
+- **iOS dağıtım hedefi** 17.0 (kilit ekranı widget'ları ve ML Kit için).
 - **ML Kit el yazısı modelleri** ilk kullanımda indirilir (dil başına yaklaşık 20 MB). Ayarlar'dan önceden
   indirilebilir. ML Kit Apple Silicon üzerindeki iOS simülatöründe çalışmayabilir; gerçek cihazda deneyin.
 - **Android:** Android 13+ bildirim izni anımsatıcı eklerken istenir. Tam zamanlı alarm izni varsa
