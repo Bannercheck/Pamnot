@@ -480,4 +480,23 @@ class S {
   // Final fix
   /// The card menu's action for a finished task (it un-finishes it).
   String get markUndone => _('Bitmedi olarak işaretle', 'Mark as not done');
+
+  // v3 K1: overdue final notice
+  String overdueTitle(String task) => _('Zamanı geçti: $task', 'Overdue: $task');
+  String get overdueBody => _('Kapat ya da başka bir zamana ertele.', 'Close it or move it to another time.');
+  String overdueSummary(int n) => _('$n görevin zamanı geçti', '$n tasks are overdue');
+  String get overdueClose => _('Kapat', 'Done');
+  String get overdueSnooze => _('Ertele', 'Snooze');
+  String get overdueSetting => _('Zamanı geçen görevler için son uyarı', 'Final notice for overdue tasks');
+  String get overdueSettingHint =>
+      _('Vadesi geçen görev için bir kez bildirim gelir.', 'One notification when a task passes its due time.');
+  String get snoozeTitle => _('Ne zamana ertelensin?', 'Snooze until when?');
+  String get snoozeTonight => _('Bu akşam', 'This evening');
+  String get snoozeTomorrow => _('Yarın', 'Tomorrow');
+  String get snoozeNextWeek => _('Haftaya', 'Next week');
+  String get snoozePick => _('Tarih ve saat seç', 'Pick date and time');
+  String snoozed(String when) => _('$when tarihine ertelendi', 'Snoozed to $when');
+  String get overdueListTitle => _('Zamanı geçen görevler', 'Overdue tasks');
+  String get overdueEmpty => _('Zamanı geçen görev yok.', 'Nothing is overdue.');
+  String get taskClosed => _('Görev tamamlandı', 'Task completed');
 }

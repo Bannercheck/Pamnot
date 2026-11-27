@@ -25,6 +25,7 @@ class AppSettings {
     this.guideDone = const [],
     this.guideCardDismissed = false,
     this.voiceUsed = false,
+    this.overdueNotice = true,
   }) : motivationMinutes = motivationMinutes < 0 ? 0 : (motivationMinutes > 1439 ? 1439 : motivationMinutes);
 
   /// 09:00.
@@ -83,6 +84,9 @@ class AppSettings {
   /// The first voice capture was made.
   final bool voiceUsed;
 
+  /// One final notification when a task passes its due time.
+  final bool overdueNotice;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -103,6 +107,7 @@ class AppSettings {
     List<String>? guideDone,
     bool? guideCardDismissed,
     bool? voiceUsed,
+    bool? overdueNotice,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -124,6 +129,7 @@ class AppSettings {
         guideDone: guideDone ?? this.guideDone,
         guideCardDismissed: guideCardDismissed ?? this.guideCardDismissed,
         voiceUsed: voiceUsed ?? this.voiceUsed,
+        overdueNotice: overdueNotice ?? this.overdueNotice,
       );
 
   Map<String, Object?> toJson() => {
@@ -146,6 +152,7 @@ class AppSettings {
         'guideDone': guideDone,
         'guideCardDismissed': guideCardDismissed,
         'voiceUsed': voiceUsed,
+        'overdueNotice': overdueNotice,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -179,5 +186,6 @@ class AppSettings {
         },
         guideCardDismissed: j['guideCardDismissed'] == true,
         voiceUsed: j['voiceUsed'] == true,
+        overdueNotice: j['overdueNotice'] != false,
       );
 }

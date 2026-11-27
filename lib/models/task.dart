@@ -40,6 +40,11 @@ class TaskItem {
     this.quadrant = Quadrant.plan,
     this.order = 0,
     this.alertKind = AlertKind.notification,
+    this.assigneeId,
+    this.assignedBy,
+    this.createdBy,
+    this.completedBy,
+    this.reopenedAt,
   });
 
   final String id;
@@ -72,6 +77,23 @@ class TaskItem {
   /// How [remindAt] alerts: notification (default) or alarm.
   final AlertKind alertKind;
 
+  /// Shared lists: the user the task is assigned to (CloudKit user record
+  /// name); null when nobody is.
+  final String? assigneeId;
+
+  /// Shared lists: who made the assignment.
+  final String? assignedBy;
+
+  /// Shared lists: who added the task.
+  final String? createdBy;
+
+  /// Shared lists: who completed the task.
+  final String? completedBy;
+
+  /// When a completed task was explicitly reopened; used to settle edits
+  /// that conflict across devices.
+  final DateTime? reopenedAt;
+
   int get subtasksDone => subtasks.where((s) => s.done).length;
 
   TaskItem copyWith({
@@ -89,6 +111,11 @@ class TaskItem {
     Quadrant? quadrant,
     int? order,
     AlertKind? alertKind,
+    String? Function()? assigneeId,
+    String? Function()? assignedBy,
+    String? Function()? createdBy,
+    String? Function()? completedBy,
+    DateTime? Function()? reopenedAt,
   }) =>
       TaskItem(
         id: id,
@@ -107,6 +134,11 @@ class TaskItem {
         quadrant: quadrant ?? this.quadrant,
         order: order ?? this.order,
         alertKind: alertKind ?? this.alertKind,
+        assigneeId: assigneeId != null ? assigneeId() : this.assigneeId,
+        assignedBy: assignedBy != null ? assignedBy() : this.assignedBy,
+        createdBy: createdBy != null ? createdBy() : this.createdBy,
+        completedBy: completedBy != null ? completedBy() : this.completedBy,
+        reopenedAt: reopenedAt != null ? reopenedAt() : this.reopenedAt,
       );
 
   Map<String, Object?> toJson() => {
@@ -126,6 +158,11 @@ class TaskItem {
         'quadrant': quadrant.name,
         'order': order,
         if (alertKind == AlertKind.alarm) 'alert': alertKind.name,
+        if (assigneeId != null) 'assigneeId': assigneeId,
+        if (assignedBy != null) 'assignedBy': assignedBy,
+        if (createdBy != null) 'createdBy': createdBy,
+        if (completedBy != null) 'completedBy': completedBy,
+        if (reopenedAt != null) 'reopenedAt': reopenedAt!.toIso8601String(),
       };
 
   factory TaskItem.fromJson(Map<String, Object?> j) {
@@ -153,8 +190,15 @@ class TaskItem {
             orElse: () => priority == Priority.high ? Quadrant.doNow : Quadrant.plan),
         order: (j['order'] as num?)?.toInt() ?? 0,
         alertKind: alertKindFromJson(j['alert']),
+        assigneeId: _text(j['assigneeId']),
+        assignedBy: _text(j['assignedBy']),
+        createdBy: _text(j['createdBy']),
+        completedBy: _text(j['completedBy']),
+        reopenedAt: _date(j['reopenedAt']),
       );
   }
 }
 
 DateTime? _date(Object? v) => v is String ? DateTime.tryParse(v) : null;
+
+String? _text(Object? v) => v is String ? v : null;

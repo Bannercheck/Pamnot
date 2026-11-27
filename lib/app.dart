@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'features/features.dart';
 import 'services/launch_actions.dart';
 import 'state/app_controller.dart';
 import 'state/app_scope.dart';
@@ -10,9 +11,12 @@ import 'theme/pamnot_theme.dart';
 import 'ui/home_shell.dart';
 
 class PamnotApp extends StatefulWidget {
-  const PamnotApp({super.key, required this.controller});
+  const PamnotApp({super.key, required this.controller, this.features});
 
   final AppController controller;
+
+  /// The v3 features; null means [Features.local] for [controller].
+  final Features? features;
 
   @override
   State<PamnotApp> createState() => _PamnotAppState();
@@ -20,6 +24,9 @@ class PamnotApp extends StatefulWidget {
 
 class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
   late final AppLifecycleListener _lifecycle;
+  late Features _features = _resolveFeatures();
+
+  Features _resolveFeatures() => widget.features ?? Features.local(widget.controller);
 
   @override
   void initState() {
@@ -41,6 +48,14 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
         unawaited(widget.controller.applyWidgetCompletions());
       },
     );
+  }
+
+  @override
+  void didUpdateWidget(PamnotApp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.features != oldWidget.features || widget.controller != oldWidget.controller) {
+      _features = _resolveFeatures();
+    }
   }
 
   @override
@@ -71,24 +86,27 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return AppScope(
       controller: widget.controller,
-      child: Builder(builder: (context) {
-        final app = AppScope.of(context, {Slice.settings});
-        return MaterialApp(
-          title: 'Pamnot',
-          debugShowCheckedModeBanner: false,
-          theme: PamnotTheme.light(),
-          darkTheme: PamnotTheme.dark(),
-          themeMode: app.settings.themeMode,
-          locale: Locale(app.isTurkish ? 'tr' : 'en'),
-          supportedLocales: const [Locale('tr'), Locale('en')],
-          localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          // iOS Bold Text does not reach a bundled font on its own.
-          builder: (context, child) => MediaQuery.boldTextOf(context)
-              ? Theme(data: PamnotTheme.bolder(Theme.of(context)), child: child!)
-              : child!,
-          home: const HomeShell(),
-        );
-      }),
+      child: FeaturesScope(
+        features: _features,
+        child: Builder(builder: (context) {
+          final app = AppScope.of(context, {Slice.settings});
+          return MaterialApp(
+            title: 'Pamnot',
+            debugShowCheckedModeBanner: false,
+            theme: PamnotTheme.light(),
+            darkTheme: PamnotTheme.dark(),
+            themeMode: app.settings.themeMode,
+            locale: Locale(app.isTurkish ? 'tr' : 'en'),
+            supportedLocales: const [Locale('tr'), Locale('en')],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            // iOS Bold Text does not reach a bundled font on its own.
+            builder: (context, child) => MediaQuery.boldTextOf(context)
+                ? Theme(data: PamnotTheme.bolder(Theme.of(context)), child: child!)
+                : child!,
+            home: const HomeShell(),
+          );
+        }),
+      ),
     );
   }
 }

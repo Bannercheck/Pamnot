@@ -18,6 +18,7 @@ class Alert {
     required this.at,
     this.repeat = Repeat.none,
     this.alarm = false,
+    this.category,
   });
 
   /// Stable string id (`r:<reminderId>` or `t:<taskId>`).
@@ -30,6 +31,10 @@ class Alert {
   /// Rings as an alarm (AlarmKit) instead of a notification.
   final bool alarm;
 
+  /// Notification category: null for an ordinary alert, `'overdue'` for the
+  /// final notice of a task past its due time (it carries Done and Snooze).
+  final String? category;
+
   /// Notification ids must be 32-bit ints; FNV-1a keeps them stable.
   int get id {
     var h = 0x811c9dc5;
@@ -40,7 +45,10 @@ class Alert {
     return h;
   }
 
-  String get fingerprint => '$key|$title|$body|${at.toIso8601String()}|${repeat.name}|$alarm';
+  /// An alert without a [category] keeps the fingerprint it had before
+  /// categories existed.
+  String get fingerprint =>
+      '$key|$title|$body|${at.toIso8601String()}|${repeat.name}|$alarm${category == null ? '' : '|$category'}';
 }
 
 abstract class ReminderScheduler {
