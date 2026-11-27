@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'features/features.dart';
+import 'features/overdue/overdue_inbox.dart';
 import 'services/launch_actions.dart';
 import 'state/app_controller.dart';
 import 'state/app_scope.dart';
@@ -11,12 +12,16 @@ import 'theme/pamnot_theme.dart';
 import 'ui/home_shell.dart';
 
 class PamnotApp extends StatefulWidget {
-  const PamnotApp({super.key, required this.controller, this.features});
+  const PamnotApp({super.key, required this.controller, this.features, this.overdueInbox});
 
   final AppController controller;
 
   /// The v3 features; null means [Features.local] for [controller].
   final Features? features;
+
+  /// Tasks closed from a final notice in the background; applied on every
+  /// resume. Null (tests) applies nothing.
+  final OverdueInbox? overdueInbox;
 
   @override
   State<PamnotApp> createState() => _PamnotAppState();
@@ -46,6 +51,9 @@ class _PamnotAppState extends State<PamnotApp> with WidgetsBindingObserver {
         unawaited(LaunchActionsBridge.pull());
         // Tasks ticked on the list widget meanwhile.
         unawaited(widget.controller.applyWidgetCompletions());
+        // Tasks closed from a final notice meanwhile.
+        final inbox = widget.overdueInbox;
+        if (inbox != null) unawaited(applyOverdueInbox(widget.controller, inbox));
       },
     );
   }

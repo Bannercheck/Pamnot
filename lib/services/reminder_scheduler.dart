@@ -7,6 +7,9 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../features/overdue/overdue_inbox.dart';
+import '../features/overdue/overdue_notice.dart';
+import '../l10n/strings.dart';
 import '../models/reminder.dart';
 
 /// One notification the app wants delivered.
@@ -107,9 +110,12 @@ class NoopScheduler implements ReminderScheduler {
 /// Web has no background scheduling, so there it only shows notifications
 /// while the app is open (see [AppController]'s in-app ticker).
 class LocalNotificationScheduler implements ReminderScheduler {
-  LocalNotificationScheduler({this.onTap});
+  /// [strings] gives the titles of the final notice's actions, read once
+  /// in [init]; English when omitted.
+  LocalNotificationScheduler({this.onTap, S Function()? strings}) : _strings = strings ?? (() => S.en);
 
   final void Function(String? payload)? onTap;
+  final S Function() _strings;
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
   String _lastFingerprint = '';
@@ -131,36 +137,59 @@ class LocalNotificationScheduler implements ReminderScheduler {
     if (_ready) return;
     try {
       if (!kIsWeb) await _initTimeZone();
+      final darwin = _darwinSettings(_strings());
       await _plugin.initialize(
-        settings: const InitializationSettings(
-          android: AndroidInitializationSettings('ic_stat_pamnot'),
-          iOS: DarwinInitializationSettings(
-            requestAlertPermission: false,
-            requestBadgePermission: false,
-            requestSoundPermission: false,
-          ),
-          macOS: DarwinInitializationSettings(
-            requestAlertPermission: false,
-            requestBadgePermission: false,
-            requestSoundPermission: false,
-          ),
-          linux: LinuxInitializationSettings(defaultActionName: 'Open'),
-          windows: WindowsInitializationSettings(
+        settings: InitializationSettings(
+          android: const AndroidInitializationSettings('ic_stat_pamnot'),
+          iOS: darwin,
+          macOS: darwin,
+          linux: const LinuxInitializationSettings(defaultActionName: 'Open'),
+          windows: const WindowsInitializationSettings(
             appName: 'Pamnot',
             appUserModelId: 'App.Pamnot.Notes',
             guid: '6f1d2c8e-9a4b-4f3e-b1a7-2c5d8e9f0a12',
           ),
         ),
-        onDidReceiveNotificationResponse: (r) => onTap?.call(r.payload),
+        onDidReceiveNotificationResponse: respond,
+        // Done tapped while the app is not running.
+        onDidReceiveBackgroundNotificationResponse: overdueBackgroundAction,
       );
       _ready = true;
       if (!kIsWeb) {
         final launch = await _plugin.getNotificationAppLaunchDetails();
-        if (launch?.didNotificationLaunchApp ?? false) onTap?.call(launch!.notificationResponse?.payload);
+        final response = launch?.notificationResponse;
+        if ((launch?.didNotificationLaunchApp ?? false) && response != null) await respond(response);
       }
     } catch (e) {
       debugPrint('Notifications unavailable: $e');
     }
+  }
+
+  /// No permission is asked here. Done finishes the task without opening
+  /// the app; Snooze opens it on the snooze screen.
+  static DarwinInitializationSettings _darwinSettings(S s) => DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+        notificationCategories: [
+          DarwinNotificationCategory(overdueCategory, actions: [
+            DarwinNotificationAction.plain('done', s.overdueClose),
+            DarwinNotificationAction.plain(
+              'snooze',
+              s.overdueSnooze,
+              options: const {DarwinNotificationActionOption.foreground},
+            ),
+          ]),
+        ],
+      );
+
+  /// A response while the app runs: Done takes the background path (the
+  /// inbox and its ping), so a task is finished one way only; anything else
+  /// is a tap on [NotificationResponse.payload].
+  @visibleForTesting
+  Future<void> respond(NotificationResponse r) async {
+    if (r.actionId == 'done') return overdueBackgroundAction(r);
+    onTap?.call(r.payload);
   }
 
   static Future<void> _initTimeZone() async {
@@ -249,34 +278,39 @@ class LocalNotificationScheduler implements ReminderScheduler {
     }
   }
 
-  NotificationDetails get _details => const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'pamnot_reminders',
-          'Reminders',
-          channelDescription: 'Pamnot reminders and task alerts',
-          importance: Importance.high,
-          priority: Priority.high,
-          color: Color(0xFF9B8AD8),
-        ),
-        iOS: DarwinNotificationDetails(),
-        macOS: DarwinNotificationDetails(),
-        linux: LinuxNotificationDetails(),
-        windows: WindowsNotificationDetails(),
-      );
+  static const _android = AndroidNotificationDetails(
+    'pamnot_reminders',
+    'Reminders',
+    channelDescription: 'Pamnot reminders and task alerts',
+    importance: Importance.high,
+    priority: Priority.high,
+    color: Color(0xFF9B8AD8),
+  );
+
+  static const NotificationDetails _details = NotificationDetails(
+    android: _android,
+    iOS: DarwinNotificationDetails(),
+    macOS: DarwinNotificationDetails(),
+    linux: LinuxNotificationDetails(),
+    windows: WindowsNotificationDetails(),
+  );
+
+  /// A final notice carries the Done and Snooze actions on iOS and macOS.
+  static const NotificationDetails _overdueDetails = NotificationDetails(
+    android: _android,
+    iOS: DarwinNotificationDetails(categoryIdentifier: overdueCategory),
+    macOS: DarwinNotificationDetails(categoryIdentifier: overdueCategory),
+    linux: LinuxNotificationDetails(),
+    windows: WindowsNotificationDetails(),
+  );
+
+  static NotificationDetails _detailsFor(Alert a) => a.category == overdueCategory ? _overdueDetails : _details;
 
   @override
   Future<void> sync(List<Alert> alerts) async {
     await init();
     if (!_ready || kIsWeb) return;
-    final now = DateTime.now();
-    final upcoming = <(Alert, DateTime)>[];
-    for (final a in alerts) {
-      final next = Reminder(id: a.key, title: a.title, at: a.at, repeat: a.repeat, createdAt: now)
-          .nextOccurrence(now);
-      if (next != null) upcoming.add((a, next));
-    }
-    upcoming.sort((x, y) => x.$2.compareTo(y.$2));
-    final chosen = upcoming.take(_maxPending).toList();
+    final chosen = choose(alerts, DateTime.now());
     final fp = chosen.map((e) => '${e.$1.fingerprint}@${e.$2}').join('\n');
     if (fp == _lastFingerprint) return;
 
@@ -296,7 +330,7 @@ class LocalNotificationScheduler implements ReminderScheduler {
           // occurrence. Where repeats aren't native (Windows, Linux) only the
           // next one is scheduled and sync() runs again on every launch.
           scheduledDate: tz.TZDateTime.from(next, tz.local),
-          notificationDetails: _details,
+          notificationDetails: _detailsFor(a),
           androidScheduleMode: mode,
           payload: a.key,
           matchDateTimeComponents: _nativeRepeat ? _components(a.repeat) : null,
@@ -306,6 +340,21 @@ class LocalNotificationScheduler implements ReminderScheduler {
       }
     }
     _lastFingerprint = fp;
+  }
+
+  /// The alerts that get a pending notification: the [_maxPending] whose
+  /// next occurrence after [now] is nearest, nearest first, each with that
+  /// occurrence. A one-time alert in the past has none and is left out.
+  @visibleForTesting
+  static List<(Alert, DateTime)> choose(List<Alert> alerts, DateTime now) {
+    final upcoming = <(Alert, DateTime)>[];
+    for (final a in alerts) {
+      final next = Reminder(id: a.key, title: a.title, at: a.at, repeat: a.repeat, createdAt: now)
+          .nextOccurrence(now);
+      if (next != null) upcoming.add((a, next));
+    }
+    upcoming.sort((x, y) => x.$2.compareTo(y.$2));
+    return upcoming.take(_maxPending).toList();
   }
 
   static DateTimeComponents? _components(Repeat r) => switch (r) {

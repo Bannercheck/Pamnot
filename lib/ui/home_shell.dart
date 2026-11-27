@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../features/overdue/overdue_page.dart';
+import '../features/overdue/snooze_sheet.dart';
 import '../l10n/strings.dart';
 import '../services/launch_actions.dart';
 import '../state/app_scope.dart';
@@ -18,9 +20,11 @@ import 'tasks/task_editor.dart';
 import 'today/today_page.dart';
 import 'voice/voice_capture_page.dart';
 
-/// Payloads of tapped notifications (`r:<id>` or `t:<id>`) and home-screen
-/// widgets (`w:today`, `w:list:<id>`). `w:list:` opens Matrix on that list,
-/// other `w:` Today, `t:` Matrix and `r:` the Reminders section of Plan.
+/// Payloads of tapped notifications (`r:<id>`, `t:<id>`, `o:<id>`,
+/// `o:sum:<minute>`) and home-screen widgets (`w:today`, `w:list:<id>`).
+/// `w:list:` opens Matrix on that list, other `w:` Today, `t:` Matrix, `r:`
+/// the Reminders section of Plan, `o:sum:` the overdue list and `o:` the
+/// snooze screen of that task.
 final notificationTaps = ValueNotifier<String?>(null);
 
 class HomeShell extends StatefulWidget {
@@ -74,6 +78,11 @@ class _HomeShellState extends State<HomeShell> {
     } else if (p.startsWith('w:') || p.startsWith('m:')) {
       // `w:` the today widget, `m:` the daily motivation line: both open Today.
       _go(0);
+    } else if (p.startsWith('o:sum:')) {
+      unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const OverduePage())));
+    } else if (p.startsWith('o:')) {
+      // An unknown or finished task opens nothing.
+      unawaited(showSnoozeSheet(context, AppScope.of(context), p.substring(2)));
     } else if (p.startsWith('t:')) {
       _go(2);
     } else {

@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:isolate';
+import 'dart:ui' show IsolateNameServer;
+
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -7,6 +11,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/motivation.dart';
 import 'data/store.dart';
+import 'features/overdue/overdue_inbox.dart';
+import 'features/overdue/overdue_notice.dart';
 import 'prediction/word_predictor.dart';
 import 'services/alarm_scheduler.dart';
 import 'services/calendar/device_calendar_source.dart';
@@ -27,9 +33,14 @@ Future<void> main() async {
   SystemAccessibility.start();
   await initializeDateFormatting();
 
-  final scheduler = LocalNotificationScheduler(onTap: (payload) => notificationTaps.value = payload);
+  late final AppController controller;
+  final scheduler = LocalNotificationScheduler(
+    onTap: (payload) => notificationTaps.value = payload,
+    // Read in init(), after load(): the actions follow the app's language.
+    strings: () => controller.strings,
+  );
   final widgets = WidgetSync.platformDefault()..listenForTaps((p) => notificationTaps.value = p);
-  final controller = AppController(
+  controller = AppController(
     store: KeyValueStore.platformDefault(),
     scheduler: scheduler,
     widgetSync: widgets,
@@ -44,15 +55,30 @@ Future<void> main() async {
     calendar: createCalendarSource(),
     // Building it plays nothing; a guide video starts only from a tap.
     pip: createPipPlayer(),
+    alertProviders: const [overdueAlerts],
   );
   await controller.load();
-  runApp(PamnotApp(controller: controller));
+  // The same documents the background Done action writes to.
+  final overdueInbox = OverdueInbox(KeyValueStore.platformDefault());
+  _listenForOverdueDone(controller, overdueInbox);
+  runApp(PamnotApp(controller: controller, overdueInbox: overdueInbox));
+  unawaited(applyOverdueInbox(controller, overdueInbox));
 
   // Everything below is off the critical path to the first frame.
   // The motivation lines join the first sync, once the first frame is out.
   unawaited(Future.wait([scheduler.init(), _loadQuotes(controller)]).then((_) => controller.syncAlerts()));
   unawaited(WordPredictor.load(rootBundle).then(controller.attachPredictor));
   controller.startInAppTicker();
+}
+
+/// A Done tapped on a final notice while the app runs pings this port; the
+/// task is completed at once instead of on the next resume.
+void _listenForOverdueDone(AppController controller, OverdueInbox inbox) {
+  if (kIsWeb) return;
+  final port = ReceivePort();
+  IsolateNameServer.removePortNameMapping(OverdueInbox.portName);
+  IsolateNameServer.registerPortWithName(port.sendPort, OverdueInbox.portName);
+  port.listen((_) => unawaited(applyOverdueInbox(controller, inbox)));
 }
 
 Future<void> _loadQuotes(AppController controller) async {

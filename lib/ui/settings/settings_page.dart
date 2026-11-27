@@ -274,6 +274,14 @@ class _NotificationTilesState extends State<_NotificationTiles> {
     await _refresh();
   }
 
+  Future<void> _setOverdue(bool on) async {
+    final app = widget.app;
+    app.updateSettings(app.settings.copyWith(overdueNotice: on));
+    if (!on) return;
+    await app.ensureNotificationPermission();
+    await _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
@@ -309,6 +317,14 @@ class _NotificationTilesState extends State<_NotificationTiles> {
             await _request();
             await widget.app.scheduler.showNow('Pamnot', s.testNotificationBody);
           },
+        ),
+        // Final notice for overdue tasks: on by default without asking;
+        // turning it on is a user action, so it asks once if never asked.
+        SwitchListTile(
+          title: Text(s.overdueSetting),
+          subtitle: Text(s.overdueSettingHint),
+          value: st.overdueNotice,
+          onChanged: _setOverdue,
         ),
         // Daily motivation: turning it on asks for nothing; without
         // notification permission the system simply shows nothing.
