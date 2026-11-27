@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -287,4 +288,69 @@ void main() {
     await c.flush();
     expect(store.data['ink_n'], isNotNull);
   });
+
+  group('applyRemote mürekkep yüklenirken', () {
+    final stroke = InkStroke(data: Float32List.fromList([1, 2, 0.5, 0]), color: 0xFF000000, width: 2);
+
+    /// A store whose ink reads wait until [release] is called.
+    Future<(_SlowStore, AppController)> bootSlow() async {
+      final seed = MemoryStore({'settings': settingsDoc});
+      final first = await boot(store: seed);
+      for (final id in ['a', 'b']) {
+        first.upsertNote(Note(id: id, ink: [stroke], createdAt: now, updatedAt: now), inkChanged: true);
+      }
+      await first.flush();
+      final store = _SlowStore(seed.data);
+      return (store, await boot(store: store));
+    }
+
+    test('uzaktan silinen mürekkep bekleyen yüklemeyle geri gelmez', () async {
+      final (store, c) = await bootSlow();
+      c.applyRemote(
+        RemoteBatch(
+          notes: [
+            Note(id: 'a', createdAt: now, updatedAt: now),
+            Note(id: 'b', createdAt: now, updatedAt: now),
+          ],
+          inkChanged: {'a', 'b'},
+        ),
+      );
+      store.release();
+      await pumpEventQueue();
+      expect(c.notes.firstWhere((n) => n.id == 'a').ink, isEmpty);
+      expect(c.notes.firstWhere((n) => n.id == 'b').ink, isEmpty);
+      await c.flush();
+      expect(store.data.containsKey('ink_a'), isFalse);
+      expect(store.data.containsKey('ink_b'), isFalse);
+    });
+
+    test('mürekkep yüklenmeden yazılan notlar dilimi hasInk işaretini korur', () async {
+      final (store, c) = await bootSlow();
+      c.applyRemote(RemoteBatch(notes: [Note(id: 'a', title: 'Uzak', createdAt: now, updatedAt: now)]));
+      await c.flush();
+      final items = (jsonDecode(store.data['notes']!) as Map)['items'] as List;
+      for (final id in ['a', 'b']) {
+        expect(items.firstWhere((j) => j['id'] == id)['hasInk'], isTrue, reason: id);
+      }
+      store.release();
+      await pumpEventQueue();
+      expect(c.notes.firstWhere((n) => n.id == 'a').title, 'Uzak');
+      expect(c.notes.firstWhere((n) => n.id == 'a').ink, hasLength(1));
+      expect(c.notes.firstWhere((n) => n.id == 'b').ink, hasLength(1));
+    });
+  });
+}
+
+class _SlowStore extends MemoryStore {
+  _SlowStore(super.initial);
+
+  final _gate = Completer<void>();
+
+  void release() => _gate.complete();
+
+  @override
+  Future<String?> read(String key) async {
+    if (key.startsWith('ink_')) await _gate.future;
+    return super.read(key);
+  }
 }

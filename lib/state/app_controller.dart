@@ -305,6 +305,9 @@ class AppController extends ChangeNotifier {
 
   Future<void> _loadInk() async {
     for (final id in _inkPending.toList()) {
+      // applyRemote drops an id whose ink came with a remote note; that ink
+      // wins over the copy on disk, even when the read was already started.
+      if (!_inkPending.contains(id)) continue;
       try {
         final text = await store.read('ink_$id');
         final strokes = text == null
@@ -312,6 +315,7 @@ class AppController extends ChangeNotifier {
             : text.length > 200000
                 ? await compute(InkCodec.decode, text)
                 : InkCodec.decode(text);
+        if (!_inkPending.contains(id)) continue;
         final i = _notes.indexWhere((n) => n.id == id);
         if (i >= 0 && _notes[i].ink.isEmpty) _notes[i] = _notes[i].copyWith(ink: strokes);
       } catch (e) {
@@ -389,7 +393,11 @@ class AppController extends ChangeNotifier {
 
   String _encode(Slice s) {
     List<Map<String, Object?>> list = switch (s) {
-      Slice.notes => [for (final n in _notes) n.toJson()],
+      // Ink not loaded yet is still on disk: keep its flag so the next
+      // launch loads it.
+      Slice.notes => [
+          for (final n in _notes) {...n.toJson(), if (_inkPending.contains(n.id)) 'hasInk': true},
+        ],
       Slice.tasks => [for (final t in _tasks) t.toJson()],
       Slice.reminders => [for (final r in _reminders) r.toJson()],
       Slice.habits => [for (final h in _habits) h.toJson()],
