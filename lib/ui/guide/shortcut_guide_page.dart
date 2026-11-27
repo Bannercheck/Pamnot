@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
@@ -17,9 +15,7 @@ import 'phone_hand_animation.dart';
 /// The shortcut step turns "Done" by itself when the shortcut opens Pamnot
 /// (HomeShell, `shortcutRuns`); the others are marked by hand. "Open
 /// Settings" opens Pamnot's page in the Settings app (`app-settings:`, never
-/// a private scheme), after starting the step's short video in Picture in
-/// Picture where the device supports it; the video stops when the app is
-/// back in front.
+/// a private scheme) and nothing else.
 class ShortcutGuidePage extends StatelessWidget {
   const ShortcutGuidePage({super.key});
 
@@ -36,60 +32,10 @@ class ShortcutGuidePage extends StatelessWidget {
   }
 }
 
-class _GuideBody extends StatefulWidget {
+class _GuideBody extends StatelessWidget {
   const _GuideBody({required this.app});
 
   final AppController app;
-
-  @override
-  State<_GuideBody> createState() => _GuideBodyState();
-}
-
-class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
-  /// How long "Open Settings" waits for Picture in Picture to start.
-  static const _pipWait = Duration(milliseconds: 800);
-
-  /// How long "Open Settings" waits for the step's video to finish loading.
-  static const _prepareWait = Duration(seconds: 1);
-
-  /// Asked once; the hint and the video depend on it.
-  late final Future<bool> _pipSupported = widget.app.pip.isSupported();
-  bool _pip = false;
-
-  /// A video was started for the trip to Settings; stopped on return.
-  bool _pipStarted = false;
-
-  /// The step whose video was last loaded, and that load (awaited before start).
-  String? _preparedStep;
-  Future<void>? _preparing;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    unawaited(_pipSupported.then((v) {
-      if (mounted && v != _pip) setState(() => _pip = v);
-    }));
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    // Leaving the guide removes the player (and its view) the cards loaded.
-    unawaited(widget.app.pip.stop());
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _pipStarted) {
-      _pipStarted = false;
-      // The player is torn down; the next tap prepares the video again.
-      _preparedStep = null;
-      _preparing = null;
-      unawaited(widget.app.pip.stop());
-    }
-  }
 
   static const _scenes = {
     'shortcut': GuideScene.shortcut,
@@ -98,47 +44,10 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
     'outlook': GuideScene.outlook,
   };
 
-  /// The bundled video of each step that opens Settings (Task 24 makes them).
-  static const _videos = {
-    'actionButton': 'assets/guide/action_button.mp4',
-    'backTap': 'assets/guide/back_tap.mp4',
-    'outlook': 'assets/guide/outlook.mp4',
-  };
-
-  void _prepare(String step) {
-    _preparedStep = step;
-    final load = _preparing = () async {
-      if (await _pipSupported) await widget.app.pip.prepare(_videos[step]!);
-    }();
-    unawaited(load);
-  }
-
-  /// A closed card's video is removed, unless it is playing for the trip to Settings.
-  void _closed(String step) {
-    if (_pipStarted || _preparedStep != step) return;
-    _preparedStep = null;
-    _preparing = null;
-    unawaited(widget.app.pip.stop());
-  }
-
-  Future<void> _openSettings(String step) async {
-    if (await _pipSupported) {
-      // One player exists: load this card's video when another card's (or none) is loaded.
-      if (_preparedStep != step) _prepare(step);
-      // A fast tap right after opening the card waits (briefly) for the video to load.
-      final load = _preparing;
-      if (load != null) await load.timeout(_prepareWait, onTimeout: () {});
-      _pipStarted = true;
-      await widget.app.pip.start().timeout(_pipWait, onTimeout: () => false);
-    }
-    await openAppSettings();
-  }
-
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
     final t = Theme.of(context);
-    final app = widget.app;
     final pad = MediaQuery.sizeOf(context).width >= 560 ? 28.0 : 16.0;
 
     Widget wide(Widget button) => SizedBox(width: double.infinity, child: button);
@@ -165,27 +74,10 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
       return [
         wide(FilledButton.tonalIcon(
           key: Key('guide-open-settings-$step'),
-          onPressed: () => _openSettings(step),
+          onPressed: openAppSettings,
           icon: const Icon(Icons.settings_outlined),
           label: Text(s.guideOpenSettings),
         )),
-        if (_pip)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.picture_in_picture_alt_outlined, size: 18, color: t.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    s.guidePipHint,
-                    style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-          ),
         wide(OutlinedButton.icon(
           key: Key('guide-mark-$step'),
           onPressed: () => app.markGuideStep(step, done: !done),
@@ -209,8 +101,6 @@ class _GuideBodyState extends State<_GuideBody> with WidgetsBindingObserver {
                   done: app.guideStepDone(step),
                   lines: s.guideStepLines(step),
                   actions: actions(step),
-                  onOpen: _videos.containsKey(step) ? () => _prepare(step) : null,
-                  onClose: _videos.containsKey(step) ? () => _closed(step) : null,
                 ),
                 const SizedBox(height: 12),
               ],

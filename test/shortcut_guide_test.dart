@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -27,26 +28,20 @@ import 'package:pamnot/ui/voice/voice_capture_page.dart';
 import 'support/fake_speech_engine.dart';
 
 /// A Picture in Picture player that writes every call to [log], the same
-/// list the fake [openExternal] writes to, so the order is visible.
+/// list the fake [openExternal] writes to; the guide must make none.
 class _FakePip implements PipPlayer {
-  _FakePip(this.log, {this.gate});
+  _FakePip(this.log);
 
   final List<String> log;
 
-  /// When set, prepare logs 'prepared' only once this completes (a slow load).
-  final Completer<void>? gate;
-
   @override
-  Future<bool> isSupported() async => true;
-
-  @override
-  Future<void> prepare(String assetPath) async {
-    log.add('prepare $assetPath');
-    if (gate != null) {
-      await gate!.future;
-      log.add('prepared');
-    }
+  Future<bool> isSupported() async {
+    log.add('isSupported');
+    return true;
   }
+
+  @override
+  Future<void> prepare(String assetPath) async => log.add('prepare $assetPath');
 
   @override
   Future<bool> start() async {
@@ -263,150 +258,76 @@ void main() {
     await shutdown(tester, c);
   });
 
-  testWidgets('"Ayarlar\'ı aç": önce pip.start, sonra app-settings: ; PiP desteklenmiyorsa yalnız Ayarlar',
-      (tester) async {
-    var c = await boot(tester, pip: _FakePip(log));
+  testWidgets('"Ayarlar\'ı aç" yalnız Ayarlar\'ı açar; pip.prepare ve pip.start hiç çağrılmaz', (tester) async {
+    final c = await boot(tester, pip: _FakePip(log));
     await openGuide(tester);
-    await expand(tester, 'backTap');
-    expect(find.text(tr.guidePipHint), findsOneWidget);
-    log.clear();
-    await tapKey(tester, 'guide-open-settings-backTap');
-    expect(log, ['start', 'open app-settings:']);
-    expect(log.where((l) => l.contains('App-Prefs')), isEmpty);
-    await shutdown(tester, c);
-
-    log.clear();
-    final none = NoPipPlayer();
-    c = await boot(tester, pip: none);
-    await openGuide(tester);
-    await expand(tester, 'outlook');
-    expect(find.text(tr.guidePipHint), findsNothing);
-    await tapKey(tester, 'guide-open-settings-outlook');
-    expect(log, ['open app-settings:']);
-    expect(none.calls, isNot(contains('start')));
+    for (final step in ['actionButton', 'backTap', 'outlook']) {
+      await expand(tester, step);
+      // The guide no longer promises a video in Picture in Picture.
+      expect(find.text(tr.guidePipHint), findsNothing);
+      log.clear();
+      await tapKey(tester, 'guide-open-settings-$step');
+      expect(log, ['open app-settings:'], reason: step);
+      expect(log.where((l) => l.contains('App-Prefs')), isEmpty);
+      await expand(tester, step);
+    }
     await shutdown(tester, c);
   });
 
-  testWidgets('kart açılınca pip.prepare doğru varlıkla çağrılır; uygulama öne dönünce pip.stop', (tester) async {
+  testWidgets('adım kartını açıp kapatmak pip.stop çağırmaz', (tester) async {
     final c = await boot(tester, pip: _FakePip(log));
     await openGuide(tester);
-    await expand(tester, 'actionButton');
-    expect(log, ['prepare assets/guide/action_button.mp4']);
-    await expand(tester, 'backTap');
-    expect(log.last, 'prepare assets/guide/back_tap.mp4');
-    await expand(tester, 'outlook');
-    expect(log.last, 'prepare assets/guide/outlook.mp4');
-    // The shortcut step has no video.
-    final before = log.length;
-    await expand(tester, 'shortcut');
-    expect(log.length, before);
+    for (final step in AppSettings.guideSteps) {
+      await expand(tester, step);
+      await expand(tester, step);
+    }
+    expect(log, isEmpty);
+    await shutdown(tester, c);
+  });
 
-    log.clear();
+  testWidgets('Ayarlar\'dan dönünce pip çağrılmaz', (tester) async {
+    final c = await boot(tester, pip: _FakePip(log));
+    await openGuide(tester);
+    await expand(tester, 'outlook');
     await tapKey(tester, 'guide-open-settings-outlook');
-    expect(log, ['start', 'open app-settings:']);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    await tester.pump();
-    expect(log, isNot(contains('stop')));
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
-    expect(log, ['start', 'open app-settings:', 'stop']);
+    expect(log, ['open app-settings:']);
     await shutdown(tester, c);
   });
 
-  testWidgets('kart kapanınca pip.stop; PiP Ayarlar için başladıysa kapanış durdurmaz', (tester) async {
-    final c = await boot(tester, pip: _FakePip(log));
-    await openGuide(tester);
-    await expand(tester, 'actionButton');
-    expect(log, ['prepare assets/guide/action_button.mp4']);
-    // Closing the card removes the prepared player.
-    await expand(tester, 'actionButton');
-    expect(log, ['prepare assets/guide/action_button.mp4', 'stop']);
-
-    // Closing a card whose video is not the prepared one leaves the prepared one alone.
-    await expand(tester, 'backTap');
-    await expand(tester, 'outlook');
-    log.clear();
-    await expand(tester, 'backTap');
-    expect(log, isEmpty);
-
-    // While the video plays for the trip to Settings, closing its card does not stop it.
-    await tapKey(tester, 'guide-open-settings-outlook');
-    expect(log, ['start', 'open app-settings:']);
-    await expand(tester, 'outlook');
-    expect(log, ['start', 'open app-settings:']);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump();
-    expect(log, ['start', 'open app-settings:', 'stop']);
-    await shutdown(tester, c);
-  });
-
-  testWidgets('Ayarlar düğmesi kendi kartının videosunu oynatır; dönüşten sonra yeniden yükler', (tester) async {
-    final c = await boot(tester, pip: _FakePip(log));
-    await openGuide(tester);
-    await expand(tester, 'actionButton');
-    await expand(tester, 'outlook');
-    // outlook loaded last; the actionButton card's button loads its own video first.
-    log.clear();
-    await tapKey(tester, 'guide-open-settings-actionButton');
-    expect(log, ['prepare assets/guide/action_button.mp4', 'start', 'open app-settings:']);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump();
-    // After the return the player is gone; a second tap loads the video again.
-    log.clear();
-    await tapKey(tester, 'guide-open-settings-actionButton');
-    expect(log, ['prepare assets/guide/action_button.mp4', 'start', 'open app-settings:']);
-    await shutdown(tester, c);
-  });
-
-  testWidgets('kılavuzdan çıkınca pip.stop', (tester) async {
+  testWidgets('kılavuzdan çıkınca pip çağrılmaz', (tester) async {
     final c = await boot(tester, pip: _FakePip(log));
     await openGuide(tester);
     await expand(tester, 'backTap');
-    log.clear();
     Navigator.of(tester.element(find.byType(ShortcutGuidePage))).pop();
     await settle(tester);
     expect(find.byType(ShortcutGuidePage), findsNothing);
-    expect(log, ['stop']);
+    expect(log, isEmpty);
     await shutdown(tester, c);
   });
 
-  testWidgets('hızlı "Ayarlar\'ı aç": start, video yüklenince (en çok 1 sn beklenir) çağrılır', (tester) async {
-    final gate = Completer<void>();
-    var c = await boot(tester, pip: _FakePip(log, gate: gate));
-    await openGuide(tester);
-    await expand(tester, 'backTap');
-    expect(log, ['prepare assets/guide/back_tap.mp4']);
-    final tap = find.byKey(const Key('guide-open-settings-backTap'));
-    await tester.ensureVisible(tap);
-    await settle(tester);
-    await tester.tap(tap);
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(log, ['prepare assets/guide/back_tap.mp4']);
-    gate.complete();
-    await settle(tester);
-    expect(log, ['prepare assets/guide/back_tap.mp4', 'prepared', 'start', 'open app-settings:']);
-    await shutdown(tester, c);
-
-    // A load that never ends holds the trip to Settings for at most a second.
-    log.clear();
-    c = await boot(tester, pip: _FakePip(log, gate: Completer<void>()));
+  testWidgets('PiP olmayan cihazda da "Ayarlar\'ı aç" yalnız Ayarlar\'ı açar; kılavuz oynatıcıya hiç sormaz',
+      (tester) async {
+    final none = NoPipPlayer();
+    final c = await boot(tester, pip: none);
     await openGuide(tester);
     await expand(tester, 'outlook');
-    await tester.ensureVisible(find.byKey(const Key('guide-open-settings-outlook')));
-    await settle(tester);
-    await tester.tap(find.byKey(const Key('guide-open-settings-outlook')));
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(log, ['prepare assets/guide/outlook.mp4']);
-    await tester.pump(const Duration(milliseconds: 600));
-    await settle(tester);
-    expect(log, ['prepare assets/guide/outlook.mp4', 'start', 'open app-settings:']);
+    await tapKey(tester, 'guide-open-settings-outlook');
+    expect(log, ['open app-settings:']);
+    expect(none.calls, isNot(anyOf(contains('isSupported'), contains('start'))));
+    expect(none.calls.where((call) => call.startsWith('prepare')), isEmpty);
     await shutdown(tester, c);
+  });
+
+  test('pubspec.yaml assets/guide/ satırını taşımaz ve assets/guide klasörü yoktur', () {
+    expect(File('pubspec.yaml').readAsStringSync(), isNot(contains('assets/guide')));
+    expect(Directory('assets/guide').existsSync(), isFalse);
   });
 
   testWidgets('elle "Tamam olarak işaretle" ve "Geri al" ayarı yazar ve rozet değişir', (tester) async {
