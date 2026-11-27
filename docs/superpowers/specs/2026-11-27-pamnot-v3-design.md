@@ -22,6 +22,7 @@ Sahibin genel isteği: temiz kod, güvenli kod; performans ve güvenlik önerile
 2. Toplantı notu: ayrı mikrofon, ayrı kestirme, canlı transkript, plana ekleme, öneriler (§4).
 3. iCloud eşitleme ve liste paylaşımı, gruplar, görev atama (§5).
 4. Kılavuzdaki boş video kaldırılır (§6).
+5. Zamanı geçmiş görev için son uyarı: Kapat ya da Ertele (§6a).
 
 **Hedef dışı:** Mac uygulamasında eşitleme ve yeni özellikler (bu sürüm iPhone ve iPad); Android ve diğer platformlarda yeni özellik (oralarda bozulmamaları yeterli); kendi
 sunucumuz, hesap açma, giriş ekranı; takvim etkinliği oluşturma ya da düzenleme (takvime yazma izni
@@ -246,6 +247,28 @@ Swift'e taşınması ve her okumanın köprüden geçmesi; büyük yeniden yazı
 güncellenir). PiP eklentisi kodda kalır ama kullanılmaz; sahibin ekran kayıtları gelince yeniden
 bağlanır. Varlıklar paketten çıkar (boyut).
 
+## 6a. Zamanı geçmiş görev: son uyarı
+
+Sahibin isteği: zamanı geçmiş ve tamamlanmamış görev için bir son bildirim; kullanıcı ya kapatır ya da
+kendi seçtiği tarihe erteler.
+
+- **Ne zaman:** saatli görevde vade saatinden 1 saat sonra; yalnız tarihli görevde ertesi gün 09:00.
+  Her vade için bir kez (görev ertelenirse yeni vade için yeniden kurulur). Görev tamamlanınca ya da
+  silinince bekleyen uyarı kaldırılır.
+- **Bildirim:** "Zamanı geçti: <görev>" ve iki eylem:
+  - **Kapat** — görevi tamamlandı olarak işaretler (uygulamayı açmadan, `UNNotificationAction`).
+  - **Ertele** — Pamnot'u açar ve tarih-saat seçicisini gösterir (varsayılan: yarın aynı saat; hızlı
+    seçenekler Bu akşam / Yarın / Haftaya). Seçilen tarih görevin yeni vadesi olur; alarm ya da
+    hatırlatma yeni vadeye göre yeniden kurulur.
+- Bildirime dokunmak (eylem seçmeden) aynı erteleme ekranını açar.
+- Kapsam: vadesi olan bütün görevler. Ayarlar'dan kapatılabilir ("Zamanı geçen görevler için son
+  uyarı", varsayılan açık). Paylaşımlı listede uyarı §5.6'daki kurala göre tek cihaza gider (atanan,
+  yoksa kuran).
+- Aynı anda çok sayıda geciken görev varsa (ör. 5'ten fazla) tek tek bildirim yerine bir özet:
+  "5 görevin zamanı geçti" → dokununca geciken görevler listesi, her birinde Kapat / Ertele.
+- iOS'un 64 bekleyen yerel bildirim sınırı: yalnız en yakın vadeli görevlerin uyarıları kurulur,
+  uygulama öne geldikçe yenilenir.
+
 ## 7. Kod ilkeleri (sahibin "temiz kod, güvenli kod" isteği)
 
 - Her özellik kendi klasöründe: `lib/features/calendar/`, `lib/features/meetings/`,
@@ -271,6 +294,11 @@ bağlanır. Varlıklar paketten çıkar (boyut).
 - Hafta görünümü iPhone dikeyde 3 gün gösterir, yana kaydırılır.
 - Çakışmada "son yazan kazanır", tamamlanma birleşir; kaybeden sürüm günlüğe yazılır.
 - Silinen kayıt 30 gün işaretli tutulur.
+- Eşitlemeyi kapatmak: yerel ve iCloud verisi kalır; Ayarlar > iCloud'da ayrı "iCloud'daki Pamnot
+  verilerini sil". iCloud hesabı değişirse eski hesabın verisi yeni hesaba yüklenmez: "Bu cihazdaki
+  veriler yeni hesaba yüklensin mi?" (varsayılan Hayır); Hayır'da eski veri yerel arşive alınır, yeni
+  hesabın verisi iner (sahip onayladı).
+- Son uyarıda "Kapat" görevi tamamlar (yalnız bildirimi kapatmaz).
 - Gruplar uygulama tarafında; Apple Aile Paylaşımı grubu otomatik çekilmez (CloudKit buna izin vermez).
 - En düşük iOS 17.
 
@@ -281,3 +309,6 @@ bağlanır. Varlıklar paketten çıkar (boyut).
 - Swift kodu yalnız sahibin Mac'inde derlenir; CloudKit şeması ilk çalıştırmada geliştirme ortamında
   oluşur, App Store'a çıkmadan önce CloudKit Console'da **üretime aktarılmalı** (adım TESTING.md'ye).
 - Paylaşım testi iki ayrı Apple Kimliği ve iki cihaz ister.
+- **Kabul edilen sınır (sahip onayladı):** ortak listede değişiklik karşı cihaza sessiz itmeyle gider;
+  uygulama elle kapatılmışsa değişiklik ve o cihazdaki alarm, uygulama açılınca gelir. Uygulama her
+  öne gelişte anında eşitler.
