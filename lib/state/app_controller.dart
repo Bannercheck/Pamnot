@@ -11,6 +11,8 @@ import '../core/motivation.dart';
 import '../core/quick_parse.dart';
 import '../core/spoken/spoken_task.dart';
 import '../data/store.dart';
+import '../features/sharing/task_policy.dart';
+import '../features/sync/remote_batch.dart';
 import '../l10n/strings.dart';
 import '../models/habit.dart';
 import '../models/ink.dart';
@@ -74,6 +76,10 @@ class AgendaEntry {
   final DateTime? end;
 }
 
+/// Adds alerts from a feature outside the controller (meetings, overdue
+/// notices); called on every [AppController.alerts].
+typedef AlertProvider = List<Alert> Function(AppController app);
+
 class AppController extends ChangeNotifier {
   AppController({
     required this.store,
@@ -85,8 +91,12 @@ class AppController extends ChangeNotifier {
     CalendarSource? calendar,
     PipPlayer? pip,
     DateTime Function()? clock,
+    TaskPolicy? policy,
+    List<AlertProvider> alertProviders = const [],
     this.saveDelay = const Duration(milliseconds: 400),
-  })  : scheduler = scheduler ?? NoopScheduler(),
+  })  : policy = policy ?? const LocalTaskPolicy(),
+        _alertProviders = List.unmodifiable(alertProviders),
+        scheduler = scheduler ?? NoopScheduler(),
         widgetSync = widgetSync ?? NoopWidgetSync(),
         handwriting = handwriting ?? UnsupportedRecognizer(),
         speech = speech ?? UnsupportedSpeechEngine(),
@@ -105,6 +115,10 @@ class AppController extends ChangeNotifier {
 
   /// Plays the guide videos in Picture in Picture (iOS only).
   final PipPlayer pip;
+
+  /// Who this device's user is and which tasks alert here.
+  final TaskPolicy policy;
+  final List<AlertProvider> _alertProviders;
   final DateTime Function() now;
   final Duration saveDelay;
   static const _uuid = Uuid();
@@ -291,6 +305,9 @@ class AppController extends ChangeNotifier {
 
   Future<void> _loadInk() async {
     for (final id in _inkPending.toList()) {
+      // applyRemote drops an id whose ink came with a remote note; that ink
+      // wins over the copy on disk, even when the read was already started.
+      if (!_inkPending.contains(id)) continue;
       try {
         final text = await store.read('ink_$id');
         final strokes = text == null
@@ -298,6 +315,7 @@ class AppController extends ChangeNotifier {
             : text.length > 200000
                 ? await compute(InkCodec.decode, text)
                 : InkCodec.decode(text);
+        if (!_inkPending.contains(id)) continue;
         final i = _notes.indexWhere((n) => n.id == id);
         if (i >= 0 && _notes[i].ink.isEmpty) _notes[i] = _notes[i].copyWith(ink: strokes);
       } catch (e) {
@@ -375,7 +393,11 @@ class AppController extends ChangeNotifier {
 
   String _encode(Slice s) {
     List<Map<String, Object?>> list = switch (s) {
-      Slice.notes => [for (final n in _notes) n.toJson()],
+      // Ink not loaded yet is still on disk: keep its flag so the next
+      // launch loads it.
+      Slice.notes => [
+          for (final n in _notes) {...n.toJson(), if (_inkPending.contains(n.id)) 'hasInk': true},
+        ],
       Slice.tasks => [for (final t in _tasks) t.toJson()],
       Slice.reminders => [for (final r in _reminders) r.toJson()],
       Slice.habits => [for (final h in _habits) h.toJson()],
@@ -448,7 +470,7 @@ class AppController extends ChangeNotifier {
             alarm: r.alertKind == AlertKind.alarm,
           ),
       for (final t in _tasks)
-        if (!t.done && t.remindAt != null)
+        if (!t.done && t.remindAt != null && policy.alertsHere(t))
           Alert(
             key: 't:${t.id}',
             title: t.title,
@@ -457,6 +479,7 @@ class AppController extends ChangeNotifier {
             alarm: t.alertKind == AlertKind.alarm,
           ),
       ...motivationAlerts(),
+      for (final provide in _alertProviders) ...provide(this),
     ];
   }
 
@@ -574,7 +597,7 @@ class AppController extends ChangeNotifier {
     for (final id in ids) {
       final i = _tasks.indexWhere((x) => x.id == id);
       if (i < 0 || _tasks[i].done) continue;
-      _tasks[i] = _tasks[i].copyWith(done: true, completedAt: () => t);
+      _tasks[i] = _tasks[i].copyWith(done: true, completedAt: () => t, completedBy: () => _me);
       changed = true;
     }
     if (changed) _changed({Slice.tasks});
@@ -684,6 +707,7 @@ class AppController extends ChangeNotifier {
       listId: list,
       quadrant: box,
       order: _nextOrder(list, box),
+      createdBy: _me,
     );
   }
 
@@ -746,12 +770,29 @@ class AppController extends ChangeNotifier {
     return t;
   }
 
+  /// This device's user for the task's who-did-it fields; null when unknown.
+  String? get _me => policy.me.isEmpty ? null : policy.me;
+
   void toggleTask(String id) {
     final i = _tasks.indexWhere((x) => x.id == id);
     if (i < 0) return;
     final t = _tasks[i];
-    _tasks[i] = t.copyWith(done: !t.done, completedAt: () => t.done ? null : now());
+    final at = now();
+    _tasks[i] = t.done
+        ? t.copyWith(done: false, completedAt: () => null, completedBy: () => null, reopenedAt: () => at)
+        : t.copyWith(done: true, completedAt: () => at, completedBy: () => _me);
     _changed({Slice.tasks});
+  }
+
+  /// Finishes an open task (a notification's Done action). Returns false,
+  /// changing nothing, when the task is unknown or already done; a finished
+  /// task is never reopened here.
+  bool completeTask(String id) {
+    final i = _tasks.indexWhere((x) => x.id == id);
+    if (i < 0 || _tasks[i].done) return false;
+    _tasks[i] = _tasks[i].copyWith(done: true, completedAt: now, completedBy: () => _me);
+    _changed({Slice.tasks});
+    return true;
   }
 
   void toggleSubtask(String taskId, String subId) {
@@ -911,6 +952,102 @@ class AppController extends ChangeNotifier {
       if (ids.contains(_tasks[j].id)) _tasks[j] = _tasks[j].copyWith(listId: l.id);
     }
     _changed({Slice.lists, Slice.tasks});
+  }
+
+  // ------------------------------------------------------------ remote sync
+
+  /// Applies changes from another device in one step: removals first, then
+  /// upserts, then the same repairs [load] makes (no lists brings back the
+  /// defaults; a task whose list is unknown goes to the first list). The
+  /// list new tasks go to is left as it is. Listeners hear one change.
+  void applyRemote(RemoteBatch b) {
+    if (b.isEmpty) return;
+    final slices = <Slice>{};
+
+    void upsert<T>(List<T> into, List<T> items, String Function(T) id) {
+      for (final x in items) {
+        final i = into.indexWhere((y) => id(y) == id(x));
+        if (i >= 0) {
+          into[i] = x;
+        } else {
+          into.add(x);
+        }
+      }
+    }
+
+    void remove<T>(List<T> from, Set<String> ids, String Function(T) id, Slice s) {
+      if (ids.isEmpty) return;
+      from.removeWhere((x) => ids.contains(id(x)));
+      slices.add(s);
+    }
+
+    // Notes whose ink stays on this device, read before any removal so a
+    // note removed and upserted in the same batch keeps it too.
+    final keepInk = {for (final n in b.notes) if (!b.inkChanged.contains(n.id)) n.id};
+    final localInk = {
+      for (final n in _notes)
+        if (keepInk.contains(n.id)) n.id: n.ink,
+    };
+    remove<TaskList>(_lists, b.removedLists, (l) => l.id, Slice.lists);
+    remove<TaskItem>(_tasks, b.removedTasks, (t) => t.id, Slice.tasks);
+    remove<Note>(_notes, b.removedNotes, (n) => n.id, Slice.notes);
+    remove<Reminder>(_reminders, b.removedReminders, (r) => r.id, Slice.reminders);
+    remove<Habit>(_habits, b.removedHabits, (h) => h.id, Slice.habits);
+    _dirtyInk.addAll(b.removedNotes.difference(keepInk));
+
+    if (b.lists.isNotEmpty) {
+      upsert<TaskList>(_lists, b.lists, (l) => l.id);
+      slices.add(Slice.lists);
+    }
+    if (b.tasks.isNotEmpty) {
+      upsert<TaskItem>(_tasks, b.tasks, (t) => t.id);
+      slices.add(Slice.tasks);
+    }
+    if (b.notes.isNotEmpty) {
+      for (final n in b.notes) {
+        final Note note;
+        if (keepInk.contains(n.id)) {
+          note = n.copyWith(ink: localInk[n.id] ?? const []);
+        } else {
+          // The ink came with the note: a pending load must not overwrite it.
+          note = n;
+          _dirtyInk.add(n.id);
+          _inkPending.remove(n.id);
+          _inkWaiters.remove(n.id)?.complete();
+        }
+        final i = _notes.indexWhere((x) => x.id == n.id);
+        if (i >= 0) {
+          _notes[i] = note;
+        } else {
+          _notes.insert(0, note);
+        }
+      }
+      slices.add(Slice.notes);
+    }
+    if (b.reminders.isNotEmpty) {
+      upsert<Reminder>(_reminders, b.reminders, (r) => r.id);
+      slices.add(Slice.reminders);
+    }
+    if (b.habits.isNotEmpty) {
+      upsert<Habit>(_habits, b.habits, (h) => h.id);
+      slices.add(Slice.habits);
+    }
+
+    if (_lists.isEmpty) {
+      _lists = TaskList.defaults(tr: isTurkish);
+      slices.add(Slice.lists);
+    }
+    if (slices.contains(Slice.lists)) _sortLists();
+    if (slices.contains(Slice.lists) || slices.contains(Slice.tasks)) {
+      final listIds = {for (final l in _lists) l.id};
+      for (var i = 0; i < _tasks.length; i++) {
+        if (!listIds.contains(_tasks[i].listId)) {
+          _tasks[i] = _tasks[i].copyWith(listId: _lists.first.id);
+          slices.add(Slice.tasks);
+        }
+      }
+    }
+    _changed(slices);
   }
 
   // ------------------------------------------------------------ voice capture
