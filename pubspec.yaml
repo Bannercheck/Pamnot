@@ -70,7 +70,6 @@ flutter:
   assets:
     - assets/lexicon/
     - assets/quotes/
-    - assets/guide/
 
   fonts:
     - family: Nunito

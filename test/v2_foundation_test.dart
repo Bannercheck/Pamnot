@@ -61,8 +61,8 @@ void main() {
   test('pubspec derleme numarası 8, takvim paketi, cümle ve kılavuz varlıkları kayıtlı', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     expect(pubspec, contains('version: 1.0.0+8'));
-    expect(pubspec, contains('    - assets/guide/'));
-    expect(File('assets/guide/README.md').existsSync(), isTrue);
+    expect(pubspec, isNot(contains('assets/guide/')));
+    expect(File('assets/guide/README.md').existsSync(), isFalse);
     expect(pubspec, contains('  device_calendar_plus: ^0.12.0'));
     expect(pubspec, contains('    - assets/quotes/'));
     for (final lang in ['tr', 'en']) {
