@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart' show ThemeMode;
 
+import '../features/calendar/calendar_models.dart' show CalendarViewMode;
+
 enum AppLanguage { system, tr, en }
 
 enum PredictionLanguage { auto, tr, en }
@@ -26,6 +28,8 @@ class AppSettings {
     this.guideCardDismissed = false,
     this.voiceUsed = false,
     this.overdueNotice = true,
+    this.calendarView = CalendarViewMode.day,
+    this.calendarShowPamnot = true,
   }) : motivationMinutes = motivationMinutes < 0 ? 0 : (motivationMinutes > 1439 ? 1439 : motivationMinutes);
 
   /// 09:00.
@@ -87,6 +91,12 @@ class AppSettings {
   /// One final notification when a task passes its due time.
   final bool overdueNotice;
 
+  /// The calendar view shown last.
+  final CalendarViewMode calendarView;
+
+  /// Tasks and reminders appear on the calendar next to the events.
+  final bool calendarShowPamnot;
+
   AppSettings copyWith({
     AppLanguage? language,
     ThemeMode? themeMode,
@@ -108,6 +118,8 @@ class AppSettings {
     bool? guideCardDismissed,
     bool? voiceUsed,
     bool? overdueNotice,
+    CalendarViewMode? calendarView,
+    bool? calendarShowPamnot,
   }) =>
       AppSettings(
         language: language ?? this.language,
@@ -130,6 +142,8 @@ class AppSettings {
         guideCardDismissed: guideCardDismissed ?? this.guideCardDismissed,
         voiceUsed: voiceUsed ?? this.voiceUsed,
         overdueNotice: overdueNotice ?? this.overdueNotice,
+        calendarView: calendarView ?? this.calendarView,
+        calendarShowPamnot: calendarShowPamnot ?? this.calendarShowPamnot,
       );
 
   Map<String, Object?> toJson() => {
@@ -153,6 +167,8 @@ class AppSettings {
         'guideCardDismissed': guideCardDismissed,
         'voiceUsed': voiceUsed,
         'overdueNotice': overdueNotice,
+        'calendarView': calendarView.name,
+        'calendarShowPamnot': calendarShowPamnot,
       };
 
   factory AppSettings.fromJson(Map<String, Object?> j) => AppSettings(
@@ -187,5 +203,8 @@ class AppSettings {
         guideCardDismissed: j['guideCardDismissed'] == true,
         voiceUsed: j['voiceUsed'] == true,
         overdueNotice: j['overdueNotice'] != false,
+        calendarView: CalendarViewMode.values.firstWhere((v) => v.name == j['calendarView'],
+            orElse: () => CalendarViewMode.day),
+        calendarShowPamnot: j['calendarShowPamnot'] != false,
       );
 }

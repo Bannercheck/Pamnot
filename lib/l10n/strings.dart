@@ -499,4 +499,26 @@ class S {
   String get overdueListTitle => _('Zamanı geçen görevler', 'Overdue tasks');
   String get overdueEmpty => _('Zamanı geçen görev yok.', 'Nothing is overdue.');
   String get taskClosed => _('Görev tamamlandı', 'Task completed');
+
+  // v3 K2: calendar
+  String get day => _('Gün', 'Day');
+  String get calendarPamnotToggle => _('Pamnot görevleri', 'Pamnot tasks');
+  String get calendarPamnotOn => _('Pamnot görevleri gösteriliyor', 'Pamnot tasks shown');
+  String get calendarPamnotOff => _('Yalnız takvim etkinlikleri', 'Calendar events only');
+  String moreItems(int n) => '+$n';
+  String moreItemsLabel(int n) => _('$n öğe daha', '$n more');
+  String get nowLine => _('Şimdi', 'Now');
+  String get eventDetails => _('Etkinlik', 'Event');
+  String get eventReadOnly => _('Bu etkinlik takviminden gelir; Pamnot’ta değiştirilemez.',
+      'This event comes from your calendar and cannot be changed in Pamnot.');
+  String get eventCalendar => _('Takvim', 'Calendar');
+  String itemMoved(String time) => _('$time saatine taşındı', 'Moved to $time');
+  String seriesMoved(String time) =>
+      _('Tekrarlayan anımsatıcının saati $time oldu', 'The repeating reminder now fires at $time');
+  String get dragHint =>
+      _('Saatini değiştirmek için basılı tutup sürükle', 'Press and hold, then drag to change the time');
+  String get calendarViewLabel => _('Takvim görünümü', 'Calendar view');
+  String taskAt(String title, String time) => _('Görev: $title, $time', 'Task: $title, $time');
+  String eventAt(String title, String time) => _('Etkinlik: $title, $time', 'Event: $title, $time');
+  String reminderAt(String title, String time) => _('Anımsatıcı: $title, $time', 'Reminder: $title, $time');
 }

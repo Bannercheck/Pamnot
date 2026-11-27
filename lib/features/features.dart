@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../state/app_controller.dart';
 import '../state/app_scope.dart';
+import 'calendar/calendar_view_controller.dart';
 
 /// The v3 features (calendar, meetings, sync, sharing) next to the
 /// [AppController]. Feature state lives here, never in the controller.
@@ -13,6 +14,9 @@ class Features {
   Features({required this.app});
 
   final AppController app;
+
+  /// The calendar page's state, created on first use.
+  late final CalendarViewController calendar = CalendarViewController(app);
 
   /// No platform bridges; everything runs in memory.
   static Features local(AppController app) => Features(app: app);
