@@ -8,6 +8,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:pamnot/app.dart';
 import 'package:pamnot/core/dates.dart';
 import 'package:pamnot/data/store.dart';
+import 'package:pamnot/features/calendar/calendar_item_card.dart';
+import 'package:pamnot/features/calendar/day_view.dart';
+import 'package:pamnot/features/features.dart';
 import 'package:pamnot/models/habit.dart';
 import 'package:pamnot/models/ink.dart';
 import 'package:pamnot/models/note.dart';
@@ -20,7 +23,6 @@ import 'package:pamnot/theme/pamnot_theme.dart';
 import 'package:pamnot/ui/common/glass_nav_bar.dart';
 import 'package:pamnot/ui/notes/ink/ink_canvas.dart';
 import 'package:pamnot/ui/notes/notes_page.dart';
-import 'package:pamnot/ui/planner/planner_page.dart';
 import 'package:pamnot/ui/tasks/task_tile.dart';
 import 'package:pamnot/ui/today/today_page.dart';
 
@@ -327,17 +329,23 @@ void main() {
     await shutdown(tester, c);
   });
 
-  testWidgets('plan gün hücresi tam tarihi ve seçili durumunu okur', (tester) async {
+  testWidgets('plan ay hücresi tam tarihi ve seçili durumunu okur; dokununca o günün Gün görünümü açılır', (tester) async {
     final c = await boot(tester);
     await openTab(tester, 'Plan');
-    final today = find.bySemanticsLabel(RegExp('Salı 27 Ekim'));
+    await tester.tap(find.text('Ay'));
+    await tester.pumpAndSettle();
+    final today = find.bySemanticsLabel(RegExp('27 Ekim Salı'));
     expect(today, findsOneWidget);
     expect(tester.getSemantics(today), isSemantics(isButton: true, isSelected: true, hasTapAction: true));
-    final tomorrow = find.bySemanticsLabel(RegExp('Çarşamba 28 Ekim'));
+    final tomorrow = find.bySemanticsLabel(RegExp('28 Ekim Çarşamba'));
     expect(tester.getSemantics(tomorrow), isSemantics(isButton: true, isSelected: false, hasTapAction: true));
     await semanticTap(tester, tomorrow);
-    expect(tester.getSemantics(find.bySemanticsLabel(RegExp('Çarşamba 28 Ekim'))), isSemantics(isSelected: true));
-    expect(tester.getSemantics(find.bySemanticsLabel(RegExp('Salı 27 Ekim'))), isSemantics(isSelected: false));
+    expect(find.byType(DayView), findsOneWidget);
+    expect(Features.of(tester.element(find.byType(DayView))).calendar.anchor, DateTime(2026, 10, 28));
+    await tester.tap(find.text('Ay'));
+    await tester.pumpAndSettle();
+    expect(tester.getSemantics(find.bySemanticsLabel(RegExp('28 Ekim Çarşamba'))), isSemantics(isSelected: true));
+    expect(tester.getSemantics(find.bySemanticsLabel(RegExp('27 Ekim Salı'))), isSemantics(isSelected: false));
     expect(find.byTooltip('Önceki'), findsOneWidget);
     expect(find.byTooltip('Sonraki'), findsOneWidget);
     await shutdown(tester, c);
@@ -441,10 +449,14 @@ void main() {
         expect(pinned, findsOneWidget);
       }
       if (tab == 'Plan') {
-        // The agenda's time column widens with the text instead of breaking "18:00".
-        final time = find.descendant(of: find.byType(PlannerPage), matching: find.text('18:00'));
-        expect(time, findsOneWidget);
-        expect(tester.getSize(find.ancestor(of: time, matching: find.byType(SizedBox)).first).width, 116);
+        // The 18:00 task on the Day view's grid: a full touch target, inside the screen.
+        final box = find.byKey(const Key('calendar-box-task-t2'));
+        await tester.scrollUntilVisible(box, 100,
+            scrollable: find.descendant(of: find.byType(TimeGrid), matching: find.byType(Scrollable)));
+        expect(tester.takeException(), isNull);
+        expect(tester.getSize(find.ancestor(of: box, matching: find.byType(CalendarItemCard))).height,
+            greaterThanOrEqualTo(44));
+        expect(tester.getRect(box).right, lessThanOrEqualTo(375));
       }
     }
     await shutdown(tester, c);

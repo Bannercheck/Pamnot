@@ -4,8 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:pamnot/core/dates.dart';
 import 'package:pamnot/data/store.dart';
+import 'package:pamnot/features/calendar/calendar_item_card.dart';
+import 'package:pamnot/features/calendar/calendar_models.dart';
+import 'package:pamnot/features/calendar/calendar_view.dart';
+import 'package:pamnot/features/calendar/day_view.dart';
+import 'package:pamnot/features/calendar/month_view.dart';
+import 'package:pamnot/features/calendar/week_view.dart';
+import 'package:pamnot/features/features.dart';
 import 'package:pamnot/l10n/strings.dart';
 import 'package:pamnot/models/settings.dart';
 import 'package:pamnot/services/calendar/calendar_source.dart';
@@ -13,6 +19,7 @@ import 'package:pamnot/services/links.dart';
 import 'package:pamnot/state/app_controller.dart';
 import 'package:pamnot/state/app_scope.dart';
 import 'package:pamnot/theme/pamnot_theme.dart';
+import 'package:pamnot/ui/tasks/task_tile.dart';
 import 'package:pamnot/ui/planner/planner_page.dart';
 import 'package:pamnot/ui/settings/settings_page.dart';
 
@@ -129,7 +136,7 @@ void main() {
     await shutdown(tester, c);
   });
 
-  testWidgets('izin verilince seçili günün etkinlikleri takvim renginde, onay kutusuz görünür', (tester) async {
+  testWidgets('izin verilince bugünün etkinlikleri Gün görünümünde takvim renginde, onay kutusuz görünür', (tester) async {
     cal.eventsList = [
       event('e1', DateTime(2026, 11, 25, 14), DateTime(2026, 11, 25, 15)),
       event('e2', DateTime(2026, 11, 26, 9), DateTime(2026, 11, 26, 10), title: 'Yarın'),
@@ -138,25 +145,22 @@ void main() {
     await tester.tap(find.byKey(const Key('show-calendar')));
     await tester.pumpAndSettle();
 
+    expect(find.byType(DayView), findsOneWidget);
     expect(find.text('Toplantı'), findsOneWidget);
     expect(find.text('Yarın'), findsNothing);
-    final row = find.ancestor(of: find.text('Toplantı'), matching: find.byType(AgendaRow));
-    expect(find.descendant(of: row, matching: find.text('14:00')), findsOneWidget);
-    expect(find.descendant(of: row, matching: find.text('15:00')), findsOneWidget);
-    expect(find.descendant(of: row, matching: find.byIcon(Icons.event_rounded)), findsOneWidget);
-    expect(find.descendant(of: row, matching: find.byType(Checkbox)), findsNothing);
-    expect(find.descendant(of: row, matching: find.byType(InkWell)), findsNothing);
-    final stripe = tester.widget<Container>(find.byKey(const Key('event-stripe-e1')));
-    expect(stripe.color, const Color(0xFFE53935));
-    expect(tester.getSize(find.byKey(const Key('event-stripe-e1'))).width, 4);
-    expect(
-      find.bySemanticsLabel('${tr.calendarEventLabel}: Toplantı, 14:00–15:00'),
-      findsOneWidget,
-    );
+    final card = find.byKey(const Key('calendar-face-event-e1'));
+    expect(card, findsOneWidget);
+    expect(find.descendant(of: card, matching: find.byIcon(Icons.event_rounded)), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.byType(Checkbox)), findsNothing);
+    expect(find.descendant(of: card, matching: find.byType(SoftCheck)), findsNothing);
+    final stripe = find.descendant(of: card, matching: find.byType(Container)).first;
+    expect(tester.widget<Container>(stripe).color, const Color(0xFFE53935));
+    expect(tester.getSize(stripe).width, 4);
+    expect(find.bySemanticsLabel(tr.eventAt('Toplantı', '14:00–15:00')), findsOneWidget);
     await shutdown(tester, c);
   });
 
-  testWidgets('etkinliğe dokunmak hiçbir şey açmaz', (tester) async {
+  testWidgets('etkinliğe dokunmak yalnız salt okunur ayrıntıyı açar; kayıt eklenmez', (tester) async {
     cal
       ..state = CalendarAccess.granted
       ..eventsList = [event('e1', DateTime(2026, 11, 25, 14), DateTime(2026, 11, 25, 15))];
@@ -164,7 +168,11 @@ void main() {
     expect(find.text('Toplantı'), findsOneWidget);
     await tester.tap(find.text('Toplantı'));
     await tester.pumpAndSettle();
-    expect(find.byType(BottomSheet), findsNothing);
+    final sheet = find.byKey(const Key('event-detail'));
+    expect(sheet, findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text(tr.eventReadOnly)), findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.textContaining('${tr.eventCalendar}: İş')), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
     expect(find.byType(Dialog), findsNothing);
     expect(find.byType(PlannerPage), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -267,7 +275,7 @@ void main() {
     c.dispose();
   });
 
-  testWidgets('RF5: bir günde 500 etkinlik: liste tembel kurulur, taşma yok', (tester) async {
+  testWidgets('RF5: bir günde 500 etkinlik: kartlar tembel kurulur, taşma yok', (tester) async {
     cal
       ..state = CalendarAccess.granted
       ..eventsList = [
@@ -275,14 +283,17 @@ void main() {
           event('e$i', DateTime(2026, 11, 25, 8, i), DateTime(2026, 11, 25, 9, i), title: 'Etkinlik $i'),
       ];
     final c = await pump(tester, const PlannerPage(), settings: shown);
-    expect(c.eventsOn(wednesday), hasLength(500));
+    final view = Features.of(tester.element(find.byType(CalendarView))).calendar;
+    expect(view.timedOn(wednesday), hasLength(500));
     expect(find.text('Etkinlik 0'), findsOneWidget);
-    expect(find.byType(AgendaRow).evaluate().length, lessThan(60));
+    expect(find.byType(CalendarItemCard).evaluate().length, lessThan(60));
     expect(tester.takeException(), isNull);
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -4000));
+    final calls = cal.eventsCalls.length;
+    await tester.drag(find.byType(TimeGrid), const Offset(0, -4000));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(cal.eventsCalls, hasLength(1));
+    expect(find.byType(CalendarItemCard).evaluate().length, lessThan(60));
+    expect(cal.eventsCalls, hasLength(calls));
     await shutdown(tester, c);
   });
 
@@ -333,9 +344,9 @@ void main() {
       ];
     final c = await pump(tester, const PlannerPage(), settings: shown);
     expect(find.text(tr.untitledEvent), findsOneWidget);
-    final row = find.ancestor(of: find.text(tr.untitledEvent), matching: find.byType(AgendaRow));
-    expect(find.descendant(of: row, matching: find.text(tr.allDay)), findsOneWidget);
-    expect(find.bySemanticsLabel('${tr.calendarEventLabel}: ${tr.untitledEvent}, ${tr.allDay}'), findsOneWidget);
+    final strip = find.ancestor(of: find.text(tr.untitledEvent), matching: find.byType(AllDayStrip));
+    expect(find.descendant(of: strip, matching: find.text(tr.allDay)), findsOneWidget);
+    expect(find.bySemanticsLabel(tr.eventAt(tr.untitledEvent, tr.allDay)), findsOneWidget);
     await shutdown(tester, c);
   });
 
@@ -418,10 +429,13 @@ void main() {
             title: 'Çok uzun bir etkinlik başlığı, iki satıra sarması gerekir'),
       ];
     c = await big(const PlannerPage(), shown);
-    await tester.scrollUntilVisible(find.byKey(const Key('event-stripe-e1')), 200,
-        scrollable: find.byType(Scrollable).first);
+    final box = find.byKey(const Key('calendar-box-event-e1'));
+    await tester.scrollUntilVisible(box, 100,
+        scrollable: find.descendant(of: find.byType(TimeGrid), matching: find.byType(Scrollable)));
     expect(tester.takeException(), isNull);
-    expect(tester.getSize(find.byType(AgendaRow)).height, greaterThanOrEqualTo(44));
+    expect(tester.getSize(find.ancestor(of: box, matching: find.byType(CalendarItemCard))).height,
+        greaterThanOrEqualTo(44));
+    expect(tester.getRect(box).right, lessThanOrEqualTo(375));
     await shutdown(tester, c);
 
     c = await big(const SettingsPage(), shown);
@@ -443,19 +457,22 @@ void main() {
     c.dispose();
   });
 
-  testWidgets('F1: oklarla hafta değişince seçim de kayar; görünen hafta sorgulanır, noktalar ve etkinlik görünür', (tester) async {
+  testWidgets('F1: hafta görünümünde oklar haftayı kaydırır; görünen hafta sorgulanır, etkinlik görünür', (tester) async {
     cal
       ..state = CalendarAccess.granted
       ..eventsList = [event('n', DateTime(2026, 12, 2, 9), DateTime(2026, 12, 2, 10), title: 'Gelecek hafta')];
-    final c = await pump(tester, const PlannerPage(), settings: shown);
-    expect(cal.eventsCalls, [(monday, DateTime(2026, 11, 30))]);
+    final c = await pump(tester, const PlannerPage(), settings: shown.copyWith(calendarView: CalendarViewMode.week));
+    expect(find.byType(WeekView), findsOneWidget);
+    expect(cal.eventsCalls, contains((monday, DateTime(2026, 11, 30))));
+    final view = Features.of(tester.element(find.byType(CalendarView))).calendar;
 
     await tester.tap(find.byTooltip(tr.next));
     await tester.pumpAndSettle();
-    // The visible week [Mon 30 Nov, Mon 7 Dec) is queried, the selection
-    // moved with it (Wednesday 2 December), so its event shows.
+    // The visible week [Mon 30 Nov, Mon 7 Dec) is queried, the anchor moved
+    // with it (Wednesday 2 December), so its event shows.
+    expect(view.anchor, DateTime(2026, 12, 2));
     expect(cal.eventsCalls.last, (DateTime(2026, 11, 30), DateTime(2026, 12, 7)));
-    expect(c.busyDays(DateTime(2026, 11, 30), 7)[dayKey(DateTime(2026, 12, 2))], 1);
+    expect(view.timedOn(DateTime(2026, 12, 2)).map((e) => e.title), ['Gelecek hafta']);
     expect(find.text('Gelecek hafta'), findsOneWidget);
 
     await tester.tap(find.byTooltip(tr.previous));
@@ -465,15 +482,26 @@ void main() {
     await shutdown(tester, c);
   });
 
-  testWidgets('F1: ay görünümünde ok seçimi yeni aya taşır (gün sınırlanır) ve o haftayı sorgular', (tester) async {
+  testWidgets('F1: ay görünümünde ok çapayı yeni aya taşır (gün sınırlanır) ve o ayın 6×7 ızgarasını sorgular', (tester) async {
     cal.state = CalendarAccess.granted;
     final c = await pump(tester, const PlannerPage(), settings: shown);
     await tester.tap(find.text(tr.month));
     await tester.pumpAndSettle();
+    expect(find.byType(MonthView), findsOneWidget);
+    final view = Features.of(tester.element(find.byType(CalendarView))).calendar;
     await tester.tap(find.byTooltip(tr.next));
     await tester.pumpAndSettle();
-    // 25 November -> 25 December; its week starts on Monday 21 December.
-    expect(cal.eventsCalls.last, (DateTime(2026, 12, 21), DateTime(2026, 12, 28)));
+    // 25 November -> 25 December; its grid runs from Monday 30 November for 42 days.
+    expect(view.anchor, DateTime(2026, 12, 25));
+    expect(cal.eventsCalls.last, (DateTime(2026, 11, 30), DateTime(2027, 1, 11)));
+
+    // 31 January -> 28 February.
+    view.goTo(DateTime(2027, 1, 31));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip(tr.next));
+    await tester.pumpAndSettle();
+    expect(view.anchor, DateTime(2027, 2, 28));
+    expect(find.text('Şubat 2027'), findsOneWidget);
     await shutdown(tester, c);
   });
 

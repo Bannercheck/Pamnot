@@ -189,6 +189,15 @@ class CalendarViewController extends ChangeNotifier {
     ];
   }
 
+  /// The loaded event [id], or null (not loaded, or the calendar is off).
+  CalendarEvent? eventById(String id) {
+    if (!_eventsShown) return null;
+    for (final e in _events) {
+      if (e.id == id) return e;
+    }
+    return null;
+  }
+
   // ------------------------------------------------------------------ items
 
   /// Timed tasks (30-minute boxes), reminder occurrences and timed events on

@@ -1,7 +1,13 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/dates.dart';
+import '../../features/calendar/calendar_layout.dart';
+import '../../features/calendar/calendar_view.dart';
+import '../../features/calendar/calendar_view_controller.dart';
+import '../../features/features.dart';
 import '../../l10n/strings.dart';
 import '../../models/reminder.dart';
 import '../../services/calendar/calendar_source.dart';
@@ -9,7 +15,6 @@ import '../../services/links.dart';
 import '../../state/app_controller.dart';
 import '../../state/app_scope.dart';
 import '../../theme/pamnot_theme.dart';
-import '../common/format.dart';
 import '../common/glass_nav_bar.dart';
 import '../common/page_header.dart';
 import '../common/soft.dart';
@@ -26,6 +31,9 @@ enum PlanSection { agenda, reminders }
 /// writes it back when the user switches.
 final planSection = ValueNotifier<PlanSection>(PlanSection.agenda);
 
+/// The calendar never gets shorter than this; the page scrolls instead.
+const minCalendarHeight = 440.0;
+
 class PlannerPage extends StatefulWidget {
   const PlannerPage({super.key});
 
@@ -34,12 +42,8 @@ class PlannerPage extends StatefulWidget {
 }
 
 class _PlannerPageState extends State<PlannerPage> {
-  DateTime? _selected;
-  DateTime? _anchor;
-  bool _month = false;
-
-  /// The calendar week last asked for, so a rebuild does not ask again.
-  String? _calendarWeekKey;
+  /// The calendar range last asked for, so a rebuild does not ask again.
+  String? _rangeKey;
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<PlanSection>(
@@ -49,30 +53,12 @@ class _PlannerPageState extends State<PlannerPage> {
 
   Widget _build(BuildContext context, PlanSection section) {
     final app = AppScope.of(context, {Slice.tasks, Slice.reminders, Slice.settings, Slice.calendar});
+    final calendar = Features.of(context).calendar;
     final s = S.of(context);
-    final today = dateOnly(app.now());
-    final mondayFirst = app.settings.mondayFirst;
-    final selected = _selected ?? today;
-    final anchor = _anchor ?? (_month ? DateTime(selected.year, selected.month) : startOfWeek(selected, mondayFirst: mondayFirst));
     final wide = MediaQuery.sizeOf(context).width >= 560;
     final pad = wide ? 28.0 : 16.0;
-    final agenda = app.agenda(selected);
     final reminders = section == PlanSection.reminders;
-    _requestCalendarWeek(app, selected);
-
-    // The selection moves with the arrows, so the visible week (or month) is
-    // always the one holding the selected day, and its week is the one
-    // queried for calendar events (design §9: only the visible week).
-    void shift(int dir) => setState(() {
-          if (_month) {
-            _anchor = DateTime(anchor.year, anchor.month + dir);
-            final last = DateTime(_anchor!.year, _anchor!.month + 1, 0).day;
-            _selected = DateTime(_anchor!.year, _anchor!.month, selected.day > last ? last : selected.day);
-          } else {
-            _anchor = addDays(anchor, 7 * dir);
-            _selected = addDays(selected, 7 * dir);
-          }
-        });
+    if (!reminders) _ensureRange(app, calendar);
 
     return Scaffold(
       floatingActionButton: reminders
@@ -84,29 +70,13 @@ class _PlannerPageState extends State<PlannerPage> {
             )
           : FloatingActionButton.extended(
               heroTag: 'plan-fab',
-              onPressed: () => _addFor(context, app, selected),
+              onPressed: () => _addFor(context, app, calendar.anchor),
               icon: const Icon(Icons.add_rounded),
               label: Text(s.add),
             ),
       body: CustomScrollView(
         slivers: [
-          PageHeader(
-            title: s.planner,
-            subtitle: reminders
-                ? null
-                : toBeginningOfSentenceCase(DateFormat('MMMM y', s.locale).format(_month ? anchor : addDays(anchor, 3))),
-            actions: [
-              if (!reminders)
-                IconButton(
-                  tooltip: s.goToToday,
-                  onPressed: () => setState(() {
-                    _selected = today;
-                    _anchor = null;
-                  }),
-                  icon: const Icon(Icons.today_rounded),
-                ),
-            ],
-          ),
+          PageHeader(title: s.planner),
           SliverPadding(
             padding: EdgeInsets.fromLTRB(pad, 4, pad, 8),
             sliver: SliverToBoxAdapter(
@@ -136,92 +106,28 @@ class _PlannerPageState extends State<PlannerPage> {
           if (reminders)
             RemindersList(app: app)
           else ...[
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(pad, 4, pad, 0),
-              sliver: SliverToBoxAdapter(
-                child: ContentWidth(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            tooltip: s.previous,
-                            onPressed: () => shift(-1),
-                            icon: const Icon(Icons.chevron_left_rounded),
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: SegmentedButton<bool>(
-                                showSelectedIcon: false,
-                                segments: [
-                                  ButtonSegment(value: false, label: Text(s.week)),
-                                  ButtonSegment(value: true, label: Text(s.month)),
-                                ],
-                                selected: {_month},
-                                onSelectionChanged: (v) => setState(() {
-                                  _month = v.first;
-                                  _anchor = null;
-                                }),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: s.next,
-                            onPressed: () => shift(1),
-                            icon: const Icon(Icons.chevron_right_rounded),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      AnimatedSwitcher(
-                        duration: motion(context, const Duration(milliseconds: 220)),
-                        child: _month
-                            ? _MonthGrid(
-                                key: ValueKey('m${anchor.year}-${anchor.month}'),
-                                app: app,
-                                month: anchor,
-                                selected: selected,
-                                today: today,
-                                mondayFirst: mondayFirst,
-                                onPick: (d) => setState(() => _selected = d),
-                              )
-                            : _WeekStrip(
-                                key: ValueKey('w${dayKey(anchor)}'),
-                                app: app,
-                                start: anchor,
-                                selected: selected,
-                                today: today,
-                                onPick: (d) => setState(() => _selected = d),
-                              ),
-                      ),
-                      if (app.calendar.isSupported) _CalendarPrompt(app: app),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: pad),
-              sliver: SliverToBoxAdapter(
-                child: ContentWidth(
-                  child: SectionHeader(
-                    toBeginningOfSentenceCase(longDate(s, selected)),
-                    icon: Icons.wb_sunny_outlined,
-                  ),
-                ),
-              ),
-            ),
-            if (agenda.isEmpty)
-              SliverToBoxAdapter(child: EmptyState(emoji: '☁️', text: s.emptyDay))
-            else
+            if (app.calendar.isSupported)
               SliverPadding(
                 padding: EdgeInsets.symmetric(horizontal: pad),
-                sliver: SliverList.separated(
-                  itemCount: agenda.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => ContentWidth(child: AgendaRow(app: app, entry: agenda[i])),
-                ),
+                sliver: SliverToBoxAdapter(child: ContentWidth(child: _CalendarPrompt(app: app))),
               ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pad, 8, pad, 0),
+              sliver: SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  // Fills the screen above the tab bar; on a short screen
+                  // (large text) keeps a usable height and the page scrolls.
+                  final rest = constraints.viewportMainAxisExtent -
+                      constraints.precedingScrollExtent -
+                      scrollEndSpace(context);
+                  return SliverToBoxAdapter(
+                    child: ContentWidth(
+                      child: SizedBox(height: math.max(minCalendarHeight, rest), child: const CalendarView()),
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
           SliverToBoxAdapter(child: SizedBox(height: scrollEndSpace(context))),
         ],
@@ -229,19 +135,16 @@ class _PlannerPageState extends State<PlannerPage> {
     );
   }
 
-  /// Loads the selected day's week of calendar events; the arrows move the
-  /// selection with the strip, so this is the visible week (in month view
-  /// too: only one week is ever queried). Also remembered while the calendar is
-  /// off, so turning it on loads this week.
-  void _requestCalendarWeek(AppController app, DateTime selected) {
-    if (!app.calendar.isSupported) return;
-    final st = app.settings;
-    final key = '${dayKey(startOfWeek(selected, mondayFirst: st.mondayFirst))}|${st.showCalendar}';
-    if (key == _calendarWeekKey) return;
-    _calendarWeekKey = key;
+  /// Loads the events of the visible range when the view, its range or the
+  /// calendar's state changed; [CalendarViewController.goTo] loads by itself.
+  void _ensureRange(AppController app, CalendarViewController calendar) {
+    final range = visibleRange(calendar.mode, calendar.anchor, mondayFirst: app.settings.mondayFirst);
+    final key = '${dayKey(range.from)}|${dayKey(range.to)}|${app.settings.showCalendar}|${app.calendarAccess.name}';
+    if (key == _rangeKey) return;
+    _rangeKey = key;
     // Not during build: a finished load notifies listeners.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) app.loadCalendarWeek(selected);
+      if (mounted) unawaited(calendar.ensureRange());
     });
   }
 
@@ -283,7 +186,7 @@ class _PlannerPageState extends State<PlannerPage> {
   }
 }
 
-/// Under the week strip: "Show calendar" until the user turns the calendar
+/// Above the calendar: "Show calendar" until the user turns the calendar
 /// on (the first tap asks for access) or while access was never decided,
 /// or why events are missing when access was refused.
 class _CalendarPrompt extends StatelessWidget {
@@ -317,175 +220,6 @@ class _CalendarPrompt extends StatelessWidget {
         onPressed: app.enableCalendar,
         icon: const Icon(Icons.event_rounded),
         label: Text(s.showCalendar),
-      ),
-    );
-  }
-}
-
-class _WeekStrip extends StatelessWidget {
-  const _WeekStrip({super.key, required this.app, required this.start, required this.selected, required this.today, required this.onPick});
-
-  final AppController app;
-  final DateTime start;
-  final DateTime selected;
-  final DateTime today;
-  final ValueChanged<DateTime> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final busy = app.busyDays(start, 7);
-    return Row(
-      children: [
-        for (var i = 0; i < 7; i++)
-          Expanded(
-            child: _DayCell(
-              day: addDays(start, i),
-              selected: selected,
-              today: today,
-              count: busy[dayKey(addDays(start, i))] ?? 0,
-              onTap: onPick,
-              showWeekday: true,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _MonthGrid extends StatelessWidget {
-  const _MonthGrid({
-    super.key,
-    required this.app,
-    required this.month,
-    required this.selected,
-    required this.today,
-    required this.mondayFirst,
-    required this.onPick,
-  });
-
-  final AppController app;
-  final DateTime month;
-  final DateTime selected;
-  final DateTime today;
-  final bool mondayFirst;
-  final ValueChanged<DateTime> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = S.of(context);
-    final t = Theme.of(context);
-    final first = startOfWeek(month, mondayFirst: mondayFirst);
-    final weeks = ((DateTime(month.year, month.month + 1, 1).difference(first).inHours / 24) / 7).ceil();
-    final busy = app.busyDays(first, weeks * 7);
-    return Column(
-      children: [
-        Row(
-          children: [
-            for (var i = 0; i < 7; i++)
-              Expanded(
-                child: Center(
-                  child: Text(
-                    DateFormat('E', s.locale).format(addDays(first, i)),
-                    style: t.textTheme.labelSmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        for (var w = 0; w < weeks; w++)
-          Row(
-            children: [
-              for (var i = 0; i < 7; i++)
-                Expanded(
-                  child: Opacity(
-                    opacity: addDays(first, w * 7 + i).month == month.month ? 1 : 0.35,
-                    child: _DayCell(
-                      day: addDays(first, w * 7 + i),
-                      selected: selected,
-                      today: today,
-                      count: busy[dayKey(addDays(first, w * 7 + i))] ?? 0,
-                      onTap: onPick,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-class _DayCell extends StatelessWidget {
-  const _DayCell({
-    required this.day,
-    required this.selected,
-    required this.today,
-    required this.count,
-    required this.onTap,
-    this.showWeekday = false,
-  });
-
-  final DateTime day;
-  final DateTime selected;
-  final DateTime today;
-  final int count;
-  final ValueChanged<DateTime> onTap;
-  final bool showWeekday;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context);
-    final c = t.colorScheme;
-    final isSel = isSameDay(day, selected);
-    final isToday = isSameDay(day, today);
-    final fg = isSel ? c.onPrimary : (isToday ? c.primary : c.onSurface);
-    // Read as the full date ("Salı 27 Ekim") instead of "Sal" and "27".
-    return Semantics(
-      container: true,
-      button: true,
-      selected: isSel,
-      label: DateFormat('EEEE d MMMM', S.of(context).locale).format(day),
-      onTap: () => onTap(day),
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: () => onTap(day),
-        child: AnimatedContainer(
-          duration: motion(context, const Duration(milliseconds: 200)),
-          margin: const EdgeInsets.all(3),
-          padding: EdgeInsets.symmetric(vertical: showWeekday ? 10 : 6),
-          decoration: BoxDecoration(
-            color: isSel ? c.primary : (isToday ? c.primaryContainer : Colors.transparent),
-            borderRadius: BorderRadius.circular(showWeekday ? 18 : 14),
-          ),
-          child: Column(
-            children: [
-              if (showWeekday)
-                Text(
-                  DateFormat('E', S.of(context).locale).format(day),
-                  style: t.textTheme.labelSmall?.copyWith(color: isSel ? c.onPrimary : c.onSurfaceVariant),
-                ),
-              Text('${day.day}', style: t.textTheme.titleMedium?.copyWith(color: fg)),
-              const SizedBox(height: 3),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < count.clamp(0, 3); i++)
-                    Container(
-                      width: 5,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                      decoration: BoxDecoration(
-                        color: isSel ? c.onPrimary.withValues(alpha: 0.8) : c.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  if (count == 0) const SizedBox(height: 5),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
