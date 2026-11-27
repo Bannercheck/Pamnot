@@ -145,4 +145,29 @@ void main() {
     final shown = placed.length + placed.fold<int>(0, (s, p) => s + p.hidden);
     expect(shown, 500);
   });
+
+  test('columnLimit: aynı saatte 3 öğe 2 sütuna sığar, fazlası "+1" olur', () {
+    final placed = layoutDay([
+      item('a', at(9), at(10)),
+      item('b', at(9), at(10)),
+      item('c', at(9), at(10)),
+    ], day, columnLimit: 2);
+    expect(placed, hasLength(2));
+    expect(placed.map((p) => p.columns).toSet(), {2});
+    expect(placed.map((p) => p.column).toSet(), {0, 1});
+    expect(placed.firstWhere((p) => p.column == 1).hidden, 1);
+    expect(placed.firstWhere((p) => p.column == 0).hidden, 0);
+  });
+
+  test('columnsFitting: her kart ≥ 44 pt kalacak kadar sütun, en az 1, en çok maxColumns', () {
+    expect(columnsFitting(30), 1);
+    expect(columnsFitting(91), 1);
+    expect(columnsFitting(92), 2);
+    expect(columnsFitting(108), 2);
+    expect(columnsFitting(138), 3);
+    expect(columnsFitting(1000), maxColumns);
+    for (final w in [46.0, 93.0, 108.0, 140.0, 320.0]) {
+      expect(w / columnsFitting(w) - cardGap, greaterThanOrEqualTo(minCardWidth), reason: 'genişlik $w');
+    }
+  });
 }

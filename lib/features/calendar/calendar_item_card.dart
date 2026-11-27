@@ -198,7 +198,8 @@ class _CardFace extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: LayoutBuilder(
           builder: (context, box) {
-            final roomy = box.maxWidth >= 40;
+            // The icon goes first when a narrow box also needs room for "+n".
+            final roomy = box.maxWidth >= (hidden > 0 ? 96 : 40);
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -275,7 +276,7 @@ class CalendarDayColumn extends StatelessWidget {
                   Positioned(
                     key: ValueKey('${p.item.kind.name}:${p.item.id}'),
                     left: box.maxWidth * p.column / p.columns,
-                    width: box.maxWidth / p.columns - 2,
+                    width: box.maxWidth / p.columns - cardGap,
                     top: inset + p.startMinute / 60 * hourHeight,
                     child: CalendarItemCard(
                       placed: p,

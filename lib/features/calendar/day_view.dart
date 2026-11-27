@@ -62,24 +62,34 @@ class _DayBodyState extends State<_DayBody> {
           final now = c.app.now();
           final today = isSameDay(now, widget.day);
           final allDay = c.allDayOn(widget.day);
-          final placed = layoutDay(c.timedOn(widget.day), widget.day);
+          final timed = c.timedOn(widget.day);
+          final t = Theme.of(context);
+          final style = hourLabelStyle(context, t.textTheme.labelSmall ?? const TextStyle(fontSize: 11));
+          final gutter = HourGridPainter.metrics(hourLabels, style).gutter;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (allDay.isNotEmpty) AllDayStrip(day: widget.day, items: allDay, onOpen: widget.onOpen),
               Expanded(
-                child: TimeGrid(
-                  clock: c.app.now,
-                  showNow: today,
-                  openAtMinute: today ? now.hour * 60.0 + now.minute - 60 : 8 * 60.0,
-                  columnsBuilder: (context, window, hourHeight, inset) => CalendarDayColumn(
-                    placed: placed,
-                    window: window,
-                    hourHeight: hourHeight,
-                    inset: inset,
-                    onOpen: widget.onOpen,
-                    onMove: (item, start) => moveWithUndo(context, c, item, start),
-                  ),
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    // The card area is what TimeGrid leaves right of the gutter.
+                    final placed =
+                        layoutDay(timed, widget.day, columnLimit: columnsFitting(box.maxWidth - gutter - 4));
+                    return TimeGrid(
+                      clock: c.app.now,
+                      showNow: today,
+                      openAtMinute: today ? now.hour * 60.0 + now.minute - 60 : 8 * 60.0,
+                      columnsBuilder: (context, window, hourHeight, inset) => CalendarDayColumn(
+                        placed: placed,
+                        window: window,
+                        hourHeight: hourHeight,
+                        inset: inset,
+                        onOpen: widget.onOpen,
+                        onMove: (item, start) => moveWithUndo(context, c, item, start),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

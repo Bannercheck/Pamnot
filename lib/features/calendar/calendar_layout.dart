@@ -45,13 +45,19 @@ class _Span {
   int hidden = 0;
 }
 
-/// Lays out the [timed] items of [day] in at most [maxColumns] columns.
+/// How many columns a day column [width] wide holds with every card at least
+/// [minCardWidth] wide: at least 1, at most [maxColumns].
+int columnsFitting(double width) => (width / (minCardWidth + cardGap)).floor().clamp(1, maxColumns);
+
+/// Lays out the [timed] items of [day] in at most [columnLimit] columns
+/// (clamped to 1..[maxColumns]).
 ///
 /// Items are sorted by start, then longest first; items that overlap in time
 /// form a group; each goes into the first free column. Items that fit in no
 /// column are not drawn: the box occupying the last column at that time
 /// counts them in [Placed.hidden]. Items not touching [day] are skipped.
-List<Placed> layoutDay(List<DayItem> timed, DateTime day) {
+List<Placed> layoutDay(List<DayItem> timed, DateTime day, {int columnLimit = maxColumns}) {
+  final limit = columnLimit.clamp(1, maxColumns);
   final dayStart = dateOnly(day);
   final nextDay = addDays(dayStart, 1);
   final spans = <_Span>[];
@@ -110,13 +116,13 @@ List<Placed> layoutDay(List<DayItem> timed, DateTime day) {
         break;
       }
     }
-    if (col < 0 && columnEnds.length < maxColumns) {
+    if (col < 0 && columnEnds.length < limit) {
       col = columnEnds.length;
       columnEnds.add(sp.end);
       occupants.add(sp);
     }
     if (col < 0) {
-      occupants[maxColumns - 1].hidden++;
+      occupants[limit - 1].hidden++;
       continue;
     }
     sp.column = col;

@@ -14,6 +14,12 @@ const snapStepMinutes = 15;
 /// Overlapping items share at most this many columns; the rest become "+n".
 const maxColumns = 3;
 
+/// A timed card is never narrower than this (the touch target rule).
+const minCardWidth = 44.0;
+
+/// The gap after each card in a shared row.
+const cardGap = 2.0;
+
 /// A month cell shows at most this many dots.
 const maxMonthDots = 3;
 

@@ -121,13 +121,16 @@ class _WeekBodyState extends State<_WeekBody> {
           final todayInWeek = days.any((d) => isSameDay(d, now));
           final style = hourLabelStyle(context, t.textTheme.labelSmall ?? const TextStyle(fontSize: 11));
           final gutter = HourGridPainter.metrics(hourLabels, style).gutter;
-          final placed = [for (final d in days) layoutDay(c.timedOn(d), d)];
+          final timed = [for (final d in days) c.timedOn(d)];
           final allDay = [for (final d in days) c.allDayOn(d)];
           return LayoutBuilder(
             builder: (context, box) {
               final wide = box.maxWidth >= wideWeekWidth;
               final colW = (box.maxWidth - gutter - 4) / (wide ? 7 : narrowWeekDays);
               _columnWidth = colW;
+              // Overlapping cards share colW; never narrower than minCardWidth.
+              final limit = columnsFitting(colW);
+              final placed = [for (var i = 0; i < 7; i++) layoutDay(timed[i], days[i], columnLimit: limit)];
               final columns = wide ? null : _columnsFor(colW);
               Widget row(List<Widget> children) => Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

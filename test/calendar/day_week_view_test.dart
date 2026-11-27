@@ -319,6 +319,28 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('hafta: aynı saatte 3 çakışan öğede kartlar ≥ 44 pt geniş, sığmayan "+n" olur', (tester) async {
+    const cases = [(Size(375, 812), 1.0), (Size(700, 800), 1.0), (Size(375, 812), 2.0)];
+    for (final (size, scale) in cases) {
+      final (a, v) = await setup(yesterday);
+      for (var i = 0; i < 3; i++) {
+        a.upsertTask(task('o$i', DateTime(2026, 11, 26, 10)));
+      }
+      v.mode = CalendarViewMode.week;
+      await pump(tester, WeekView(controller: v, onOpen: (_) {}), size: size, textScale: scale);
+      expect(tester.takeException(), isNull);
+      final cards = find.byType(CalendarItemCard);
+      final shown = cards.evaluate().length;
+      expect(shown, inInclusiveRange(1, 2), reason: '$size x$scale');
+      for (final e in cards.evaluate()) {
+        expect(tester.getSize(find.byWidget(e.widget)).width, greaterThanOrEqualTo(44), reason: '$size x$scale');
+      }
+      expect(find.text('+${3 - shown}'), findsOneWidget, reason: '$size x$scale');
+      await shutdown(tester);
+    }
+    await done(tester);
+  });
+
   testWidgets('Hareketi Azalt: sürükleme bırakılınca animasyon süresi sıfır', (tester) async {
     final (a, v) = await setup(yesterday);
     a.upsertTask(task('t1', DateTime(2026, 11, 26, 10, 30)));
